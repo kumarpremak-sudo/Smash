@@ -79,25 +79,28 @@ document.addEventListener("DOMContentLoaded", () => {
 function initTheme() {
   const savedTheme = localStorage.getItem("theme") || "dark";
   const btn = document.getElementById("themeToggle");
+  
   if (savedTheme === "light") {
     document.body.classList.add("light-theme");
-    btn.textContent = "🌙";
+    if (btn) btn.textContent = "🌙";
   } else {
     document.body.classList.remove("light-theme");
-    btn.textContent = "☀️";
+    if (btn) btn.textContent = "☀️";
   }
   
-  btn.addEventListener("click", () => {
-    if (document.body.classList.contains("light-theme")) {
-      document.body.classList.remove("light-theme");
-      localStorage.setItem("theme", "dark");
-      btn.textContent = "☀️";
-    } else {
-      document.body.classList.add("light-theme");
-      localStorage.setItem("theme", "light");
-      btn.textContent = "🌙";
-    }
-  });
+  if (btn) {
+    btn.addEventListener("click", () => {
+      if (document.body.classList.contains("light-theme")) {
+        document.body.classList.remove("light-theme");
+        localStorage.setItem("theme", "dark");
+        btn.textContent = "☀️";
+      } else {
+        document.body.classList.add("light-theme");
+        localStorage.setItem("theme", "light");
+        btn.textContent = "🌙";
+      }
+    });
+  }
 }
 
 // ── Screen Manager ─────────────────────────────────────────
