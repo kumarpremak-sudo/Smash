@@ -45,15 +45,20 @@ const monthNames = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+const isLoginPage = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname === "";
+
 // ── Initialization & Config Validation ─────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   
   const isConfigured = window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
   if (!isConfigured) {
-    document.getElementById("setupBanner").classList.remove("hidden");
-    document.getElementById("btnGoogleLogin").disabled = true;
-    document.getElementById("btnGuestLogin").disabled = true;
+    const banner = document.getElementById("setupBanner");
+    if (banner) banner.classList.remove("hidden");
+    const btnGoogle = document.getElementById("btnGoogleLogin");
+    if (btnGoogle) btnGoogle.disabled = true;
+    const btnGuest = document.getElementById("btnGuestLogin");
+    if (btnGuest) btnGuest.disabled = true;
     console.warn("Firebase config is missing or unconfigured. Populate config.js to begin.");
     return;
   }
@@ -114,26 +119,32 @@ function showScreen(screenId) {
 
 // ── Auth Handling ──────────────────────────────────────────
 async function handleAuthStateChange(user) {
-  const header = document.getElementById("appHeader");
   if (user) {
     currentUser = user;
+    if (isLoginPage) {
+      window.location.href = "dashboard.html";
+      return;
+    }
     
     // Update profile UI
+    const header = document.getElementById("appHeader");
     const avatar = document.getElementById("userAvatar");
     const nameEl = document.getElementById("userName");
     const menuEmail = document.getElementById("userMenuEmail");
     
-    nameEl.textContent = user.displayName || (user.isAnonymous ? "Guest Player" : "Member");
-    menuEmail.textContent = user.email || "Anonymous Guest Account";
+    if (nameEl) nameEl.textContent = user.displayName || (user.isAnonymous ? "Guest Player" : "Member");
+    if (menuEmail) menuEmail.textContent = user.email || "Anonymous Guest Account";
     
-    if (user.photoURL) {
-      avatar.innerHTML = `<img src="${user.photoURL}" alt="avatar">`;
-    } else {
-      avatar.innerHTML = user.isAnonymous ? "👤" : (user.email ? user.email.charAt(0).toUpperCase() : "?");
+    if (avatar) {
+      if (user.photoURL) {
+        avatar.innerHTML = `<img src="${user.photoURL}" alt="avatar">`;
+      } else {
+        avatar.innerHTML = user.isAnonymous ? "👤" : (user.email ? user.email.charAt(0).toUpperCase() : "?");
+      }
     }
     
     // Show Header
-    header.classList.remove("hidden");
+    if (header) header.classList.remove("hidden");
     
     // Auto-fill forms with user email & name if available
     const nameInput = document.getElementById("customer_name");
@@ -155,102 +166,103 @@ async function handleAuthStateChange(user) {
     
   } else {
     currentUser = null;
-    header.classList.add("hidden");
+    if (!isLoginPage) {
+      window.location.href = "index.html";
+      return;
+    }
+    const header = document.getElementById("appHeader");
+    if (header) header.classList.add("hidden");
     showScreen("loginScreen");
   }
 }
 
 // ── Event Listeners Binding ────────────────────────────────
 function setupEventListeners() {
+  const addClick = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", fn);
+  };
+  const addSubmit = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("submit", fn);
+  };
+
   // Sign In Trigger Buttons
-  document.getElementById("btnGoogleLogin").addEventListener("click", loginWithGoogle);
-  document.getElementById("btnGuestLogin").addEventListener("click", loginAsGuest);
+  addClick("btnGoogleLogin", loginWithGoogle);
+  addClick("btnGuestLogin", loginAsGuest);
   
   // Sign Out Dropdown Toggles
-  document.getElementById("userPill").addEventListener("click", (e) => {
+  addClick("userPill", (e) => {
     e.stopPropagation();
-    document.getElementById("userMenu").classList.toggle("active");
+    const menu = document.getElementById("userMenu");
+    if (menu) menu.classList.toggle("active");
   });
   
   document.addEventListener("click", () => {
-    document.getElementById("userMenu").classList.remove("active");
+    const menu = document.getElementById("userMenu");
+    if (menu) menu.classList.remove("active");
   });
   
-  document.getElementById("btnSignOut").addEventListener("click", () => {
-    signOut(auth);
-  });
+  addClick("btnSignOut", () => signOut(auth));
   
   // Navigation
-  document.getElementById("logoBtn").addEventListener("click", () => showScreen("homeScreen"));
-  document.getElementById("navHome").addEventListener("click", (e) => {
-    e.preventDefault();
-    showScreen("homeScreen");
-  });
-  document.getElementById("navDaily").addEventListener("click", (e) => {
-    e.preventDefault();
-    showScreen("dailyScreen");
-    loadDailyGrid();
-  });
+  addClick("logoBtn", () => showScreen("homeScreen"));
+  addClick("navHome", (e) => { e.preventDefault(); showScreen("homeScreen"); });
+  addClick("navDaily", (e) => { e.preventDefault(); showScreen("dailyScreen"); loadDailyGrid(); });
   
   // Mobile menu hamburger
-  const hamburger = document.getElementById("hamburgerBtn");
-  const nav = document.getElementById("desktopNav");
-  hamburger.addEventListener("click", (e) => {
+  addClick("hamburgerBtn", (e) => {
     e.stopPropagation();
-    nav.classList.toggle("active");
+    const nav = document.getElementById("desktopNav");
+    if (nav) nav.classList.toggle("active");
   });
   
   // Dashboard Calendar Controls
-  document.getElementById("prev-month").addEventListener("click", () => {
+  addClick("prev-month", () => {
     currentMonth--;
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     renderCalendar();
   });
-  document.getElementById("next-month").addEventListener("click", () => {
+  addClick("next-month", () => {
     currentMonth++;
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
     renderCalendar();
   });
   
   // Open Booking form Modal (Dashboard Button)
-  document.getElementById("btnOpenNewBooking").addEventListener("click", () => {
-    openBookingFormModal();
-  });
-  
-  // Quick View Matrix Card
-  document.getElementById("quickDailyGridBtn").addEventListener("click", () => {
-    showScreen("dailyScreen");
-    loadDailyGrid();
-  });
+  addClick("btnOpenNewBooking", openBookingFormModal);
+  addClick("quickDailyGridBtn", () => { showScreen("dailyScreen"); loadDailyGrid(); });
   
   // Modal Close
-  document.getElementById("modalClose").addEventListener("click", closeModal);
-  document.getElementById("bookingModal").addEventListener("click", (e) => {
-    if (e.target === document.getElementById("bookingModal")) closeModal();
-  });
+  addClick("modalClose", closeModal);
+  const modal = document.getElementById("bookingModal");
+  if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
   
   // Form submissions
-  document.getElementById("bookingForm").addEventListener("submit", handleBookingSubmit);
-  document.getElementById("quickBookingForm").addEventListener("submit", handleQuickBookingSubmit);
-  document.getElementById("editBookingForm").addEventListener("submit", handleEditBookingSubmit);
-  document.getElementById("pricingForm").addEventListener("submit", handlePricingSubmit);
+  addSubmit("bookingForm", handleBookingSubmit);
+  addSubmit("quickBookingForm", handleQuickBookingSubmit);
+  addSubmit("editBookingForm", handleEditBookingSubmit);
+  addSubmit("pricingForm", handlePricingSubmit);
   
   // Member/Player Enrollment Submit
-  document.getElementById("btnEnrollSubmit").addEventListener("click", handleEnrollmentSubmit);
+  addClick("btnEnrollSubmit", handleEnrollmentSubmit);
   
   // Edit & Delete booking actions
-  document.getElementById("btnEditBooking").addEventListener("click", showEditBookingForm);
-  document.getElementById("btnCancelEdit").addEventListener("click", showBookingDetailsView);
-  document.getElementById("btnDeleteBooking").addEventListener("click", handleBookingDelete);
+  addClick("btnEditBooking", showEditBookingForm);
+  addClick("btnCancelEdit", showBookingDetailsView);
+  addClick("btnDeleteBooking", handleBookingDelete);
   
   // Daily Matrix Date Controls
-  document.getElementById("daily-date-input").value = formatSelectedDate(selectedDate);
-  document.getElementById("daily-date-input").addEventListener("change", (e) => {
-    selectedDate = new Date(e.target.value);
-    loadDailyGrid();
-  });
-  document.getElementById("prev-day").addEventListener("click", () => changeDailyDay(-1));
-  document.getElementById("next-day").addEventListener("click", () => changeDailyDay(1));
+  const dailyDateInput = document.getElementById("daily-date-input");
+  if (dailyDateInput) {
+    dailyDateInput.value = formatSelectedDate(selectedDate);
+    dailyDateInput.addEventListener("change", (e) => {
+      selectedDate = new Date(e.target.value);
+      loadDailyGrid();
+    });
+  }
+  addClick("prev-day", () => changeDailyDay(-1));
+  addClick("next-day", () => changeDailyDay(1));
 }
 
 // ── Google & Guest Logins ──────────────────────────────────
