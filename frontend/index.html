@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smash. | Court Operations & Management Dashboard</title>
+  <meta name="description" content="Badminton Court Management Portal for owners and administrators. Manage bookings, schedule blocks, and coordinate training lists." />
+  
+  <!-- Styling -->
+  <link rel="stylesheet" href="style.css" />
+  
+  <!-- Load Config first -->
+  <script src="config.js?v=1.1"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- ═══════════════════════════════════════════════════════════
+         HEADER
+         ════════════════════════════════════════════════════════════ -->
+    <header id="appHeader" class="hidden">
+      <div class="logo" id="logoBtn">
+        <img src="logo.png" alt="Smash Logo" class="logo-icon" style="height: 36px; width: auto; border-radius: 6px; object-fit: contain;" />
+        <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
+      </div>
+      
+      <div class="header-right">
+        <!-- Desktop Nav -->
+        <nav class="header-nav" id="desktopNav">
+          <a href="#" class="nav-link active" id="navHome">Dashboard</a>
+          <a href="#" class="nav-link" id="navDaily">Daily Matrix</a>
+        </nav>
+        
+        <!-- User Menu Pill -->
+        <div class="user-pill" id="userPill">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">Loading...</span>
+          
+          <!-- Dropdown menu -->
+          <div class="user-menu" id="userMenu">
+            <div class="user-menu-item user-menu-email" id="userMenuEmail">user@domain.com</div>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item danger" id="btnSignOut">⎋ Sign Out</button>
+          </div>
+        </div>
+        
+        <!-- Light/Dark Toggle -->
+        <button id="themeToggle" class="theme-toggle" title="Switch Theme">☀️</button>
+        
+        <!-- Mobile Menu Hamburger -->
+        <button class="btn-hamburger" id="hamburgerBtn" title="Toggle Menu">
+          <span><span></span></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         1. LOGIN PORTAL SCREEN
+         ════════════════════════════════════════════════════════════ -->
+    <div id="loginScreen" class="screen active">
+      
+      <!-- Left Panel: Branding (Desktop) -->
+      <div class="login-brand">
+        <div class="login-brand-inner">
+          <div class="login-brand-logo">
+            <img src="logo.png" alt="Smash Logo" style="height: 48px; width: auto; border-radius: 8px; object-fit: contain;" />
+            <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
+          </div>
+          <div class="login-brand-headline">
+            Court Administration & <em>Operations Hub</em>
+          </div>
+          <div class="login-brand-sub">
+            Welcome to Smash., the dedicated command center for badminton court owners and administrators. Manage bookings, block out coaching slots, coordinate daily schedule timelines, and organize training lists in real-time.
+          </div>
+          
+          <div class="login-brand-features">
+            <div class="login-brand-feat">
+              <div class="login-brand-feat-icon">⚡</div>
+              <div class="login-brand-feat-text">
+                <strong>Admin Booking Overrides</strong>
+                Instantly schedule, adjust, or cancel court allocations on behalf of members.
+              </div>
+            </div>
+            <div class="login-brand-feat">
+              <div class="login-brand-feat-icon">🗓️</div>
+              <div class="login-brand-feat-text">
+                <strong>Bulk Operations</strong>
+                Block entire months or weekday rows for training academies, tournaments, or maintenance.
+              </div>
+            </div>
+            <div class="login-brand-feat">
+              <div class="login-brand-feat-icon">📊</div>
+              <div class="login-brand-feat-text">
+                <strong>Trainee Attendance</strong>
+                Register kids or members to specific coaching blocks and monitor session sizes.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Login Action -->
+      <div class="login-form-panel">
+        <div class="login-form-wrap">
+          <div class="login-card">
+            
+            <div class="login-logo">
+              <img src="logo.png" alt="Smash Logo" style="height: 36px; width: auto; border-radius: 6px; object-fit: contain;" />
+              <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
+            </div>
+            <div class="login-form-heading">Operations Login</div>
+            <div class="login-tagline">Court Owner & Administrator Console</div>
+            
+            <!-- Setup Warning Banner (If config.js is not modified) -->
+            <div class="setup-banner hidden" id="setupBanner">
+              <strong>⚠️ Setup Required</strong><br>
+              Firestore / Firebase API Keys are missing. Please populate the credentials in <code>frontend/config.js</code> to initialize connections.
+            </div>
+
+            <!-- Google Login Button -->
+            <button id="btnGoogleLogin" class="login-action-btn btn-google">
+              <svg class="google-logo-svg" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              Sign In with Google
+            </button>
+            
+            <div class="login-divider"><span>or</span></div>
+            
+            <!-- Guest Mode Button -->
+            <button id="btnGuestLogin" class="login-action-btn btn-guest">
+              👤 Continue as Guest Administrator
+            </button>
+            
+            <div class="login-note">
+              Signing in synchronizes schedules across your devices. Guest session saves operational controls locally on this browser.
+            </div>
+            
+            <div id="loginError" class="message error hidden"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         2. DASHBOARD / HOME SCREEN
+         ════════════════════════════════════════════════════════════ -->
+    <div id="homeScreen" class="screen">
+      
+      <!-- Greeting Row -->
+      <div class="home-welcome">
+        <h2>Hello, <span id="homeWelcomeName">Admin</span> 👋</h2>
+        <div class="home-welcome-sub">Court Management Console & Scheduling Dashboard</div>
+      </div>
+      
+      <!-- Dashboard Stats -->
+      <div class="home-section-label">Operations Summary</div>
+      <div class="home-nav-grid">
+        <div class="home-card courts">
+          <div class="home-card-icon">⚡</div>
+          <div class="home-card-title">Active Court Inventory</div>
+          <div class="home-card-stat" id="statCourtsCount">3</div>
+          <div class="home-card-desc">Seeded synthetic courts currently available for schedule mapping.</div>
+        </div>
+        
+        <div class="home-card bookings">
+          <div class="home-card-icon">🗓️</div>
+          <div class="home-card-title">Month Allocations</div>
+          <div class="home-card-stat" id="statBookingsCount">—</div>
+          <div class="home-card-desc">Total bookings processed and active in the current calendar month.</div>
+        </div>
+        
+        <div class="home-card schedule" id="quickDailyGridBtn" style="cursor:pointer;">
+          <div class="home-card-icon">📊</div>
+          <div class="home-card-title">Daily Schedule Matrix</div>
+          <div class="home-card-stat">Open Matrix</div>
+          <div class="home-card-desc">Manage hourly timelines, blocks, and quick reservations.</div>
+        </div>
+      </div>
+      
+      <!-- Revenue & Financial Console -->
+      <div class="home-section-label">Financial Console</div>
+      <div class="glass-panel financial-console-card">
+        
+        <!-- Left: Metrics breakdown -->
+        <div>
+          <h3 style="margin-bottom: 1rem; color: var(--text);">Revenue Projection for <span id="revenueMonthName" style="color: var(--accent);">June 2026</span></h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            
+            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Single Bookings</div>
+              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--text);" id="revSingleVal">₹0</div>
+              <div style="font-size: 0.7rem; color: var(--muted);" id="revSingleHrs">0 hours booked</div>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Monthly Members</div>
+              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--accent4);" id="revMembersVal">₹0</div>
+              <div style="font-size: 0.7rem; color: var(--muted);" id="revMembersCount">0 unique members</div>
+            </div>
+            
+            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Kids Training</div>
+              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--purple);" id="revKidsVal">₹0</div>
+              <div style="font-size: 0.7rem; color: var(--muted);" id="revKidsCount">0 unique kids</div>
+            </div>
+            
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 1rem; background: rgba(0, 230, 118, 0.06); border: 1px solid rgba(0, 230, 118, 0.2); padding: 1rem; border-radius: var(--radius-md);">
+            <div style="font-size: 1.8rem;">💰</div>
+            <div>
+              <div style="font-size: 0.8rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Total Projected Revenue</div>
+              <div style="font-family: var(--font-mono); font-size: 1.8rem; font-weight: 800; color: var(--accent);" id="revTotalVal">₹0</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right: Pricing Configurations -->
+        <div style="border-left: 1px solid var(--border); padding-left: 2rem; display: flex; flex-direction: column; justify-content: center;">
+          <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text);">Pricing Settings</h4>
+          <form id="pricingForm" style="display: flex; flex-direction: column; gap: 0.8rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <label style="font-size: 0.75rem;" for="rate_single">Single Slot (₹/hr):</label>
+              <input type="number" id="rate_single" style="width: 100px; padding: 0.4rem 0.6rem; text-align: right;" value="500" required />
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <label style="font-size: 0.75rem;" for="rate_member">Member (₹/mo):</label>
+              <input type="number" id="rate_member" style="width: 100px; padding: 0.4rem 0.6rem; text-align: right;" value="1000" required />
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+              <label style="font-size: 0.75rem;" for="rate_kid">Kids Training (₹/mo):</label>
+              <input type="number" id="rate_kid" style="width: 100px; padding: 0.4rem 0.6rem; text-align: right;" value="1500" required />
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.85rem; width: 100%;" id="btnSavePricing">Update Pricing Rates</button>
+          </form>
+          <div id="pricingMessage" class="message hidden" style="margin-top: 0.5rem; padding: 0.4rem;"></div>
+        </div>
+        
+      </div>
+      
+      <!-- Main Layout Panels -->
+      <div class="dashboard-sections">
+        
+        <!-- Left: Calendar panel -->
+        <div class="calendar-panel">
+          <div class="calendar-header">
+            <button id="prev-month">&lt;</button>
+            <h3 id="month-year">June 2026</h3>
+            <button id="next-month">&gt;</button>
+          </div>
+          <div class="calendar-days-header">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid">
+            <!-- Dynamic calendar slots -->
+          </div>
+        </div>
+        
+        <!-- Right: Day listing and actions -->
+        <div class="selected-day-container">
+          <div class="selected-day-header">
+            <h3>Reservations</h3>
+            <span class="selected-date-badge" id="selected-date-display">2026-06-20</span>
+          </div>
+          
+          <div id="availability-grid" class="availability-grid">
+            <!-- Dynamically listing bookings -->
+            <p class="no-bookings-text">No bookings for this date.</p>
+          </div>
+          
+          <button class="btn btn-primary" id="btnOpenNewBooking" style="width: 100%; margin-top: 0.5rem;">
+            ➕ Reserve A Court
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         3. DAILY MATRIX TIMELINE SCREEN
+         ════════════════════════════════════════════════════════════ -->
+    <div id="dailyScreen" class="screen">
+      
+      <!-- Date Picker controls -->
+      <div class="daily-header-row">
+        <div>
+          <h2>Daily Operational Schedule Timeline</h2>
+          <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.2rem;">Select any open block to create a booking or lock a court. Select allocated block to manage enrollees.</p>
+        </div>
+        
+        <div class="daily-date-controls">
+          <button id="prev-day">&lt;</button>
+          <input type="date" id="daily-date-input" class="daily-date-input" />
+          <button id="next-day">&gt;</button>
+        </div>
+      </div>
+
+      <!-- Schedule Table -->
+      <div class="daily-matrix-container">
+        <div class="table-responsive">
+          <table class="daily-matrix">
+            <thead>
+              <tr id="matrix-header-row">
+                <th>Time</th>
+                <!-- Courts headers injected here -->
+              </tr>
+            </thead>
+            <tbody id="matrix-body">
+              <!-- Grid slots injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         5. MODAL POPUPS (Unified Popup Controller)
+         ════════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay hidden" id="bookingModal">
+      <div class="modal-content">
+        <span class="close-modal" id="modalClose">&times;</span>
+        
+        <!-- Header -->
+        <div class="modal-header-section">
+          <h2 id="modalTitle">Allocate Court Slot</h2>
+        </div>
+        
+        <!-- Body -->
+        <div class="modal-body-section">
+          
+          <!-- View 1: Booking Details & Enrollment / Edit Option -->
+          <div id="modalDetailsView" class="hidden">
+            <div class="booking-details-list">
+              <div class="booking-details-item">
+                <span class="booking-details-label">Court:</span>
+                <span class="booking-details-val" id="detCourt">Court 1</span>
+              </div>
+              <div class="booking-details-item">
+                <span class="booking-details-label">Time:</span>
+                <span class="booking-details-val" id="detTime">08:00 - 09:00</span>
+              </div>
+              <div class="booking-details-item">
+                <span class="booking-details-label">Organizer:</span>
+                <span class="booking-details-val" id="detName">John Doe</span>
+              </div>
+              <div class="booking-details-item">
+                <span class="booking-details-label">Contact:</span>
+                <span class="booking-details-val" id="detEmail">john@domain.com</span>
+              </div>
+            </div>
+            
+            <!-- Owner actions (Edit / Delete) -->
+            <div style="display: flex; gap: 0.8rem; margin-bottom: 1.5rem;" id="ownerActions" class="hidden">
+              <button class="btn btn-secondary" style="flex: 1;" id="btnEditBooking">Edit Details</button>
+              <button class="btn btn-danger" style="flex: 1;" id="btnDeleteBooking">Cancel Booking</button>
+            </div>
+            
+            <!-- Enrollees list -->
+            <div class="enrollees-container">
+              <div class="enrollees-header">Registered Members / Trainees</div>
+              <ul class="enrollees-list" id="enrollees-list">
+                <li>👤 Alice</li>
+                <li>👤 Bob</li>
+              </ul>
+              
+              <div class="enrollees-input-row" id="enrollActionRow">
+                <input type="text" id="newEnrolleeInput" placeholder="Enter trainee name" style="flex: 1.5;" />
+                <select id="newEnrolleeType" style="flex: 1; padding: 0.5rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md);">
+                  <option value="Member">Member</option>
+                  <option value="Kid">Kid Training</option>
+                </select>
+                <button class="btn btn-primary" id="btnEnrollSubmit" style="width: auto; margin-top: 0; padding: 0.5rem 1rem;">Add</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- View 2: Edit Booking Form -->
+          <div id="modalEditFormView" class="hidden">
+            <form id="editBookingForm">
+              <div class="form-group">
+                <label for="editCustomerName">Organizer Name</label>
+                <input type="text" id="editCustomerName" required />
+              </div>
+              <div class="form-group">
+                <label for="editCustomerEmail">Email Address</label>
+                <input type="email" id="editCustomerEmail" required />
+              </div>
+              <div style="display: flex; gap: 0.8rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-secondary" style="flex: 1;" id="btnCancelEdit">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- View 3: Full/Form Booking Reservation (dashboard standard) -->
+          <div id="modalBookingFormView" class="hidden">
+            <form id="bookingForm">
+              <div class="form-group">
+                <label for="booking_type">Allocation Schedule Mode</label>
+                <select id="booking_type" name="booking_type" required>
+                  <option value="single">Single Day Block (Selected date only)</option>
+                  <option value="month_all">Daily Recurring Month Block (All dates in month)</option>
+                  <option value="month_weekdays">Weekday Recurring Month Block (Mon-Fri only)</option>
+                </select>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="start_time">Start Time</label>
+                  <input type="time" id="start_time" name="start_time" required />
+                </div>
+                <div class="form-group">
+                  <label for="end_time">End Time</label>
+                  <input type="time" id="end_time" name="end_time" required />
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="court_id">Select Court</label>
+                <select id="court_id" name="court_id" required>
+                  <option value="" disabled selected>Loading courts...</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="customer_name">Organizer Name / Allocation Description</label>
+                <input type="text" id="customer_name" name="customer_name" placeholder="E.g. Coaching Academy, Tournament Block, or John Doe" required />
+              </div>
+              
+              <div class="form-group">
+                <label for="customer_email">Admin/Organizer Contact Email</label>
+                <input type="email" id="customer_email" name="customer_email" placeholder="admin@yesmash.in" required />
+              </div>
+              
+              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Confirm Reservation</button>
+            </form>
+          </div>
+          
+          <!-- View 4: Quick Booking Form (from matrix cell click) -->
+          <div id="modalQuickFormView" class="hidden">
+            <form id="quickBookingForm">
+              <input type="hidden" id="quickCourtId" />
+              <input type="hidden" id="quickStartTime" />
+              <input type="hidden" id="quickEndTime" />
+              
+              <div class="form-group">
+                <label>Selected Slot</label>
+                <p id="quickSlotDesc" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 1rem;"></p>
+              </div>
+              <div class="form-group">
+                <label for="quickCustomerName">Your Name</label>
+                <input type="text" id="quickCustomerName" required />
+              </div>
+              <div class="form-group">
+                <label for="quickCustomerEmail">Your Email</label>
+                <input type="email" id="quickCustomerEmail" required />
+              </div>
+              
+              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Confirm Slot Reservation</button>
+            </form>
+          </div>
+          
+          <!-- Modal error / success alerts -->
+          <div id="modalMessage" class="message hidden"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- App modular script -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

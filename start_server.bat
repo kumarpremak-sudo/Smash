@@ -1,0 +1,6 @@
+@echo off
+echo Starting local web server on port 8000...
+echo Serving frontend static files...
+python -m http.server 8000 --directory frontend
+pause
+
