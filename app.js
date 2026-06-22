@@ -81,21 +81,21 @@ function initTheme() {
   const btn = document.getElementById("themeToggle");
   
   if (savedTheme === "light") {
-    document.body.classList.add("light-theme");
+    document.documentElement.classList.add("light-theme");
     if (btn) btn.textContent = "🌙";
   } else {
-    document.body.classList.remove("light-theme");
+    document.documentElement.classList.remove("light-theme");
     if (btn) btn.textContent = "☀️";
   }
   
   if (btn) {
     btn.addEventListener("click", () => {
-      if (document.body.classList.contains("light-theme")) {
-        document.body.classList.remove("light-theme");
+      if (document.documentElement.classList.contains("light-theme")) {
+        document.documentElement.classList.remove("light-theme");
         localStorage.setItem("theme", "dark");
         btn.textContent = "☀️";
       } else {
-        document.body.classList.add("light-theme");
+        document.documentElement.classList.add("light-theme");
         localStorage.setItem("theme", "light");
         btn.textContent = "🌙";
       }
