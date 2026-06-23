@@ -86,3 +86,19 @@ Owners and administrators can now dynamically configure and update all 19 baseli
 The subagent successfully validated that updating a coaching rate (e.g. Kids Coaching 5 Days/Week to ₹2,800) updates the coaching rate card, updates the calculator estimates, and persists on page reload:
 
 ![Advanced Pricing Board Validation Video](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/pricing_validation_1782189240135.webp)
+
+---
+
+## 🚀 Live deployment Fix (yesmash.in)
+
+### Issue Identified:
+GitHub Pages serves standard builds from the branch's root directory. Because the application assets (`index.html`, `dashboard.html`, `app.js`, etc.) were structured inside a `/frontend` subdirectory, GitHub Pages did not discover `index.html` at the root and defaulted to rendering the project's `README.md` file using Jekyll.
+
+### Resolution Applied:
+1. **Directory Restructure:** Restructured the repository by moving all application files out of `frontend/` directly into the repository root.
+2. **Standard Settings Sync:** Modified `.gitignore` to match the root `config.js` and updated the local `start_server.bat` to host from the root.
+3. **Live Deployment:** Committed and pushed the changes to the `main` branch.
+4. **Validation:** Verified via the browser subagent that the live site `https://yesmash.in/` now loads the Obsidian dark login portal correctly:
+
+![Live Deployment Verification Screen](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/login_portal_view_1782191387324.png)
+
