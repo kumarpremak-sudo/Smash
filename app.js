@@ -162,6 +162,10 @@ function showScreen(screenId) {
     const navProg = document.getElementById("navPrograms");
     if (navProg) navProg.classList.add("active");
   }
+  
+  // Auto-close mobile hamburger menu
+  const nav = document.getElementById("desktopNav");
+  if (nav) nav.classList.remove("active");
 }
 
 // ── Auth Handling ──────────────────────────────────────────

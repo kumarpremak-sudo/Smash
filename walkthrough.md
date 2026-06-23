@@ -102,3 +102,48 @@ GitHub Pages serves standard builds from the branch's root directory. Because th
 
 ![Live Deployment Verification Screen](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/login_portal_view_1782191387324.png)
 
+### 🔬 Guest Login & Dashboard Transition Recording:
+The browser subagent successfully logged in using the **Guest Administrator** mode and transitioned to the administrative dashboard layout. Here is the full interaction walkthrough:
+
+![Live Login Verification Video](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/login_verification_1782191608957.webp)
+
+---
+
+## 📱 Mobile & Tablet Screen Orientation Enhancements
+
+To fix layout issues and optimize screen orientation for hand-held devices (mobile and tablet viewports), the following responsive adjustments were implemented and checked in:
+
+### 1. Daily Matrix Grid Sticky Time Column:
+* **Issue:** When viewing the Daily Matrix schedule grid on mobile, horizontal scrolling hid the time column, making it hard to identify hours for booking cells.
+* **Resolution:** Re-styled the Daily Matrix in [style.css](file:///c:/Users/Admin/Documents/POC/Badminton/style.css) to make the first column (the hours column `th:first-child` and `.matrix-time-col`) sticky horizontally:
+  ```css
+  .daily-matrix th:first-child,
+  .matrix-time-col {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: var(--surface2);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.25);
+  }
+  ```
+  This keeps the hour markers anchored to the left of the container as you scroll.
+
+### 2. Auto-Closing Mobile Menu:
+* **Issue:** Clicking navigation links inside the mobile hamburger menu did not close the active overlay, blocking the transitioned screen.
+* **Resolution:** Updated `showScreen()` in [app.js](file:///c:/Users/Admin/Documents/POC/Badminton/app.js) to automatically close the mobile navigation menu overlay (`#desktopNav`) on every screen shift:
+  ```javascript
+  const nav = document.getElementById("desktopNav");
+  if (nav) nav.classList.remove("active");
+  ```
+
+### 3. Wrapping Sub-Tab Bar Navigation:
+* **Issue:** The sub-tabs navigation row on the "Programs & Coaching" page crowded and broke boundaries on narrow mobile displays.
+* **Resolution:** Reconfigured `.programs-tabs-bar` and `.prog-tab-btn` in [style.css](file:///c:/Users/Admin/Documents/POC/Badminton/style.css) using `flex-wrap: wrap;` and `flex: 1 1 auto;` to wrap gracefully to multiple lines when screen width falls below `480px`.
+
+### 🔬 Mobile Responsive Verification Video:
+The browser subagent resized the display to mobile width and successfully verified menu auto-closure, sticky time columns, and correct layout scaling:
+
+![Mobile Responsive Verification Walkthrough](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/mobile_layout_verify_1782192184178.webp)
+
+
+
