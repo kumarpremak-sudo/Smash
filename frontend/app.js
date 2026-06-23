@@ -47,6 +47,47 @@ const monthNames = [
 
 const isLoginPage = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname === "";
 
+const iraguRates = {
+  Individual_5d_Male: 1400,
+  Individual_5d_Female: 1200,
+  Individual_7d: 1800,
+  Individual_weekend: 1050,
+  Group_5d: 8500,
+  Group_7d: 10000,
+  Group_weekend: 5000,
+  Kids_3d: 2000,
+  Kids_5d: 2500,
+  Kids_weekend: 1500,
+  Women_5d: 2500,
+  Women_3d: 2000,
+  Adults_5d_weekend: 3000,
+  Adults_3d: 2500,
+  Advance_6d: 12000,
+  PT_session: 700,
+  Guest_non_peak: 150,
+  Guest_peak: 200,
+  Guest_hourly_slot: 300
+};
+
+const planLabels = {
+  Individual_5d_Male: { name: "Indiv. 5-Day Male", color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" },
+  Individual_5d_Female: { name: "Indiv. 5-Day Female", color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" },
+  Individual_7d: { name: "Indiv. 7-Day", color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" },
+  Individual_weekend: { name: "Indiv. Weekend", color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" },
+  Group_5d: { name: "Group 5-Day", color: "var(--accent)", bg: "rgba(0, 229, 160, 0.12)" },
+  Group_7d: { name: "Group 7-Day", color: "var(--accent)", bg: "rgba(0, 229, 160, 0.12)" },
+  Group_weekend: { name: "Group Weekend", color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" },
+  Kids_3d: { name: "Kids 3-Day/wk", color: "var(--purple)", bg: "rgba(167, 139, 250, 0.12)" },
+  Kids_5d: { name: "Kids 5-Day/wk", color: "var(--purple)", bg: "rgba(167, 139, 250, 0.12)" },
+  Kids_weekend: { name: "Kids Weekend", color: "var(--purple)", bg: "rgba(167, 139, 250, 0.12)" },
+  Women_5d: { name: "Women 5-Day/wk", color: "var(--accent2)", bg: "rgba(255, 107, 107, 0.12)" },
+  Women_3d: { name: "Women 3-Day/wk", color: "var(--accent2)", bg: "rgba(255, 107, 107, 0.12)" },
+  Adults_5d_weekend: { name: "Adults 5-Day/Wknd", color: "var(--text)", bg: "rgba(255, 255, 255, 0.08)" },
+  Adults_3d: { name: "Adults 3-Day/wk", color: "var(--text)", bg: "rgba(255, 255, 255, 0.08)" },
+  Advance_6d: { name: "Advance 6-Day/wk", color: "var(--accent2)", bg: "rgba(255, 107, 107, 0.12)" },
+  PT_session: { name: "PT Session", color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" }
+};
+
 // ── Initialization & Config Validation ─────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -117,6 +158,9 @@ function showScreen(screenId) {
     document.getElementById("navHome").classList.add("active");
   } else if (screenId === "dailyScreen") {
     document.getElementById("navDaily").classList.add("active");
+  } else if (screenId === "programsScreen") {
+    const navProg = document.getElementById("navPrograms");
+    if (navProg) navProg.classList.add("active");
   }
 }
 
@@ -212,6 +256,7 @@ function setupEventListeners() {
   addClick("logoBtn", () => showScreen("homeScreen"));
   addClick("navHome", (e) => { e.preventDefault(); showScreen("homeScreen"); });
   addClick("navDaily", (e) => { e.preventDefault(); showScreen("dailyScreen"); loadDailyGrid(); });
+  addClick("navPrograms", (e) => { e.preventDefault(); showScreen("programsScreen"); initProgramsScreen(); });
   
   // Mobile menu hamburger
   addClick("hamburgerBtn", (e) => {
@@ -246,6 +291,13 @@ function setupEventListeners() {
   addSubmit("quickBookingForm", handleQuickBookingSubmit);
   addSubmit("editBookingForm", handleEditBookingSubmit);
   addSubmit("pricingForm", handlePricingSubmit);
+  
+  // Advanced Pricing Board
+  addClick("btnOpenPricingBoard", openPricingBoardModal);
+  addClick("pricingBoardModalClose", closePricingBoardModal);
+  const pbModal = document.getElementById("pricingBoardModal");
+  if (pbModal) pbModal.addEventListener("click", (e) => { if (e.target === pbModal) closePricingBoardModal(); });
+  addSubmit("pricingBoardForm", handlePricingBoardSubmit);
   
   // Member/Player Enrollment Submit
   addClick("btnEnrollSubmit", handleEnrollmentSubmit);
@@ -473,14 +525,35 @@ function updateSelectedDayBookingsView() {
       ? `<span class="booking-badge-count">${enrolleesCount} Enrolled</span>` 
       : "";
       
+    const catLabels = {
+      court_rental: "Rental",
+      coaching: "Coaching",
+      personal_training: "PT Session",
+      advance_batch: "Advance Batch"
+    };
+    const catColors = {
+      court_rental: "var(--accent)",
+      coaching: "var(--accent4)",
+      personal_training: "var(--accent3)",
+      advance_batch: "var(--accent2)"
+    };
+    const catName = catLabels[booking.category || "court_rental"];
+    const catColor = catColors[booking.category || "court_rental"];
+    const categoryBadgeHtml = `<span style="font-size:0.65rem; background:rgba(255,255,255,0.05); color:${catColor}; border:1px solid ${catColor}40; padding:1px 6px; border-radius:4px; font-weight:600; text-transform:uppercase;">${catName}</span>`;
+
     card.innerHTML = `
       <div class="booking-card-left">
         <div class="booking-time">${start} - ${end}</div>
         <div class="booking-court">${courtName}</div>
       </div>
       <div class="booking-card-right">
-        <div class="booking-user">${booking.customer_name}</div>
-        ${badgeHtml}
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem;">
+          <div class="booking-user">${booking.customer_name}</div>
+          <div style="display:flex; gap:0.4rem; align-items:center;">
+            ${categoryBadgeHtml}
+            ${badgeHtml}
+          </div>
+        </div>
       </div>
     `;
     
@@ -567,7 +640,8 @@ async function loadDailyGrid() {
       `.matrix-cell[data-court-id="${booking.court_id}"][data-start="${start}"]`
     );
     if (cell) {
-      cell.classList.add("booked");
+      const categoryClass = booking.category || "court_rental";
+      cell.className = "matrix-cell booked " + categoryClass;
       cell.dataset.bookingId = booking.id;
       
       let enrolleesCount = 0;
@@ -665,17 +739,22 @@ function renderModalEnrolleesList(enrolleesStr) {
         li.style.display = "flex";
         li.style.justifyContent = "space-between";
         li.style.alignItems = "center";
-        li.style.marginBottom = "0.2rem";
+        li.style.marginBottom = "0.4rem";
         
+        let planKey = null;
         let displayName = trimmed;
-        let badgeHtml = `<span style="font-size:0.65rem; background:rgba(41, 182, 246, 0.12); color:var(--accent4); border:1px solid rgba(41, 182, 246, 0.2); padding:1px 6px; border-radius:99px; font-weight:600;">Member</span>`;
         
-        if (trimmed.endsWith("(Kid)")) {
-          displayName = trimmed.replace(" (Kid)", "");
-          badgeHtml = `<span style="font-size:0.65rem; background:rgba(179, 157, 219, 0.12); color:var(--purple); border:1px solid rgba(179, 157, 219, 0.2); padding:1px 6px; border-radius:99px; font-weight:600;">Kid Training</span>`;
-        } else if (trimmed.endsWith("(Member)")) {
-          displayName = trimmed.replace(" (Member)", "");
+        const match = trimmed.match(/\(([^)]+)\)$/);
+        if (match) {
+          planKey = match[1];
+          displayName = trimmed.substring(0, trimmed.lastIndexOf(`(${planKey})`)).trim();
         }
+        
+        if (planKey === "Kid") planKey = "Kids_3d";
+        if (planKey === "Member") planKey = "Individual_5d_Male";
+        
+        const plan = planLabels[planKey] || { name: "Member", color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" };
+        const badgeHtml = `<span style="font-size:0.65rem; background:${plan.bg}; color:${plan.color}; border:1px solid ${plan.color}35; padding:1px 8px; border-radius:99px; font-weight:600;">${plan.name}</span>`;
         
         li.innerHTML = `
           <span>👤 ${displayName}</span>
@@ -782,6 +861,7 @@ async function handleBookingSubmit(event) {
   
   const type = document.getElementById("booking_type").value;
   const courtId = parseInt(document.getElementById("court_id").value);
+  const category = document.getElementById("booking_category").value;
   const startTime = document.getElementById("start_time").value + ":00";
   const endTime = document.getElementById("end_time").value + ":00";
   const name = document.getElementById("customer_name").value.trim();
@@ -811,6 +891,7 @@ async function handleBookingSubmit(event) {
         court_id: courtId,
         customer_name: name,
         customer_email: email,
+        category: category,
         date: dateStr,
         start_time: startTime,
         end_time: endTime,
@@ -876,6 +957,7 @@ async function handleBookingSubmit(event) {
           court_id: courtId,
           customer_name: name,
           customer_email: email,
+          category: category,
           date: curDateStr,
           start_time: startTime,
           end_time: endTime,
@@ -919,6 +1001,7 @@ async function handleQuickBookingSubmit(event) {
   const dateStr = formatSelectedDate(selectedDate);
   const name = document.getElementById("quickCustomerName").value.trim();
   const email = document.getElementById("quickCustomerEmail").value.trim();
+  const category = document.getElementById("quickBookingCategory").value;
   
   try {
     if (!currentUser) {
@@ -934,6 +1017,7 @@ async function handleQuickBookingSubmit(event) {
       court_id: courtId,
       customer_name: name,
       customer_email: email,
+      category: category,
       date: dateStr,
       start_time: startTime,
       end_time: endTime,
@@ -1092,22 +1176,138 @@ function showMsg(containerId, text, type) {
 }
 
 // ── Financial Revenue & Pricing Systems ─────────────────────
+// ── Financial Revenue & Pricing Systems ─────────────────────
+function updateDynamicPricesUI() {
+  document.querySelectorAll(".dyn-price").forEach(el => {
+    const key = el.dataset.rateKey;
+    if (key && iraguRates[key] !== undefined) {
+      const value = iraguRates[key];
+      el.textContent = `₹${value.toLocaleString()}`;
+    }
+  });
+}
+
+function openPricingBoardModal() {
+  document.getElementById("p_indiv_5d_male").value = iraguRates.Individual_5d_Male || 0;
+  document.getElementById("p_indiv_5d_female").value = iraguRates.Individual_5d_Female || 0;
+  document.getElementById("p_indiv_7d").value = iraguRates.Individual_7d || 0;
+  document.getElementById("p_indiv_weekend").value = iraguRates.Individual_weekend || 0;
+  
+  document.getElementById("p_group_5d").value = iraguRates.Group_5d || 0;
+  document.getElementById("p_group_7d").value = iraguRates.Group_7d || 0;
+  document.getElementById("p_group_weekend").value = iraguRates.Group_weekend || 0;
+  
+  document.getElementById("p_kids_3d").value = iraguRates.Kids_3d || 0;
+  document.getElementById("p_kids_5d").value = iraguRates.Kids_5d || 0;
+  document.getElementById("p_kids_weekend").value = iraguRates.Kids_weekend || 0;
+  
+  document.getElementById("p_women_5d").value = iraguRates.Women_5d || 0;
+  document.getElementById("p_women_3d").value = iraguRates.Women_3d || 0;
+  
+  document.getElementById("p_adults_5d").value = iraguRates.Adults_5d_weekend || 0;
+  document.getElementById("p_adults_3d").value = iraguRates.Adults_3d || 0;
+  
+  document.getElementById("p_advance_6d").value = iraguRates.Advance_6d || 0;
+  document.getElementById("p_pt_session").value = iraguRates.PT_session || 0;
+  
+  document.getElementById("p_guest_nonpeak").value = iraguRates.Guest_non_peak || 0;
+  document.getElementById("p_guest_peak").value = iraguRates.Guest_peak || 0;
+  document.getElementById("p_guest_hourly").value = iraguRates.Guest_hourly_slot || 0;
+  
+  document.getElementById("pricingBoardModal").classList.remove("hidden");
+}
+
+function closePricingBoardModal() {
+  document.getElementById("pricingBoardModal").classList.add("hidden");
+}
+
+async function handlePricingBoardSubmit(event) {
+  event.preventDefault();
+  const btn = document.getElementById("btnSavePricingBoard");
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+  
+  iraguRates.Individual_5d_Male = parseInt(document.getElementById("p_indiv_5d_male").value) || 0;
+  iraguRates.Individual_5d_Female = parseInt(document.getElementById("p_indiv_5d_female").value) || 0;
+  iraguRates.Individual_7d = parseInt(document.getElementById("p_indiv_7d").value) || 0;
+  iraguRates.Individual_weekend = parseInt(document.getElementById("p_indiv_weekend").value) || 0;
+  
+  iraguRates.Group_5d = parseInt(document.getElementById("p_group_5d").value) || 0;
+  iraguRates.Group_7d = parseInt(document.getElementById("p_group_7d").value) || 0;
+  iraguRates.Group_weekend = parseInt(document.getElementById("p_group_weekend").value) || 0;
+  
+  iraguRates.Kids_3d = parseInt(document.getElementById("p_kids_3d").value) || 0;
+  iraguRates.Kids_5d = parseInt(document.getElementById("p_kids_5d").value) || 0;
+  iraguRates.Kids_weekend = parseInt(document.getElementById("p_kids_weekend").value) || 0;
+  
+  iraguRates.Women_5d = parseInt(document.getElementById("p_women_5d").value) || 0;
+  iraguRates.Women_3d = parseInt(document.getElementById("p_women_3d").value) || 0;
+  
+  iraguRates.Adults_5d_weekend = parseInt(document.getElementById("p_adults_5d").value) || 0;
+  iraguRates.Adults_3d = parseInt(document.getElementById("p_adults_3d").value) || 0;
+  
+  iraguRates.Advance_6d = parseInt(document.getElementById("p_advance_6d").value) || 0;
+  iraguRates.PT_session = parseInt(document.getElementById("p_pt_session").value) || 0;
+  
+  iraguRates.Guest_non_peak = parseInt(document.getElementById("p_guest_nonpeak").value) || 0;
+  iraguRates.Guest_peak = parseInt(document.getElementById("p_guest_peak").value) || 0;
+  iraguRates.Guest_hourly_slot = parseInt(document.getElementById("p_guest_hourly").value) || 0;
+  
+  // Sync to standard inputs
+  document.getElementById("rate_single").value = iraguRates.Guest_hourly_slot;
+  document.getElementById("rate_member").value = iraguRates.PT_session;
+  document.getElementById("rate_kid").value = iraguRates.Advance_6d;
+  
+  try {
+    if (!db) throw new Error("Database connection not active.");
+    
+    const docRef = doc(db, "configs", "pricing");
+    await setDoc(docRef, {
+      rateSingle: iraguRates.Guest_hourly_slot,
+      rateMember: iraguRates.PT_session,
+      rateKid: iraguRates.Advance_6d,
+      rates: iraguRates,
+      updatedAt: serverTimestamp()
+    });
+    
+    updateDynamicPricesUI();
+    showMsg("pricingBoardMessage", "Advanced pricing board saved successfully!", "success");
+    calculateMonthlyRevenue();
+    
+    setTimeout(() => {
+      closePricingBoardModal();
+    }, 1200);
+  } catch (error) {
+    showMsg("pricingBoardMessage", "Failed to update rates: " + error.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Save Advanced Rates";
+  }
+}
+
 async function loadPricingRates() {
   if (!db) return;
   try {
-    const docRef = doc(db, "configs", "pricing");
-    const docSnap = await getDocs(query(collection(db, "configs"))); // Get config details
-    
-    // In Firestore web SDK, simple query for single doc
-    const snap = await getDocs(query(collection(db, "configs")));
+    const snap = await getDocs(collection(db, "configs"));
     snap.forEach(d => {
       if (d.id === "pricing") {
         const data = d.data();
-        document.getElementById("rate_single").value = data.rateSingle || 500;
-        document.getElementById("rate_member").value = data.rateMember || 1000;
-        document.getElementById("rate_kid").value = data.rateKid || 1500;
+        document.getElementById("rate_single").value = data.rateSingle !== undefined ? data.rateSingle : 300;
+        document.getElementById("rate_member").value = data.rateMember !== undefined ? data.rateMember : 700;
+        document.getElementById("rate_kid").value = data.rateKid !== undefined ? data.rateKid : 12000;
+        
+        if (data.rates) {
+          Object.assign(iraguRates, data.rates);
+        }
+        
+        // Ensure standard rates are synchronized into iraguRates in case they were updated externally
+        iraguRates.Guest_hourly_slot = data.rateSingle !== undefined ? data.rateSingle : iraguRates.Guest_hourly_slot;
+        iraguRates.PT_session = data.rateMember !== undefined ? data.rateMember : iraguRates.PT_session;
+        iraguRates.Advance_6d = data.rateKid !== undefined ? data.rateKid : iraguRates.Advance_6d;
       }
     });
+    
+    updateDynamicPricesUI();
   } catch (error) {
     console.error("Failed to load pricing configurations:", error);
   }
@@ -1119,9 +1319,14 @@ async function handlePricingSubmit(event) {
   btn.disabled = true;
   btn.textContent = "Saving Rates...";
   
-  const rateSingle = parseInt(document.getElementById("rate_single").value) || 500;
-  const rateMember = parseInt(document.getElementById("rate_member").value) || 1000;
-  const rateKid = parseInt(document.getElementById("rate_kid").value) || 1500;
+  const rateSingle = parseInt(document.getElementById("rate_single").value) || 300;
+  const rateMember = parseInt(document.getElementById("rate_member").value) || 700;
+  const rateKid = parseInt(document.getElementById("rate_kid").value) || 12000;
+  
+  // Sync to iraguRates
+  iraguRates.Guest_hourly_slot = rateSingle;
+  iraguRates.PT_session = rateMember;
+  iraguRates.Advance_6d = rateKid;
   
   try {
     if (!db) throw new Error("Database connection not active.");
@@ -1131,9 +1336,11 @@ async function handlePricingSubmit(event) {
       rateSingle: rateSingle,
       rateMember: rateMember,
       rateKid: rateKid,
+      rates: iraguRates,
       updatedAt: serverTimestamp()
     });
     
+    updateDynamicPricesUI();
     showMsg("pricingMessage", "Pricing rates updated successfully!", "success");
     calculateMonthlyRevenue();
   } catch (error) {
@@ -1145,62 +1352,341 @@ async function handlePricingSubmit(event) {
 }
 
 function calculateMonthlyRevenue() {
-  const rateSingle = parseFloat(document.getElementById("rate_single").value) || 500;
-  const rateMember = parseFloat(document.getElementById("rate_member").value) || 1000;
-  const rateKid = parseFloat(document.getElementById("rate_kid").value) || 1500;
-  
-  let totalSingleHours = 0;
-  const uniqueMembers = new Set();
-  const uniqueKids = new Set();
-  
+  // Read inputs representing baseline rates
+  const hourlySlotRate = iraguRates.Guest_hourly_slot || 300;
+  const ptSessionRate = iraguRates.PT_session || 700;
+  const advanceBatchRate = iraguRates.Advance_6d || 12000;
+
+  let totalMembersRevenue = 0;
+  let totalCoachingRevenue = 0;
+  let totalPTRevenue = 0;
+  let totalGuestRevenue = 0;
+
+  let membersCount = 0;
+  let coachingCount = 0;
+  let ptHours = 0;
+  let guestHours = 0;
+
+  // Track unique trainees/members in month to avoid double-charging
+  const billedMembers = new Set();
+  const billedCoaching = new Set();
+
   currentMonthBookings.forEach(booking => {
+    const category = booking.category || "court_rental";
     const enrolleesStr = booking.enrollees || "";
     const hasEnrollees = enrolleesStr.trim().length > 0;
-    
-    if (!hasEnrollees) {
-      // Calculate single booking slot hours
-      const startStr = booking.start_time.substring(0, 5);
-      const endStr = booking.end_time.substring(0, 5);
-      
-      const startHour = parseInt(startStr.split(":")[0]);
-      const endHour = parseInt(endStr.split(":")[0]);
-      const hours = endHour - startHour;
-      if (hours > 0) {
-        totalSingleHours += hours;
+
+    // Calculate booking duration in hours
+    const startStr = booking.start_time.substring(0, 5);
+    const endStr = booking.end_time.substring(0, 5);
+    const startHour = parseInt(startStr.split(":")[0]);
+    const endHour = parseInt(endStr.split(":")[0]);
+    const hours = endHour - startHour;
+
+    if (hours <= 0) return;
+
+    if (category === "personal_training") {
+      ptHours += hours;
+      totalPTRevenue += hours * ptSessionRate;
+    } else if (category === "court_rental") {
+      guestHours += hours;
+      if (!hasEnrollees) {
+        // Flat court slot rental
+        totalGuestRevenue += hours * hourlySlotRate;
+      } else {
+        // Guest play (check peak vs non-peak)
+        const startHourInt = parseInt(startStr.split(":")[0]);
+        const isPeak = (startHourInt >= 5 && startHourInt < 9) || (startHourInt >= 16 && startHourInt < 21);
+        const playerCount = enrolleesStr.split(",").filter(n => n.trim()).length;
+        
+        if (isPeak) {
+          totalGuestRevenue += hours * playerCount * (iraguRates.Guest_peak || 200);
+        } else {
+          totalGuestRevenue += hours * (iraguRates.Guest_non_peak || 150);
+        }
       }
-    } else {
-      // Parse members and kids enrollees
+    }
+
+    // Process all enrollees for monthly subscriptions
+    if (hasEnrollees) {
       enrolleesStr.split(",").forEach(name => {
         const trimmed = name.trim();
-        if (trimmed) {
-          if (trimmed.endsWith("(Kid)")) {
-            uniqueKids.add(trimmed);
-          } else if (trimmed.endsWith("(Member)")) {
-            uniqueMembers.add(trimmed);
-          } else {
-            // Default suffix-less legacy to Member
-            uniqueMembers.add(trimmed);
+        if (!trimmed) return;
+
+        // Parse plan
+        let planKey = null;
+        const match = trimmed.match(/\(([^)]+)\)$/);
+        if (match) {
+          planKey = match[1];
+        }
+
+        // Legacies fallbacks
+        if (planKey === "Kid") planKey = "Kids_3d";
+        if (planKey === "Member") planKey = "Individual_5d_Male";
+
+        if (planKey && iraguRates[planKey] !== undefined) {
+          const rate = iraguRates[planKey];
+          
+          if (planKey.startsWith("Individual_") || planKey.startsWith("Group_")) {
+            if (!billedMembers.has(trimmed)) {
+              billedMembers.add(trimmed);
+              totalMembersRevenue += rate;
+              membersCount++;
+            }
+          } else if (planKey.startsWith("Kids_") || planKey.startsWith("Women_") || planKey.startsWith("Adults_") || planKey === "Advance_6d") {
+            if (!billedCoaching.has(trimmed)) {
+              billedCoaching.add(trimmed);
+              totalCoachingRevenue += rate;
+              coachingCount++;
+            }
+          } else if (planKey === "PT_session") {
+            // Count PT enrollees as a single PT hour session if registered inside a PT block
+            // Already counted under PT hours baseline if booking category is PT.
+            if (category !== "personal_training") {
+              totalPTRevenue += ptSessionRate;
+              ptHours++;
+            }
           }
         }
       });
     }
   });
-  
-  const singleRevenue = totalSingleHours * rateSingle;
-  const memberRevenue = uniqueMembers.size * rateMember;
-  const kidRevenue = uniqueKids.size * rateKid;
-  const totalRevenue = singleRevenue + memberRevenue + kidRevenue;
-  
+
+  const totalRevenue = totalMembersRevenue + totalCoachingRevenue + totalPTRevenue + totalGuestRevenue;
+
   document.getElementById("revenueMonthName").textContent = `${monthNames[currentMonth]} ${currentYear}`;
-  
-  document.getElementById("revSingleVal").textContent = `₹${singleRevenue.toLocaleString()}`;
-  document.getElementById("revSingleHrs").textContent = `${totalSingleHours} hours allocated`;
-  
-  document.getElementById("revMembersVal").textContent = `₹${memberRevenue.toLocaleString()}`;
-  document.getElementById("revMembersCount").textContent = `${uniqueMembers.size} unique members`;
-  
-  document.getElementById("revKidsVal").textContent = `₹${kidRevenue.toLocaleString()}`;
-  document.getElementById("revKidsCount").textContent = `${uniqueKids.size} unique kids`;
-  
+
+  document.getElementById("revMembersVal").textContent = `₹${totalMembersRevenue.toLocaleString()}`;
+  document.getElementById("revMembersCount").textContent = `${membersCount} active memberships`;
+
+  document.getElementById("revCoachingVal").textContent = `₹${totalCoachingRevenue.toLocaleString()}`;
+  document.getElementById("revCoachingCount").textContent = `${coachingCount} unique trainees`;
+
+  document.getElementById("revPTVal").textContent = `₹${totalPTRevenue.toLocaleString()}`;
+  document.getElementById("revPTHrs").textContent = `${ptHours} hours scheduled`;
+
+  document.getElementById("revGuestVal").textContent = `₹${totalGuestRevenue.toLocaleString()}`;
+  document.getElementById("revGuestHrs").textContent = `${guestHours} hours booked`;
+
   document.getElementById("revTotalVal").textContent = `₹${totalRevenue.toLocaleString()}`;
 }
+
+// ── Iragu Calculator Implementations ────────────────────────
+function updateCalculatorFields() {
+  const category = document.getElementById("calcCategory").value;
+  
+  // Hide all option blocks
+  document.getElementById("calcBlockIndividual").classList.add("hidden");
+  document.getElementById("calcBlockGroup").classList.add("hidden");
+  document.getElementById("calcBlockCoaching").classList.add("hidden");
+  document.getElementById("calcBlockPT").classList.add("hidden");
+  document.getElementById("calcBlockGuest").classList.add("hidden");
+  
+  if (category === "individual") {
+    document.getElementById("calcBlockIndividual").classList.remove("hidden");
+  } else if (category === "group") {
+    document.getElementById("calcBlockGroup").classList.remove("hidden");
+  } else if (category === "coaching") {
+    document.getElementById("calcBlockCoaching").classList.remove("hidden");
+    updateCoachingFrequencies();
+  } else if (category === "pt") {
+    document.getElementById("calcBlockPT").classList.remove("hidden");
+  } else if (category === "guest") {
+    document.getElementById("calcBlockGuest").classList.remove("hidden");
+    updateGuestPlayFields();
+  }
+  
+  runCalculator();
+}
+
+function updateCoachingFrequencies() {
+  const program = document.getElementById("calcCoachProgram").value;
+  const freqSelect = document.getElementById("calcCoachFreq");
+  freqSelect.innerHTML = "";
+  
+  if (program === "kids") {
+    freqSelect.innerHTML = `
+      <option value="Kids_3d">3 Days/Week (Mon/Wed/Fri or Tue/Thu/Fri) - ₹2000/mo</option>
+      <option value="Kids_5d">5 Days/Week (Mon-Fri) - ₹2500/mo</option>
+      <option value="Kids_weekend">Weekend Batch (Sat-Sun) - ₹1500/mo</option>
+    `;
+  } else if (program === "women") {
+    freqSelect.innerHTML = `
+      <option value="Women_3d">3 Days/Week (Mon-Fri blocks) - ₹2000/mo</option>
+      <option value="Women_5d">5 Days/Week (Mon-Fri blocks) - ₹2500/mo</option>
+    `;
+  } else if (program === "adults") {
+    freqSelect.innerHTML = `
+      <option value="Adults_3d">3 Days/Week (Morning or Evening) - ₹2500/mo</option>
+      <option value="Adults_5d_weekend">5 Days / Weekend Batch - ₹3000/mo</option>
+    `;
+  } else if (program === "advance") {
+    freqSelect.innerHTML = `
+      <option value="Advance_6d">6 Days/Week (Morning + Ground Fitness + Evening) - ₹12000/mo</option>
+    `;
+  }
+  
+  runCalculator();
+}
+
+function updateGuestPlayFields() {
+  const mode = document.getElementById("calcGuestMode").value;
+  const personsGroup = document.getElementById("calcGuestPersonsGroup");
+  
+  if (mode === "peak") {
+    personsGroup.classList.remove("hidden");
+  } else {
+    personsGroup.classList.add("hidden");
+  }
+  
+  runCalculator();
+}
+
+function runCalculator() {
+  const category = document.getElementById("calcCategory").value;
+  let price = 0;
+  let planName = "—";
+  let schedule = "—";
+  let billingFreq = "Monthly Billing";
+  
+  if (category === "individual") {
+    const type = document.getElementById("calcIndivType").value;
+    if (type === "5d_male") {
+      price = iraguRates.Individual_5d_Male || 1400;
+      planName = "Individual Membership (5 Days - Male)";
+      schedule = "Monday - Friday Court Access";
+    } else if (type === "5d_female") {
+      price = iraguRates.Individual_5d_Female || 1200;
+      planName = "Individual Membership (5 Days - Female)";
+      schedule = "Monday - Friday Court Access (Women Discount)";
+    } else if (type === "7d") {
+      price = iraguRates.Individual_7d || 1800;
+      planName = "Individual Membership (7 Days)";
+      schedule = "Monday - Sunday Court Access";
+    } else if (type === "weekend") {
+      price = iraguRates.Individual_weekend || 1050;
+      planName = "Individual Membership (Weekend)";
+      schedule = "Saturday - Sunday Court Access";
+    }
+  } else if (category === "group") {
+    const type = document.getElementById("calcGroupType").value;
+    if (type === "5d") {
+      price = iraguRates.Group_5d || 8500;
+      planName = "Group Membership (5 Days)";
+      schedule = "Monday - Friday Corporate Access";
+    } else if (type === "7d") {
+      price = iraguRates.Group_7d || 10000;
+      planName = "Group Membership (7 Days)";
+      schedule = "Monday - Sunday Unlimited Access";
+    } else if (type === "weekend") {
+      price = iraguRates.Group_weekend || 5000;
+      planName = "Group Membership (Weekend)";
+      schedule = "Saturday - Sunday Weekend Access";
+    }
+  } else if (category === "coaching") {
+    const planKey = document.getElementById("calcCoachFreq").value;
+    const program = document.getElementById("calcCoachProgram").value;
+    
+    if (planKey && iraguRates[planKey] !== undefined) {
+      price = iraguRates[planKey];
+      
+      if (program === "kids") {
+        planName = "Kids Academy Coaching";
+        if (planKey === "Kids_3d") {
+          schedule = "Batch 1: Mon/Wed/Fri (06-07 AM or Evening) or Batch 2: Tue/Thu/Fri";
+        } else if (planKey === "Kids_5d") {
+          schedule = "Monday - Friday (Morning 06:00-07:00 AM or Evening Beginner batches)";
+        } else if (planKey === "Kids_weekend") {
+          schedule = "Saturday & Sunday (Morning 06:00-09:00 AM or Evening)";
+        }
+      } else if (program === "women") {
+        planName = "Women Academy Coaching";
+        if (planKey === "Women_5d") {
+          schedule = "Monday - Friday Morning (09:00 AM - 10:00 AM)";
+        } else {
+          schedule = "3 Selected Days / Week Morning (09:00 AM - 10:00 AM)";
+        }
+      } else if (program === "adults") {
+        planName = "Adults Academy Coaching";
+        if (planKey === "Adults_5d_weekend") {
+          schedule = "Morning (05:30-06:30 AM) or Weekend Batch";
+        } else {
+          schedule = "3 Selected Days / Week (Morning 05:30-06:30 AM)";
+        }
+      } else if (program === "advance") {
+        planName = "Advance Coaching (National Track)";
+        schedule = "6 Days/Week (Ground Fitness 5-6 AM, Morning 8-10 AM, Evening 6-9 PM)";
+      }
+    }
+  } else if (category === "pt") {
+    const hours = parseInt(document.getElementById("calcPTHours").value) || 1;
+    price = hours * (iraguRates.PT_session || 700);
+    planName = `Personal Training (PT) sessions`;
+    schedule = `${hours} custom hour coaching sessions mapped with personal trainer`;
+    billingFreq = "Per Session / Booking Billing";
+  } else if (category === "guest") {
+    const mode = document.getElementById("calcGuestMode").value;
+    const hours = parseInt(document.getElementById("calcGuestHours").value) || 1;
+    billingFreq = "Hourly Pay-and-Play";
+    
+    if (mode === "non_peak") {
+      price = hours * (iraguRates.Guest_non_peak || 150);
+      planName = "Guest Play (Non-Peak Hours)";
+      schedule = "Available during mid-day blocks (9 AM to 4 PM)";
+    } else if (mode === "peak") {
+      const persons = parseInt(document.getElementById("calcGuestPersons").value) || 1;
+      price = hours * persons * (iraguRates.Guest_peak || 200);
+      planName = `Guest Play (Peak Hours - ${persons} players)`;
+      schedule = "Available during morning/evening peak blocks (₹200 per person per hour)";
+    } else if (mode === "hourly_slot") {
+      price = hours * (iraguRates.Guest_hourly_slot || 300);
+      planName = "Hourly Court Rental Slot";
+      schedule = "Flat rate for 1 Court booking (up to 4 players)";
+    }
+  }
+  
+  document.getElementById("calcResultPlanName").textContent = planName;
+  document.getElementById("calcResultSchedule").textContent = schedule;
+  document.getElementById("calcResultFreq").textContent = billingFreq;
+  document.getElementById("calcResultPrice").textContent = `₹${price.toLocaleString()}`;
+}
+
+function initProgramsScreen() {
+  // Tab switching
+  const tabs = ["Memberships", "Coaching", "Calculator"];
+  tabs.forEach(tab => {
+    const btn = document.getElementById(`btnProg${tab}`);
+    if (btn) {
+      btn.addEventListener("click", () => {
+        // Deactivate all
+        tabs.forEach(t => {
+          document.getElementById(`btnProg${t}`).classList.remove("active");
+          document.getElementById(`prog${t}View`).classList.remove("active");
+        });
+        // Activate clicked
+        btn.classList.add("active");
+        document.getElementById(`prog${tab}View`).classList.add("active");
+      });
+    }
+  });
+
+  // Calculator Setup
+  const categorySelect = document.getElementById("calcCategory");
+  if (categorySelect) {
+    categorySelect.addEventListener("change", updateCalculatorFields);
+    document.getElementById("calcIndivType").addEventListener("change", runCalculator);
+    document.getElementById("calcGroupType").addEventListener("change", runCalculator);
+    document.getElementById("calcCoachProgram").addEventListener("change", updateCoachingFrequencies);
+    document.getElementById("calcCoachFreq").addEventListener("change", runCalculator);
+    document.getElementById("calcPTHours").addEventListener("input", runCalculator);
+    document.getElementById("calcGuestMode").addEventListener("change", updateGuestPlayFields);
+    document.getElementById("calcGuestHours").addEventListener("input", runCalculator);
+    document.getElementById("calcGuestPersons").addEventListener("input", runCalculator);
+
+    // Trigger initial load
+    updateCalculatorFields();
+  }
+}
+
+// Global exposure for event handlers
+window.initProgramsScreen = initProgramsScreen;

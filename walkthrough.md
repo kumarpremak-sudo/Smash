@@ -66,7 +66,23 @@ To take the application live with database storage and user authentication:
 
 ---
 
-## 🔬 Local Verification
-
+### 5. Local Verification
 1. Double-click **`start_server.bat`** to boot the local Python static server.
 2. Navigate to `http://localhost:8000` to interact with the new Operations Hub!
+
+---
+
+## ⚙️ Dynamic Academy Pricing Board Feature
+
+Owners and administrators can now dynamically configure and update all 19 baseline tariffs (covering Individual/Group Memberships, Kids/Women/Adults Coaching frequencies, Personal Training sessions, and Guest Peak/Non-Peak hourly play rates) directly from the UI.
+
+### Key Workflows Implemented:
+1. **Advanced Pricing Dialog:** Added modal click toggles for `#btnOpenPricingBoard` that populates all 19 form inputs in `#pricingBoardModal` from the central `iraguRates` state.
+2. **Dynamic UI Rendering:** Formatted all page price labels with class `.dyn-price` and matching `data-rate-key` to update dynamically using `updateDynamicPricesUI()`.
+3. **Firestore Integration:** Saves the unified rates map structure inside `configs/pricing` -> `rates`, synchronizing both standard sidebar inputs and advanced modal inputs to keep calculations unified.
+4. **Interactive Calculator Sync:** Rewrote `runCalculator()` and `calculateMonthlyRevenue()` to read pricing guidelines from the dynamic `iraguRates` state instead of hardcoded numbers.
+
+### 🔬 Functional Validation Screenshot/Video:
+The subagent successfully validated that updating a coaching rate (e.g. Kids Coaching 5 Days/Week to ₹2,800) updates the coaching rate card, updates the calculator estimates, and persists on page reload:
+
+![Advanced Pricing Board Validation Video](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/pricing_validation_1782189240135.webp)
