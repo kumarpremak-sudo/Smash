@@ -34,6 +34,8 @@ let courtsList = [];
 let courtsMap = {};
 let currentMonthBookings = [];
 let dailyBookings = [];
+let authConfig = { allowedEmails: [], allowGuestLogin: true };
+let membersList = [];
 
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth(); // 0-11
@@ -161,6 +163,14 @@ function showScreen(screenId) {
   } else if (screenId === "programsScreen") {
     const navProg = document.getElementById("navPrograms");
     if (navProg) navProg.classList.add("active");
+  } else if (screenId === "settingsScreen") {
+    if (!currentUser || currentUser.isAnonymous) {
+      showScreen("homeScreen");
+      return;
+    }
+    const navSet = document.getElementById("navSettings");
+    if (navSet) navSet.classList.add("active");
+    renderSettingsView();
   }
   
   // Auto-close mobile hamburger menu
@@ -168,9 +178,72 @@ function showScreen(screenId) {
   if (nav) nav.classList.remove("active");
 }
 
+// ── Auth Checking & Whitelisting ───────────────────────────
+async function checkUserAccess(user) {
+  if (!db) return false;
+  try {
+    let allowedEmails = [];
+    let allowGuestLogin = true;
+    
+    const configSnap = await getDocs(collection(db, "configs"));
+    let authDocFound = false;
+    
+    configSnap.forEach(d => {
+      if (d.id === "auth") {
+        authDocFound = true;
+        const data = d.data();
+        allowedEmails = data.allowedEmails || [];
+        allowGuestLogin = data.allowGuestLogin !== undefined ? data.allowGuestLogin : true;
+      }
+    });
+    
+    authConfig.allowedEmails = allowedEmails;
+    authConfig.allowGuestLogin = allowGuestLogin;
+    
+    // Auto-seed: if allowedEmails is empty, whitelist the first Google user who logs in
+    if (allowedEmails.length === 0 && !user.isAnonymous && user.email) {
+      allowedEmails.push(user.email.toLowerCase().trim());
+      await setDoc(doc(db, "configs", "auth"), {
+        allowedEmails: allowedEmails,
+        allowGuestLogin: allowGuestLogin
+      });
+      authConfig.allowedEmails = allowedEmails;
+      console.log("Auto-seeded whitelist with first Google user:", user.email);
+      return true;
+    }
+    
+    if (user.isAnonymous) {
+      return allowGuestLogin;
+    } else {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      return allowedEmails.map(e => e.toLowerCase().trim()).includes(userEmail);
+    }
+  } catch (error) {
+    console.error("Access verification error:", error);
+    return false;
+  }
+}
+
 // ── Auth Handling ──────────────────────────────────────────
 async function handleAuthStateChange(user) {
   if (user) {
+    // Check whitelist authorization
+    const hasAccess = await checkUserAccess(user);
+    if (!hasAccess) {
+      let errMsg = "Access Denied: Your email is not whitelisted to access this application.";
+      if (user.isAnonymous) {
+        errMsg = "Access Denied: Guest Administrator login is currently disabled by the owner.";
+      }
+      await signOut(auth);
+      
+      const errEl = document.getElementById("loginError");
+      if (errEl) {
+        errEl.textContent = errMsg;
+        errEl.classList.remove("hidden");
+      }
+      return;
+    }
+    
     currentUser = user;
     if (isLoginPage) {
       window.location.href = "dashboard.html";
@@ -196,6 +269,16 @@ async function handleAuthStateChange(user) {
     
     // Show Header
     if (header) header.classList.remove("hidden");
+    
+    // Hide Admin Settings link in nav bar if Guest
+    const navSettings = document.getElementById("navSettings");
+    if (navSettings) {
+      if (user.isAnonymous) {
+        navSettings.classList.add("hidden");
+      } else {
+        navSettings.classList.remove("hidden");
+      }
+    }
     
     // Auto-fill forms with user email & name if available
     const nameInput = document.getElementById("customer_name");
@@ -261,6 +344,7 @@ function setupEventListeners() {
   addClick("navHome", (e) => { e.preventDefault(); showScreen("homeScreen"); });
   addClick("navDaily", (e) => { e.preventDefault(); showScreen("dailyScreen"); loadDailyGrid(); });
   addClick("navPrograms", (e) => { e.preventDefault(); showScreen("programsScreen"); initProgramsScreen(); });
+  addClick("navSettings", (e) => { e.preventDefault(); showScreen("settingsScreen"); });
   
   // Mobile menu hamburger
   addClick("hamburgerBtn", (e) => {
@@ -322,6 +406,13 @@ function setupEventListeners() {
   }
   addClick("prev-day", () => changeDailyDay(-1));
   addClick("next-day", () => changeDailyDay(1));
+  
+  // Whitelist Form & Guest toggle listeners
+  addSubmit("addWhitelistForm", handleAddWhitelistSubmit);
+  const guestToggle = document.getElementById("toggleGuestLogin");
+  if (guestToggle) {
+    guestToggle.addEventListener("change", handleToggleGuestLogin);
+  }
 }
 
 // ── Google & Guest Logins ──────────────────────────────────
@@ -397,6 +488,120 @@ async function loadCourts() {
 }
 
 // ── Dashboard Statistics ───────────────────────────────────
+async function loadMembers() {
+  if (!db) return;
+  try {
+    const snap = await getDocs(collection(db, "members"));
+    membersList = [];
+    snap.forEach(d => {
+      membersList.push({ id: d.id, ...d.data() });
+    });
+  } catch (error) {
+    console.error("Failed to load members:", error);
+  }
+}
+
+function addOneMonth(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function checkFeeAlerts() {
+  const alertsListEl = document.getElementById("feeAlertsList");
+  const alertsCountEl = document.getElementById("feeAlertsCount");
+  if (!alertsListEl || !alertsCountEl) return;
+  
+  if (!db) return;
+  try {
+    const todayStr = formatSelectedDate(new Date());
+    const overdueMembers = [];
+    
+    membersList.forEach(member => {
+      if (member.status !== "active") return;
+      
+      const lastPaid = member.lastPaidDate || member.joinDate;
+      const nextDue = addOneMonth(lastPaid);
+      
+      if (todayStr >= nextDue) {
+        overdueMembers.push({
+          ...member,
+          nextDue: nextDue
+        });
+      }
+    });
+    
+    alertsCountEl.textContent = `${overdueMembers.length} Pending Alert${overdueMembers.length !== 1 ? 's' : ''}`;
+    
+    if (overdueMembers.length === 0) {
+      alertsListEl.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.8rem; color: var(--accent); background: rgba(0, 230, 118, 0.05); border: 1px dashed rgba(0, 230, 118, 0.3); padding: 1rem; border-radius: var(--radius-md);">
+          <span style="font-size: 1.5rem;">🎉</span>
+          <span style="font-size: 0.9rem; font-weight: 600;">All member, trainee, coaching, and personal training fees are fully up to date!</span>
+        </div>
+      `;
+      return;
+    }
+    
+    alertsListEl.innerHTML = "";
+    overdueMembers.forEach(member => {
+      const plan = planLabels[member.type] || { name: member.type, color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" };
+      
+      let priceVal = "₹0";
+      if (member.type === "PT_session") {
+        priceVal = `₹${(iraguRates.PT_session || 700)}/hr`;
+      } else if (iraguRates[member.type] !== undefined) {
+        priceVal = `₹${iraguRates[member.type].toLocaleString()}`;
+      }
+      
+      const row = document.createElement("div");
+      row.className = "fee-alert-row";
+      
+      row.innerHTML = `
+        <div class="fee-alert-info">
+          <div class="fee-alert-title">👤 ${member.name} <span style="font-size:0.7rem; background:${plan.bg}; color:${plan.color}; border:1px solid ${plan.color}35; padding:1px 8px; border-radius:99px; font-weight:600; margin-left:0.5rem;">${plan.name}</span></div>
+          <div class="fee-alert-meta">Joined: <span>${member.joinDate}</span> | Last Paid: <span>${member.lastPaidDate}</span> | Due Since: <span style="color:var(--accent2); font-weight:bold;">${member.nextDue}</span></div>
+        </div>
+        <div class="fee-alert-actions">
+          <div class="fee-alert-price-tag">${priceVal}</div>
+          <button class="btn-mark-paid" style="margin-top:0;">Mark Paid</button>
+        </div>
+      `;
+      
+      const markBtn = row.querySelector(".btn-mark-paid");
+      markBtn.addEventListener("click", () => markMemberAsPaid(member.id, member.name));
+      
+      alertsListEl.appendChild(row);
+    });
+  } catch (error) {
+    console.error("Failed to check fee alerts:", error);
+    alertsListEl.innerHTML = `<div style="color: var(--accent2); font-size:0.85rem;">Error computing fee alerts: ${error.message}</div>`;
+  }
+}
+
+async function markMemberAsPaid(memberId, memberName) {
+  const confirmPaid = confirm(`Confirm fee collection for ${memberName}? This will advance their billing cycle by 1 month.`);
+  if (!confirmPaid) return;
+  
+  try {
+    const todayStr = formatSelectedDate(new Date());
+    const docRef = doc(db, "members", memberId);
+    await updateDoc(docRef, {
+      lastPaidDate: todayStr
+    });
+    
+    await loadMembers();
+    await checkFeeAlerts();
+    await updateStats();
+  } catch (error) {
+    alert("Failed to mark as paid: " + error.message);
+  }
+}
+
 async function updateStats() {
   try {
     const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
@@ -410,6 +615,11 @@ async function updateStats() {
     const snap = await getDocs(q);
     document.getElementById("statBookingsCount").textContent = snap.size;
     document.getElementById("statCourtsCount").textContent = courtsList.length;
+    
+    // Core loads
+    await loadMembers();
+    calculateMonthlyRevenue();
+    await checkFeeAlerts();
   } catch (e) {
     console.error("Stats fetch failed:", e);
   }
@@ -707,7 +917,7 @@ function maskEmail(email) {
 }
 
 // Modal View 1: Show Booking details and player join enrollment lists
-function openBookingDetailsModal(booking) {
+async function openBookingDetailsModal(booking) {
   selectedBooking = booking;
   openModal("Booking Details");
   
@@ -716,6 +926,16 @@ function openBookingDetailsModal(booking) {
   document.getElementById("detCourt").textContent = courtsMap[booking.court_id] || `Court ${booking.court_id}`;
   document.getElementById("detTime").textContent = `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)} on ${booking.date}`;
   document.getElementById("detName").textContent = booking.customer_name;
+  
+  // Set default join date input in modal to today
+  const joinDateInput = document.getElementById("newEnrolleeJoinDate");
+  if (joinDateInput) {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    joinDateInput.value = `${yyyy}-${mm}-${dd}`;
+  }
   
   // Enforce Permissions (Owner can edit/delete)
   const ownerActions = document.getElementById("ownerActions");
@@ -729,46 +949,79 @@ function openBookingDetailsModal(booking) {
     ownerActions.classList.add("hidden");
   }
   
-  renderModalEnrolleesList(booking.enrollees);
+  await renderModalEnrolleesList(booking.id);
 }
 
-function renderModalEnrolleesList(enrolleesStr) {
+async function renderModalEnrolleesList(bookingId) {
   const ul = document.getElementById("enrollees-list");
-  ul.innerHTML = "";
-  if (enrolleesStr) {
-    enrolleesStr.split(",").forEach(name => {
-      const trimmed = name.trim();
-      if (trimmed) {
+  if (!ul) return;
+  ul.innerHTML = '<li class="text-muted" style="list-style:none;">Loading members...</li>';
+  
+  if (!db) return;
+  try {
+    const q = query(collection(db, "members"), where("bookingId", "==", bookingId), where("status", "==", "active"));
+    const snap = await getDocs(q);
+    
+    ul.innerHTML = "";
+    
+    if (!snap.empty) {
+      snap.forEach(d => {
+        const member = { id: d.id, ...d.data() };
         const li = document.createElement("li");
-        li.style.display = "flex";
-        li.style.justifyContent = "space-between";
-        li.style.alignItems = "center";
-        li.style.marginBottom = "0.4rem";
+        li.className = "enrollee-list-item";
+        li.style.marginBottom = "0.5rem";
         
-        let planKey = null;
-        let displayName = trimmed;
-        
-        const match = trimmed.match(/\(([^)]+)\)$/);
-        if (match) {
-          planKey = match[1];
-          displayName = trimmed.substring(0, trimmed.lastIndexOf(`(${planKey})`)).trim();
-        }
-        
-        if (planKey === "Kid") planKey = "Kids_3d";
-        if (planKey === "Member") planKey = "Individual_5d_Male";
-        
-        const plan = planLabels[planKey] || { name: "Member", color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" };
+        const plan = planLabels[member.type] || { name: member.type, color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" };
         const badgeHtml = `<span style="font-size:0.65rem; background:${plan.bg}; color:${plan.color}; border:1px solid ${plan.color}35; padding:1px 8px; border-radius:99px; font-weight:600;">${plan.name}</span>`;
         
-        li.innerHTML = `
-          <span>👤 ${displayName}</span>
-          ${badgeHtml}
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "enrollee-list-item-info";
+        infoDiv.innerHTML = `
+          <span style="font-weight:600;">👤 ${member.name}</span>
+          <span class="enrollee-list-item-meta">Joined: <span>${member.joinDate}</span> | Paid: <span>${member.lastPaidDate}</span></span>
         `;
+        
+        const rightDiv = document.createElement("div");
+        rightDiv.style.display = "flex";
+        rightDiv.style.alignItems = "center";
+        rightDiv.style.gap = "0.8rem";
+        rightDiv.innerHTML = badgeHtml;
+        
+        // Remove button
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "btn-remove-enrollee";
+        removeBtn.innerHTML = "&times;";
+        removeBtn.title = `Remove ${member.name}`;
+        removeBtn.addEventListener("click", () => handleRemoveEnrollee(member.id, member.name, bookingId));
+        
+        rightDiv.appendChild(removeBtn);
+        
+        li.appendChild(infoDiv);
+        li.appendChild(rightDiv);
         ul.appendChild(li);
-      }
-    });
-  } else {
-    ul.innerHTML = '<li class="text-muted" style="list-style:none;">No enrollees yet</li>';
+      });
+    } else {
+      ul.innerHTML = '<li class="text-muted" style="list-style:none;">No enrollees yet</li>';
+    }
+  } catch (error) {
+    ul.innerHTML = `<li style="color: var(--accent2); list-style:none;">Failed to load members: ${error.message}</li>`;
+  }
+}
+
+async function handleRemoveEnrollee(memberId, memberName, bookingId) {
+  const confirmRemove = confirm(`Are you sure you want to remove ${memberName}?`);
+  if (!confirmRemove) return;
+  
+  try {
+    const docRef = doc(db, "members", memberId);
+    await deleteDoc(docRef);
+    
+    showMsg("modalMessage", `Removed ${memberName} successfully!`, "success");
+    await renderModalEnrolleesList(bookingId);
+    await updateStats();
+    await checkFeeAlerts();
+  } catch (error) {
+    showMsg("modalMessage", "Failed to remove member: " + error.message, "error");
   }
 }
 
@@ -1092,39 +1345,36 @@ async function handleEnrollmentSubmit() {
   if (!selectedBooking) return;
   const input = document.getElementById("newEnrolleeInput");
   const typeSelect = document.getElementById("newEnrolleeType");
+  const joinDateInput = document.getElementById("newEnrolleeJoinDate");
+  
   const newName = input.value.trim();
   if (!newName) return;
   
   const submitBtn = document.getElementById("btnEnrollSubmit");
   submitBtn.disabled = true;
   
-  const type = typeSelect.value; // "Member" or "Kid"
-  const formattedName = `${newName} (${type})`;
-  
-  const currentEnrollees = selectedBooking.enrollees || "";
-  let updated = "";
-  if (currentEnrollees.trim() === "") {
-    updated = formattedName;
-  } else {
-    updated = currentEnrollees + ", " + formattedName;
-  }
+  const type = typeSelect.value;
+  // Fallback to selectedDate formatted if input is empty
+  const joinDate = joinDateInput.value || formatSelectedDate(selectedDate);
   
   try {
-    const docRef = doc(db, "bookings", selectedBooking.id);
-    await updateDoc(docRef, {
-      enrollees: updated
+    // Add member doc to members collection
+    await addDoc(collection(db, "members"), {
+      name: newName,
+      type: type,
+      joinDate: joinDate,
+      lastPaidDate: joinDate, // initially equals join date
+      bookingId: selectedBooking.id,
+      status: "active",
+      createdTime: Date.now()
     });
     
-    // Update cached object
-    selectedBooking.enrollees = updated;
-    
     input.value = "";
-    renderModalEnrolleesList(updated);
-    showMsg("modalMessage", "You have enrolled successfully!", "success");
+    showMsg("modalMessage", "Trainee enrolled successfully!", "success");
     
-    // Refresh background screens
-    renderCalendar();
-    loadDailyGrid();
+    await renderModalEnrolleesList(selectedBooking.id);
+    await updateStats();
+    await checkFeeAlerts();
   } catch (error) {
     showMsg("modalMessage", "Enrollment failed: " + error.message, "error");
   } finally {
@@ -1179,7 +1429,125 @@ function showMsg(containerId, text, type) {
   }, 4000);
 }
 
-// ── Financial Revenue & Pricing Systems ─────────────────────
+// ── Admin Settings Systems ─────────────────────────────────
+async function renderSettingsView() {
+  if (!db) return;
+  const listEl = document.getElementById("whitelist-list");
+  if (!listEl) return;
+  
+  listEl.innerHTML = "";
+  
+  // Populate guest toggle state
+  const guestToggle = document.getElementById("toggleGuestLogin");
+  if (guestToggle) {
+    guestToggle.checked = authConfig.allowGuestLogin;
+  }
+  
+  if (authConfig.allowedEmails.length === 0) {
+    listEl.innerHTML = `<li class="empty-list-msg" style="color: var(--muted); font-size: 0.85rem; font-style: italic; padding: 0.5rem; background: rgba(0,0,0,0.1); border-radius: var(--radius-sm); border: 1px dashed var(--border);">No authorized emails configured.</li>`;
+    return;
+  }
+  
+  authConfig.allowedEmails.forEach(email => {
+    const li = document.createElement("li");
+    li.className = "whitelist-item";
+    
+    const emailSpan = document.createElement("span");
+    emailSpan.className = "whitelist-item-email";
+    emailSpan.textContent = email;
+    
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "btn-remove-whitelist";
+    removeBtn.innerHTML = "&times;";
+    removeBtn.title = `Remove ${email} from whitelist`;
+    removeBtn.addEventListener("click", () => handleRemoveWhitelistEmail(email));
+    
+    li.appendChild(emailSpan);
+    
+    // Don't allow a user to remove themselves from the whitelist to avoid getting locked out
+    if (currentUser && currentUser.email && email.toLowerCase() === currentUser.email.toLowerCase()) {
+      const lockSpan = document.createElement("span");
+      lockSpan.style.color = "var(--muted)";
+      lockSpan.style.fontSize = "0.75rem";
+      lockSpan.textContent = " (You)";
+      li.appendChild(lockSpan);
+    } else {
+      li.appendChild(removeBtn);
+    }
+    
+    listEl.appendChild(li);
+  });
+}
+
+async function handleAddWhitelistSubmit(e) {
+  e.preventDefault();
+  const input = document.getElementById("newWhitelistEmail");
+  if (!input) return;
+  
+  const email = input.value.trim().toLowerCase();
+  if (!email) return;
+  
+  if (authConfig.allowedEmails.includes(email)) {
+    showMsg("whitelistMsg", "Email is already whitelisted.", "error");
+    return;
+  }
+  
+  const updatedEmails = [...authConfig.allowedEmails, email];
+  try {
+    const docRef = doc(db, "configs", "auth");
+    await setDoc(docRef, {
+      allowedEmails: updatedEmails,
+      allowGuestLogin: authConfig.allowGuestLogin
+    });
+    
+    authConfig.allowedEmails = updatedEmails;
+    input.value = "";
+    showMsg("whitelistMsg", `Successfully whitelisted: ${email}`, "success");
+    renderSettingsView();
+  } catch (error) {
+    showMsg("whitelistMsg", "Failed to update whitelist: " + error.message, "error");
+  }
+}
+
+async function handleRemoveWhitelistEmail(email) {
+  const confirmRemove = confirm(`Are you sure you want to remove ${email} from the whitelist?`);
+  if (!confirmRemove) return;
+  
+  const updatedEmails = authConfig.allowedEmails.filter(e => e.toLowerCase() !== email.toLowerCase());
+  try {
+    const docRef = doc(db, "configs", "auth");
+    await setDoc(docRef, {
+      allowedEmails: updatedEmails,
+      allowGuestLogin: authConfig.allowGuestLogin
+    });
+    
+    authConfig.allowedEmails = updatedEmails;
+    renderSettingsView();
+  } catch (error) {
+    alert("Failed to remove email: " + error.message);
+  }
+}
+
+async function handleToggleGuestLogin(e) {
+  const checkbox = e.target;
+  if (!checkbox) return;
+  
+  const allowGuest = checkbox.checked;
+  try {
+    const docRef = doc(db, "configs", "auth");
+    await setDoc(docRef, {
+      allowedEmails: authConfig.allowedEmails,
+      allowGuestLogin: allowGuest
+    });
+    
+    authConfig.allowGuestLogin = allowGuest;
+    showMsg("settingsSaveMsg", `Guest access is now ${allowGuest ? "enabled" : "disabled"}.`, "success");
+  } catch (error) {
+    checkbox.checked = !allowGuest; // revert on failure
+    showMsg("settingsSaveMsg", "Failed to save settings: " + error.message, "error");
+  }
+}
+
 // ── Financial Revenue & Pricing Systems ─────────────────────
 function updateDynamicPricesUI() {
   document.querySelectorAll(".dyn-price").forEach(el => {
@@ -1356,10 +1724,7 @@ async function handlePricingSubmit(event) {
 }
 
 function calculateMonthlyRevenue() {
-  // Read inputs representing baseline rates
   const hourlySlotRate = iraguRates.Guest_hourly_slot || 300;
-  const ptSessionRate = iraguRates.PT_session || 700;
-  const advanceBatchRate = iraguRates.Advance_6d || 12000;
 
   let totalMembersRevenue = 0;
   let totalCoachingRevenue = 0;
@@ -1371,15 +1736,31 @@ function calculateMonthlyRevenue() {
   let ptHours = 0;
   let guestHours = 0;
 
-  // Track unique trainees/members in month to avoid double-charging
-  const billedMembers = new Set();
-  const billedCoaching = new Set();
+  // 1. Calculate Academy & Membership Revenue directly from structured membersList
+  membersList.forEach(member => {
+    if (member.status !== "active") return;
+    
+    const planKey = member.type;
+    if (planKey && iraguRates[planKey] !== undefined) {
+      const rate = iraguRates[planKey];
+      
+      if (planKey.startsWith("Individual_") || planKey.startsWith("Group_")) {
+        totalMembersRevenue += rate;
+        membersCount++;
+      } else if (planKey.startsWith("Kids_") || planKey.startsWith("Women_") || planKey.startsWith("Adults_") || planKey === "Advance_6d") {
+        totalCoachingRevenue += rate;
+        coachingCount++;
+      } else if (planKey === "PT_session") {
+        totalPTRevenue += rate;
+        ptHours++;
+      }
+    }
+  });
 
+  // 2. Calculate Guest Play / Hourly Court Rental from bookings
   currentMonthBookings.forEach(booking => {
     const category = booking.category || "court_rental";
-    const enrolleesStr = booking.enrollees || "";
-    const hasEnrollees = enrolleesStr.trim().length > 0;
-
+    
     // Calculate booking duration in hours
     const startStr = booking.start_time.substring(0, 5);
     const endStr = booking.end_time.substring(0, 5);
@@ -1389,19 +1770,19 @@ function calculateMonthlyRevenue() {
 
     if (hours <= 0) return;
 
-    if (category === "personal_training") {
-      ptHours += hours;
-      totalPTRevenue += hours * ptSessionRate;
-    } else if (category === "court_rental") {
+    if (category === "court_rental") {
       guestHours += hours;
-      if (!hasEnrollees) {
+      // Get registered enrollees count for this guest booking slot
+      const bookingMembers = membersList.filter(m => m.bookingId === booking.id && m.status === "active");
+      const playerCount = bookingMembers.length;
+      
+      if (playerCount === 0) {
         // Flat court slot rental
         totalGuestRevenue += hours * hourlySlotRate;
       } else {
         // Guest play (check peak vs non-peak)
         const startHourInt = parseInt(startStr.split(":")[0]);
         const isPeak = (startHourInt >= 5 && startHourInt < 9) || (startHourInt >= 16 && startHourInt < 21);
-        const playerCount = enrolleesStr.split(",").filter(n => n.trim()).length;
         
         if (isPeak) {
           totalGuestRevenue += hours * playerCount * (iraguRates.Guest_peak || 200);
@@ -1409,50 +1790,6 @@ function calculateMonthlyRevenue() {
           totalGuestRevenue += hours * (iraguRates.Guest_non_peak || 150);
         }
       }
-    }
-
-    // Process all enrollees for monthly subscriptions
-    if (hasEnrollees) {
-      enrolleesStr.split(",").forEach(name => {
-        const trimmed = name.trim();
-        if (!trimmed) return;
-
-        // Parse plan
-        let planKey = null;
-        const match = trimmed.match(/\(([^)]+)\)$/);
-        if (match) {
-          planKey = match[1];
-        }
-
-        // Legacies fallbacks
-        if (planKey === "Kid") planKey = "Kids_3d";
-        if (planKey === "Member") planKey = "Individual_5d_Male";
-
-        if (planKey && iraguRates[planKey] !== undefined) {
-          const rate = iraguRates[planKey];
-          
-          if (planKey.startsWith("Individual_") || planKey.startsWith("Group_")) {
-            if (!billedMembers.has(trimmed)) {
-              billedMembers.add(trimmed);
-              totalMembersRevenue += rate;
-              membersCount++;
-            }
-          } else if (planKey.startsWith("Kids_") || planKey.startsWith("Women_") || planKey.startsWith("Adults_") || planKey === "Advance_6d") {
-            if (!billedCoaching.has(trimmed)) {
-              billedCoaching.add(trimmed);
-              totalCoachingRevenue += rate;
-              coachingCount++;
-            }
-          } else if (planKey === "PT_session") {
-            // Count PT enrollees as a single PT hour session if registered inside a PT block
-            // Already counted under PT hours baseline if booking category is PT.
-            if (category !== "personal_training") {
-              totalPTRevenue += ptSessionRate;
-              ptHours++;
-            }
-          }
-        }
-      });
     }
   });
 

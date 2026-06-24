@@ -145,5 +145,30 @@ The browser subagent resized the display to mobile width and successfully verifi
 
 ![Mobile Responsive Verification Walkthrough](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/mobile_layout_verify_1782192184178.webp)
 
+---
+
+## 🔒 Whitelisted Auth Access Controls & Trainee Fee Alerts
+
+We have added robust whitelist access controls and dynamic trainee fee collection notifications to support commercial court operations:
+
+### 1. Whitelisting & Secure Guest Gating:
+* **Firebase Config:** Manages a whitelist document `configs/auth` storing allowed Google sign-in emails and a checkbox toggle for guest login.
+* **Auto-Seed First Login:** Seamlessly whitelists the first Google sign-in email if the database whitelist is empty, avoiding locks.
+* **Access Gating:** Blocks unauthorized Google accounts and anonymous guest attempts with an informative error message.
+* **Guest Role Protection:** Completely hides the **Admin Settings** link from anonymous guest users and prevents direct hash navigation (`#settings`), routing guest sessions back to the Home Screen.
+
+### 2. Trainee Database & Joining Dates:
+* **Structured `/members` Collection:** Replaced comma-separated string enrollees lists with a structured Firestore database.
+* **Enrollment Date Picker:** Select the joining date when enrolling trainees/members to monthly coaching, memberships, or PT sessions.
+
+### 3. Fee Alerts Engine & Payment Tracking:
+* **Live Alerts:** Computes the due date dynamically (exactly **1 month** after their last payment).
+* **Mark as Paid:** Closes alerts by advancing the billing cycle `lastPaidDate` to today's date in Firestore.
+
+### 🔬 Access Whitelist & Guest Gating Verification Video:
+The browser subagent successfully logged out, logged in as Guest, verified the Admin Settings tab was hidden, and confirmed that manual navigation to `#settings` is routed back to the Home Screen:
+
+![Settings Tab Hidden for Guest Login](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/guest_settings_hide_verify_1782282629620.webp)
+
 
 

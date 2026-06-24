@@ -2094,3 +2094,184 @@ body.light-theme input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 99px;
   font-weight: 600;
 }
+
+/* ── Admin Settings Styles ───────────────────────────────── */
+.whitelist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.whitelist-item-email {
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-remove-whitelist {
+  background: transparent;
+  border: none;
+  color: var(--accent2);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 0.2rem;
+  line-height: 1;
+  transition: var(--transition);
+}
+
+.btn-remove-whitelist:hover {
+  color: #ff3b30;
+  transform: scale(1.2);
+}
+
+/* Switch Toggle Slider */
+.switch-container {
+  vertical-align: middle;
+}
+
+.switch-container input:checked + .switch-slider {
+  background-color: var(--accent);
+}
+
+.switch-container input:focus + .switch-slider {
+  box-shadow: 0 0 1px var(--accent);
+}
+
+.switch-container input:checked + .switch-slider:before {
+  transform: translateX(20px);
+  background-color: var(--bg);
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: .3s;
+  border-radius: 50%;
+}
+
+/* ── Fee Alerts List Styles ──────────────────────────────── */
+.fee-alert-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent2);
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-md);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fee-alert-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.fee-alert-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fee-alert-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.fee-alert-meta span {
+  font-family: var(--font-mono);
+  color: var(--text);
+  margin-right: 0.5rem;
+}
+
+.fee-alert-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.fee-alert-price-tag {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: var(--accent);
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.btn-mark-paid {
+  background: rgba(0, 229, 160, 0.1);
+  border: 1px solid rgba(0, 229, 160, 0.3);
+  color: var(--accent);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 0;
+  width: auto;
+}
+
+.btn-mark-paid:hover {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Enrollee layout styles */
+.enrollee-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.enrollee-list-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.enrollee-list-item-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.enrollee-list-item-meta span {
+  font-family: var(--font-mono);
+}
+
+.btn-remove-enrollee {
+  background: transparent;
+  border: none;
+  color: var(--accent2);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.btn-remove-enrollee:hover {
+  color: #ff3b30;
+}
