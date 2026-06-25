@@ -90,6 +90,14 @@ const planLabels = {
   PT_session: { name: "PT Session", color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" }
 };
 
+// ── Utility ───────────────────────────────────────────────
+function escapeHTML(str) {
+  if (!str) return "";
+  const temp = document.createElement("div");
+  temp.textContent = str;
+  return temp.innerHTML;
+}
+
 // ── Initialization & Config Validation ─────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
@@ -563,8 +571,8 @@ async function checkFeeAlerts() {
       
       row.innerHTML = `
         <div class="fee-alert-info">
-          <div class="fee-alert-title">👤 ${member.name} <span style="font-size:0.7rem; background:${plan.bg}; color:${plan.color}; border:1px solid ${plan.color}35; padding:1px 8px; border-radius:99px; font-weight:600; margin-left:0.5rem;">${plan.name}</span></div>
-          <div class="fee-alert-meta">Joined: <span>${member.joinDate}</span> | Last Paid: <span>${member.lastPaidDate}</span> | Due Since: <span style="color:var(--accent2); font-weight:bold;">${member.nextDue}</span></div>
+          <div class="fee-alert-title">👤 ${escapeHTML(member.name)} <span style="font-size:0.7rem; background:${plan.bg}; color:${plan.color}; border:1px solid ${plan.color}35; padding:1px 8px; border-radius:99px; font-weight:600; margin-left:0.5rem;">${plan.name}</span></div>
+          <div class="fee-alert-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Last Paid: <span>${escapeHTML(member.lastPaidDate)}</span> | Due Since: <span style="color:var(--accent2); font-weight:bold;">${escapeHTML(member.nextDue)}</span></div>
         </div>
         <div class="fee-alert-actions">
           <div class="fee-alert-price-tag">${priceVal}</div>
@@ -762,7 +770,7 @@ function updateSelectedDayBookingsView() {
       </div>
       <div class="booking-card-right">
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem;">
-          <div class="booking-user">${booking.customer_name}</div>
+          <div class="booking-user">${escapeHTML(booking.customer_name)}</div>
           <div style="display:flex; gap:0.4rem; align-items:center;">
             ${categoryBadgeHtml}
             ${badgeHtml}
@@ -868,7 +876,7 @@ async function loadDailyGrid() {
         : "";
         
       cell.innerHTML = `
-        <span class="matrix-cell-booked-by">${booking.customer_name}</span>
+        <span class="matrix-cell-booked-by">${escapeHTML(booking.customer_name)}</span>
         ${enrolleesBadge}
       `;
     }
@@ -959,14 +967,18 @@ async function renderModalEnrolleesList(bookingId) {
   
   if (!db) return;
   try {
-    const q = query(collection(db, "members"), where("bookingId", "==", bookingId), where("status", "==", "active"));
+    const q = query(collection(db, "members"), where("bookingId", "==", bookingId));
     const snap = await getDocs(q);
     
     ul.innerHTML = "";
     
+    let activeCount = 0;
     if (!snap.empty) {
       snap.forEach(d => {
-        const member = { id: d.id, ...d.data() };
+        const data = d.data();
+        if (data.status !== "active") return;
+        activeCount++;
+        const member = { id: d.id, ...data };
         const li = document.createElement("li");
         li.className = "enrollee-list-item";
         li.style.marginBottom = "0.5rem";
@@ -977,8 +989,8 @@ async function renderModalEnrolleesList(bookingId) {
         const infoDiv = document.createElement("div");
         infoDiv.className = "enrollee-list-item-info";
         infoDiv.innerHTML = `
-          <span style="font-weight:600;">👤 ${member.name}</span>
-          <span class="enrollee-list-item-meta">Joined: <span>${member.joinDate}</span> | Paid: <span>${member.lastPaidDate}</span></span>
+          <span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span>
+          <span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${escapeHTML(member.lastPaidDate)}</span></span>
         `;
         
         const rightDiv = document.createElement("div");
@@ -1000,6 +1012,9 @@ async function renderModalEnrolleesList(bookingId) {
         li.appendChild(rightDiv);
         ul.appendChild(li);
       });
+      if (activeCount === 0) {
+        ul.innerHTML = '<li class="text-muted" style="list-style:none;">No enrollees yet</li>';
+      }
     } else {
       ul.innerHTML = '<li class="text-muted" style="list-style:none;">No enrollees yet</li>';
     }
@@ -1088,7 +1103,6 @@ async function checkBookingConflicts(courtId, dateStr, startTime, endTime, skipB
   try {
     const q = query(
       collection(db, "bookings"),
-      where("court_id", "==", courtId),
       where("date", "==", dateStr)
     );
     const snap = await getDocs(q);
@@ -1096,9 +1110,11 @@ async function checkBookingConflicts(courtId, dateStr, startTime, endTime, skipB
     snap.forEach(d => {
       if (skipBookingId && d.id === skipBookingId) return;
       const b = d.data();
-      // overlap checks: start1 < end2 && end1 > start2
-      if (startTime < b.end_time && endTime > b.start_time) {
-        conflict = true;
+      if (b.court_id == courtId) {
+        // overlap checks: start1 < end2 && end1 > start2
+        if (startTime < b.end_time && endTime > b.start_time) {
+          conflict = true;
+        }
       }
     });
     return conflict;
@@ -1176,14 +1192,17 @@ async function handleBookingSubmit(event) {
       const endStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-31`;
       const q = query(
         collection(db, "bookings"),
-        where("court_id", "==", courtId),
         where("date", ">=", startStr),
         where("date", "<=", endStr)
       );
       
       const snap = await getDocs(q);
       const existing = [];
-      snap.forEach(d => existing.push(d.data()));
+      snap.forEach(d => {
+        if (d.data().court_id == courtId) {
+          existing.push(d.data());
+        }
+      });
       
       const batch = writeBatch(db);
       let created = 0;
@@ -1259,6 +1278,12 @@ async function handleQuickBookingSubmit(event) {
   const name = document.getElementById("quickCustomerName").value.trim();
   const email = document.getElementById("quickCustomerEmail").value.trim();
   const category = document.getElementById("quickBookingCategory").value;
+  
+  if (startTime >= endTime) {
+    showMsg("modalMessage", "End time must occur after start time.", "error");
+    btn.disabled = false;
+    return;
+  }
   
   try {
     if (!currentUser) {
@@ -1343,6 +1368,16 @@ async function handleEditBookingSubmit(event) {
 // ── Enrollment / Joining sessions ──────────────────────────
 async function handleEnrollmentSubmit() {
   if (!selectedBooking) return;
+  
+  const ul = document.getElementById("enrollees-list");
+  if (ul) {
+    const currentCount = ul.querySelectorAll("li.enrollee-list-item").length;
+    if (currentCount >= 30) {
+      showMsg("modalMessage", "Enrollment failed: Maximum limit of 30 trainees reached for this block.", "error");
+      return;
+    }
+  }
+
   const input = document.getElementById("newEnrolleeInput");
   const typeSelect = document.getElementById("newEnrolleeType");
   const joinDateInput = document.getElementById("newEnrolleeJoinDate");

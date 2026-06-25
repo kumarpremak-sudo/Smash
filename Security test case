@@ -1,0 +1,36 @@
+# Edge Case Safeguards Implementation Plan
+
+This document outlines the proposed technical changes to implement robust safeguards against the boundary and edge cases identified in the testing scenarios.
+
+## 1. Security: HTML/Script Injection (XSS Protection)
+Currently, user inputs like Organizer Name and Trainee Name are directly injected into the DOM using `.innerHTML`, which makes the application vulnerable to Cross-Site Scripting (XSS).
+- **Proposed Fix:** Create a globally available `escapeHTML(str)` helper function in `app.js`.
+- **Changes:** Apply this function to `member.name`, `booking.customer_name`, and any other user-supplied strings before rendering them via template literals or `.innerHTML` in the Dashboard Matrix and Booking Details modal.
+
+## 2. Data Boundary: Extreme Character Limits
+To prevent the UI matrix and modals from stretching and breaking due to exceptionally long strings.
+- **Proposed Fix:** Enforce `maxlength` attributes natively on all relevant input fields in `dashboard.html`.
+- **Changes:** 
+  - `maxlength="40"` for all Name inputs (Organizer, Trainee, Guest).
+  - `maxlength="80"` for all Email inputs.
+
+## 3. Business Logic: Pricing Board Minimums
+To prevent the fee calculator from generating zero or negative balance estimations.
+- **Proposed Fix:** Enforce a strict minimum on the "Manage Pricing Board" inputs.
+- **Changes:** Add `min="1"` to all `<input type="number">` fields in the Pricing Board modal within `dashboard.html`.
+
+## 4. UI Stress Limits: Enrollee Volumes
+To prevent a single booking from accumulating infinite enrollees and crashing the UI.
+- **Proposed Fix:** Cap the maximum number of enrollees allowed per court booking.
+- **Changes:** Add a check in `handleEnrollmentSubmit` inside `app.js` to ensure the current booking has `<= 30` enrollees. If it hits the limit, reject the enrollment with a clear UI alert.
+
+## 5. Time Boundary: Cross-Midnight / 0-Duration Slots
+While the standard booking form checks `startTime >= endTime`, the quick booking might omit this if bypassed via console manipulation.
+- **Proposed Fix:** Add strict JS validation checks.
+- **Changes:** Inject the `startTime >= endTime` validation constraint into `handleQuickBookingSubmit` and ensure that End Time cannot roll over past `24:00`.
+
+---
+
+> [!IMPORTANT]
+> **User Review Required**
+> Please review the proposed limits (e.g., maximum 40 characters for a name, limit of 30 enrollees per court booking block). Let me know if you would like me to adjust any of these specific limits before I implement them!

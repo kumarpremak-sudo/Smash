@@ -728,7 +728,7 @@
               
               <div class="enrollees-input-block" id="enrollActionRow" style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); margin-top: 1rem; display: flex; flex-direction: column; gap: 0.8rem;">
                 <div class="enrollees-input-row" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                  <input type="text" id="newEnrolleeInput" placeholder="Enter trainee name" style="flex: 1.5; padding: 0.5rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); min-width: 150px;" />
+                  <input type="text" id="newEnrolleeInput" placeholder="Enter trainee name" maxlength="40" style="flex: 1.5; padding: 0.5rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); min-width: 150px;" />
                   <select id="newEnrolleeType" style="flex: 1.5; padding: 0.5rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); min-width: 150px;">
                     <option value="Individual_5d_Male">Indiv. 5-Day Male (₹1400)</option>
                     <option value="Individual_5d_Female">Indiv. 5-Day Female (₹1200)</option>
@@ -764,11 +764,11 @@
             <form id="editBookingForm">
               <div class="form-group">
                 <label for="editCustomerName">Organizer Name</label>
-                <input type="text" id="editCustomerName" required />
+                <input type="text" id="editCustomerName" maxlength="40" required />
               </div>
               <div class="form-group">
                 <label for="editCustomerEmail">Email Address</label>
-                <input type="email" id="editCustomerEmail" required />
+                <input type="email" id="editCustomerEmail" maxlength="80" required />
               </div>
               <div style="display: flex; gap: 0.8rem; margin-top: 1.5rem;">
                 <button type="button" class="btn btn-secondary" style="flex: 1;" id="btnCancelEdit">Cancel</button>
@@ -819,12 +819,12 @@
               
               <div class="form-group">
                 <label for="customer_name">Organizer Name / Allocation Description</label>
-                <input type="text" id="customer_name" name="customer_name" placeholder="E.g. Coaching Academy, Tournament Block, or John Doe" required />
+                <input type="text" id="customer_name" name="customer_name" placeholder="E.g. Coaching Academy, Tournament Block, or John Doe" maxlength="40" required />
               </div>
               
               <div class="form-group">
                 <label for="customer_email">Admin/Organizer Contact Email</label>
-                <input type="email" id="customer_email" name="customer_email" placeholder="admin@yesmash.in" required />
+                <input type="email" id="customer_email" name="customer_email" placeholder="admin@yesmash.in" maxlength="80" required />
               </div>
               
               <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Confirm Reservation</button>
@@ -844,11 +844,11 @@
               </div>
               <div class="form-group">
                 <label for="quickCustomerName">Your Name</label>
-                <input type="text" id="quickCustomerName" required />
+                <input type="text" id="quickCustomerName" maxlength="40" required />
               </div>
               <div class="form-group">
                 <label for="quickCustomerEmail">Your Email</label>
-                <input type="email" id="quickCustomerEmail" required />
+                <input type="email" id="quickCustomerEmail" maxlength="80" required />
               </div>
               <div class="form-group">
                 <label for="quickBookingCategory">Booking Category</label>
@@ -892,19 +892,19 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_indiv_5d_male">5 Days Male (₹):</label>
-                  <input type="number" id="p_indiv_5d_male" required />
+                  <input type="number" id="p_indiv_5d_male" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_indiv_5d_female">5 Days Female (₹):</label>
-                  <input type="number" id="p_indiv_5d_female" required />
+                  <input type="number" id="p_indiv_5d_female" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_indiv_7d">7 Days (₹):</label>
-                  <input type="number" id="p_indiv_7d" required />
+                  <input type="number" id="p_indiv_7d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_indiv_weekend">Weekend (₹):</label>
-                  <input type="number" id="p_indiv_weekend" required />
+                  <input type="number" id="p_indiv_weekend" required min="1" />
                 </div>
               </div>
             </div>
@@ -915,15 +915,15 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_group_5d">5 Days (₹):</label>
-                  <input type="number" id="p_group_5d" required />
+                  <input type="number" id="p_group_5d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_group_7d">7 Days (₹):</label>
-                  <input type="number" id="p_group_7d" required />
+                  <input type="number" id="p_group_7d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_group_weekend">Weekend (₹):</label>
-                  <input type="number" id="p_group_weekend" required />
+                  <input type="number" id="p_group_weekend" required min="1" />
                 </div>
               </div>
             </div>
@@ -934,15 +934,15 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_kids_3d">3 Days/Week (Mon/Wed/Fri) (₹):</label>
-                  <input type="number" id="p_kids_3d" required />
+                  <input type="number" id="p_kids_3d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_kids_5d">5 Days/Week (Mon-Fri) (₹):</label>
-                  <input type="number" id="p_kids_5d" required />
+                  <input type="number" id="p_kids_5d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_kids_weekend">Weekend Coaching (₹):</label>
-                  <input type="number" id="p_kids_weekend" required />
+                  <input type="number" id="p_kids_weekend" required min="1" />
                 </div>
               </div>
             </div>
@@ -953,19 +953,19 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_women_5d">Women 5 Days/Week (₹):</label>
-                  <input type="number" id="p_women_5d" required />
+                  <input type="number" id="p_women_5d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_women_3d">Women 3 Days/Week (₹):</label>
-                  <input type="number" id="p_women_3d" required />
+                  <input type="number" id="p_women_3d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_adults_5d">Adults 5 Days/Weekend (₹):</label>
-                  <input type="number" id="p_adults_5d" required />
+                  <input type="number" id="p_adults_5d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_adults_3d">Adults 3 Days/Week (₹):</label>
-                  <input type="number" id="p_adults_3d" required />
+                  <input type="number" id="p_adults_3d" required min="1" />
                 </div>
               </div>
             </div>
@@ -976,23 +976,23 @@
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_advance_6d">Advance Batch 6 Days (₹):</label>
-                  <input type="number" id="p_advance_6d" required />
+                  <input type="number" id="p_advance_6d" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_pt_session">PT 1-Hour Session (₹):</label>
-                  <input type="number" id="p_pt_session" required />
+                  <input type="number" id="p_pt_session" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_guest_nonpeak">Guest Non-Peak / hr (₹):</label>
-                  <input type="number" id="p_guest_nonpeak" required />
+                  <input type="number" id="p_guest_nonpeak" required min="1" />
                 </div>
                 <div class="form-group">
                   <label style="font-size:0.75rem;" for="p_guest_peak">Guest Peak / person / hr (₹):</label>
-                  <input type="number" id="p_guest_peak" required />
+                  <input type="number" id="p_guest_peak" required min="1" />
                 </div>
                 <div class="form-group" style="grid-column: span 2;">
                   <label style="font-size:0.75rem;" for="p_guest_hourly">Hourly Court Slot / hr (₹):</label>
-                  <input type="number" id="p_guest_hourly" required />
+                  <input type="number" id="p_guest_hourly" required min="1" />
                 </div>
               </div>
             </div>
