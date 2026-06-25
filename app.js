@@ -303,7 +303,6 @@ async function handleAuthStateChange(user) {
     
     // Go to default screen
     showScreen("homeScreen");
-    initCalendar();
     renderCalendar();
     
   } else {

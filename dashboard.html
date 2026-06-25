@@ -638,7 +638,7 @@
       <div class="settings-content-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
         
         <!-- Panel 1: Whitelist Settings -->
-        <div class="glass-panel settings-card" style="padding: 1.5rem;">
+        <div class="glass-panel settings-card" style="padding: 1.5rem; align-self: flex-start;">
           <h3 style="margin-bottom: 0.5rem; color: var(--text); font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Authorized Emails Whitelist</h3>
           <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1rem;">Only Google accounts with emails listed below will be allowed to log into this command center.</p>
           
@@ -654,11 +654,11 @@
         </div>
 
         <!-- Panel 2: General System Access Toggle -->
-        <div class="glass-panel settings-card" style="padding: 1.5rem; display: flex; flex-direction: column;">
+        <div class="glass-panel settings-card" style="padding: 1.5rem; display: flex; flex-direction: column; align-self: flex-start;">
           <h3 style="margin-bottom: 0.5rem; color: var(--text); font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Access Controls</h3>
           <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1.5rem;">Configure login methods allowed for this app instance.</p>
           
-          <div class="setting-toggle-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); flex: 1; align-content: flex-start;">
+          <div class="setting-toggle-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
             <div class="setting-toggle-info" style="flex: 1; padding-right: 1.5rem;">
               <span class="setting-toggle-title" style="display: block; font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 0.2rem;">Guest Administrator Access</span>
               <span class="setting-toggle-desc" style="display: block; font-size: 0.75rem; color: var(--muted); line-height: 1.3;">Allow users to log in using the "Continue as Guest" local session option. If disabled, only whitelisted Google users can enter.</span>
