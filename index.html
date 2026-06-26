@@ -5,27 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smash. | Court Operations & Management Dashboard</title>
   <meta name="description" content="Badminton Court Management Portal for owners and administrators. Manage bookings, schedule blocks, and coordinate training lists." />
-  
-  <!-- Styling -->
-  <link rel="stylesheet" href="style.css?v=2" />
-  
-  <!-- Load Config first -->
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/login.css" />
   <script src="config.js?v=1.1"></script>
 </head>
 <body>
 
   <div class="app-container">
     
-    <!-- ═══════════════════════════════════════════════════════════
-         1. LOGIN PORTAL SCREEN
-         ════════════════════════════════════════════════════════════ -->
+    <!-- Login Screen -->
     <div id="loginScreen" class="screen active">
       
       <!-- Left Panel: Branding (Desktop) -->
       <div class="login-brand">
         <div class="login-brand-inner">
           <div class="login-brand-logo">
-            <img src="logo.png" alt="Smash Logo" style="height: 48px; width: auto; border-radius: 8px; object-fit: contain;" />
+            <img src="logo.png" alt="Smash Logo" class="logo-icon" />
             <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
           </div>
           <div class="login-brand-headline">
@@ -67,13 +63,13 @@
           <div class="login-card">
             
             <div class="login-logo">
-              <img src="logo.png" alt="Smash Logo" style="height: 36px; width: auto; border-radius: 6px; object-fit: contain;" />
+              <img src="logo.png" alt="Smash Logo" class="logo-icon" />
               <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
             </div>
             <div class="login-form-heading">Operations Login</div>
             <div class="login-tagline">Court Owner & Administrator Console</div>
             
-            <!-- Setup Warning Banner (If config.js is not modified) -->
+            <!-- Setup Warning Banner -->
             <div class="setup-banner hidden" id="setupBanner">
               <strong>⚠️ Setup Required</strong><br>
               Firestore / Firebase API Keys are missing. Please populate the credentials in <code>config.js</code> to initialize connections.
@@ -110,7 +106,11 @@
 
   </div>
 
-  <!-- App modular script -->
-  <script type="module" src="app.js?v=3"></script>
+  <script type="module" src="js/shared.js">
+  </script>
+  <script type="module">
+    import { initApp } from './js/shared.js';
+    document.addEventListener('DOMContentLoaded', () => initApp());
+  </script>
 </body>
 </html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smash. | Daily Schedule Matrix</title>
+  <meta name="description" content="Daily court schedule timeline — manage hourly bookings across all courts." />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/schedule.css" />
+  <script src="config.js?v=1.1"></script>
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- ══ HEADER ═════════════════════════════════════════════ -->
+    <header id="appHeader" class="hidden">
+      <a href="dashboard.html" class="logo" id="logoBtn">
+        <img src="logo.png" alt="Smash Logo" class="logo-icon" />
+        <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
+      </a>
+      <div class="header-right">
+        <nav class="header-nav" id="desktopNav">
+          <a href="dashboard.html" class="nav-link">Dashboard</a>
+          <a href="schedule.html" class="nav-link active">Schedule</a>
+          <a href="members.html" class="nav-link">Members</a>
+          <a href="programs.html" class="nav-link">Programs</a>
+          <a href="settings.html" class="nav-link" id="navSettings">Settings</a>
+        </nav>
+        <div class="user-pill" id="userPill">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">Loading...</span>
+          <div class="user-menu" id="userMenu">
+            <div class="user-menu-item user-menu-email" id="userMenuEmail">user@domain.com</div>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item danger" id="btnSignOut">⎋ Sign Out</button>
+          </div>
+        </div>
+        <button id="themeToggle" class="theme-toggle" title="Switch Theme">☀️</button>
+        <button class="btn-hamburger" id="hamburgerBtn" title="Toggle Menu"><span><span></span></span></button>
+      </div>
+    </header>
+
+    <!-- ══ SCHEDULE MATRIX ═══════════════════════════════════ -->
+    <div class="page-content">
+      <div class="daily-header-row">
+        <div class="page-header" style="margin-bottom:0">
+          <h2>Daily Schedule <span>Matrix</span></h2>
+          <div class="page-header-sub">Select any open block to book or manage enrollees on allocated blocks.</div>
+        </div>
+        <div class="daily-date-controls">
+          <button id="prev-day">&lt;</button>
+          <input type="date" id="daily-date-input" class="daily-date-input" />
+          <button id="next-day">&gt;</button>
+        </div>
+      </div>
+
+      <div class="daily-matrix-container">
+        <div class="table-responsive">
+          <table class="daily-matrix">
+            <thead><tr id="matrix-header-row"><th>Time</th></tr></thead>
+            <tbody id="matrix-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ BOOKING MODAL ═════════════════════════════════════ -->
+    <div id="bookingModal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <button class="close-modal" id="modalClose">&times;</button>
+        <div class="modal-header-section"><h2 id="modalTitle">Booking</h2></div>
+        <div class="modal-body-section">
+          <div id="modalMessage" class="message hidden"></div>
+
+          <!-- Details View -->
+          <div id="modalDetailsView" class="hidden">
+            <div class="booking-details-list">
+              <div class="booking-details-item"><span class="booking-details-label">Court</span><span class="booking-details-val" id="detCourt"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Time</span><span class="booking-details-val" id="detTime"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Name</span><span class="booking-details-val" id="detName"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Email</span><span class="booking-details-val" id="detEmail"></span></div>
+            </div>
+            <div class="enrollees-container">
+              <div class="enrollees-header">Enrolled Members / Trainees</div>
+              <ul class="enrollees-list" id="enrollees-list"><li class="text-muted" style="list-style:none;">No enrollees yet</li></ul>
+              <div class="enroll-block">
+                <div class="enroll-input-row">
+                  <input type="text" id="newEnrolleeInput" placeholder="Trainee name..." maxlength="40" />
+                  <select id="newEnrolleeType">
+                    <option value="Kids_5d">Kids 5-Day</option><option value="Kids_3d">Kids 3-Day</option><option value="Kids_weekend">Kids Weekend</option>
+                    <option value="Individual_5d_Male">Indiv. 5d Male</option><option value="Individual_5d_Female">Indiv. 5d Female</option><option value="Individual_7d">Indiv. 7-Day</option><option value="Individual_weekend">Indiv. Weekend</option>
+                    <option value="Group_5d">Group 5-Day</option><option value="Group_7d">Group 7-Day</option><option value="Group_weekend">Group Weekend</option>
+                    <option value="Women_5d">Women 5-Day</option><option value="Women_3d">Women 3-Day</option>
+                    <option value="Adults_5d_weekend">Adults 5d/Wknd</option><option value="Adults_3d">Adults 3-Day</option>
+                    <option value="Advance_6d">Advance 6-Day</option><option value="PT_session">PT Session</option>
+                  </select>
+                  <button type="button" class="btn btn-primary" id="btnEnrollSubmit">+ Add</button>
+                </div>
+                <div class="enroll-join-date-row">
+                  <label for="newEnrolleeJoinDate">Join Date:</label>
+                  <input type="date" id="newEnrolleeJoinDate" />
+                </div>
+              </div>
+            </div>
+            <div id="ownerActions" class="hidden" style="display:flex;gap:0.8rem;margin-top:1.5rem;">
+              <button class="btn btn-secondary" id="btnEditBooking" style="flex:1;">✏️ Edit</button>
+              <button class="btn btn-danger" id="btnDeleteBooking" style="flex:1;">🗑 Cancel</button>
+            </div>
+          </div>
+
+          <!-- Edit Form -->
+          <div id="modalEditFormView" class="hidden">
+            <form id="editBookingForm">
+              <div class="form-group"><label for="editCustomerName">Customer Name</label><input type="text" id="editCustomerName" maxlength="40" required /></div>
+              <div class="form-group"><label for="editCustomerEmail">Customer Email</label><input type="email" id="editCustomerEmail" maxlength="80" required /></div>
+              <div style="display:flex;gap:0.8rem;margin-top:1.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">💾 Save</button>
+                <button type="button" class="btn btn-secondary" id="btnCancelEdit" style="flex:1;">Cancel</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Quick Booking Form -->
+          <div id="modalQuickFormView" class="hidden">
+            <div style="margin-bottom:1rem;padding:0.75rem;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-md);font-size:0.85rem;color:var(--accent);font-weight:600;" id="quickSlotDesc"></div>
+            <form id="quickBookingForm">
+              <input type="hidden" id="quickCourtId" /><input type="hidden" id="quickStartTime" /><input type="hidden" id="quickEndTime" />
+              <div class="form-group"><label for="quickBookingCategory">Category</label>
+                <select id="quickBookingCategory"><option value="court_rental">Court Rental</option><option value="coaching">Coaching</option><option value="personal_training">Personal Training</option><option value="advance_batch">Advance Batch</option></select>
+              </div>
+              <div class="form-group"><label for="quickCustomerName">Name</label><input type="text" id="quickCustomerName" maxlength="40" required /></div>
+              <div class="form-group"><label for="quickCustomerEmail">Email</label><input type="email" id="quickCustomerEmail" maxlength="80" required /></div>
+              <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Confirm Reservation</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ BOTTOM NAV ════════════════════════════════════════ -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <a href="dashboard.html" class="bottom-nav-item"><span class="nav-icon">🏠</span>Home</a>
+        <a href="schedule.html" class="bottom-nav-item active"><span class="nav-icon">📅</span>Schedule</a>
+        <a href="members.html" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
+        <a href="programs.html" class="bottom-nav-item"><span class="nav-icon">📋</span>Programs</a>
+        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span class="nav-icon">⚙️</span>Settings</a>
+      </div>
+    </nav>
+
+  </div>
+  <script type="module" src="js/schedule.js"></script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+/* ============================================================
+   layout.css — Header, Navigation, Bottom Tab Bar, App Shell
+   ============================================================ */
+
+/* ── App Container ───────────────────────────────────────── */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-head);
+  font-size: 1.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.logo:hover { color: var(--text); }
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.logo-smash { color: var(--text); }
+.logo-dot { color: var(--accent); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+/* ── Desktop Navigation ──────────────────────────────────── */
+.header-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.nav-link.active {
+  color: var(--accent);
+  background: rgba(0, 229, 160, 0.08);
+  border-color: rgba(0, 229, 160, 0.2);
+}
+
+/* ── User Pill & Profile ─────────────────────────────────── */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition);
+}
+
+.user-pill:hover { border-color: var(--accent); }
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0d1117;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  overflow: hidden;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  display: none;
+  flex-direction: column;
+  z-index: 110;
+}
+
+.user-menu.active { display: flex; }
+
+.user-menu-item {
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.user-menu-item:hover { background: var(--surface2); }
+.user-menu-item.danger { color: var(--accent2); }
+.user-menu-item.danger:hover { background: rgba(255, 107, 107, 0.08); }
+
+.user-menu-email {
+  font-size: 0.75rem;
+  color: var(--muted);
+  word-break: break-all;
+  pointer-events: none;
+}
+
+.user-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0.4rem 0;
+}
+
+/* ── Theme Toggle ────────────────────────────────────────── */
+.theme-toggle {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-size: 1.1rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.theme-toggle:hover { border-color: var(--accent); }
+
+/* ── Hamburger (hidden on desktop) ───────────────────────── */
+.btn-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.btn-hamburger span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn-hamburger span::before,
+.btn-hamburger span::after,
+.btn-hamburger span span {
+  content: '';
+  width: 16px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: var(--transition);
+}
+
+/* ── Mobile Bottom Tab Bar ───────────────────────────────── */
+.bottom-nav {
+  display: none; /* shown on mobile via media query */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.4rem 0.25rem;
+  padding-bottom: calc(0.4rem + env(safe-area-inset-bottom, 0px));
+}
+
+.bottom-nav-inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  transition: var(--transition);
+  min-width: 52px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.bottom-nav-item .nav-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.bottom-nav-item:hover,
+.bottom-nav-item.active {
+  color: var(--accent);
+}
+
+.bottom-nav-item.active {
+  background: rgba(0, 229, 160, 0.08);
+}
+
+/* ── Responsive Breakpoints ──────────────────────────────── */
+
+/* Tablet & below: show hamburger, hide desktop nav */
+@media (max-width: 768px) {
+  header {
+    padding: 0.8rem 1rem;
+  }
+
+  .header-right {
+    gap: 0.6rem;
+  }
+
+  .btn-hamburger {
+    display: flex;
+  }
+
+  .header-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--surface);
+    flex-direction: column;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    gap: 0.25rem;
+  }
+
+  .header-nav.active {
+    display: flex;
+  }
+
+  .user-name {
+    display: none;
+  }
+
+  /* Show bottom nav on mobile */
+  .bottom-nav {
+    display: block;
+  }
+
+  /* Add bottom padding to page content for bottom nav */
+  .page-content {
+    padding-bottom: 5.5rem;
+  }
+
+  .page-header h2 {
+    font-size: 1.6rem;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+  .page-content {
+    padding: 1.5rem 1rem 5.5rem;
+  }
+
+  .page-header h2 {
+    font-size: 1.4rem;
+  }
+}
+
+/* Hide page contents while checking auth state */
+#appHeader.hidden ~ .page-content,
+#appHeader.hidden ~ .bottom-nav {
+  display: none !important;
+}
+

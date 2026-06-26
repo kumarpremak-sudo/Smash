@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smash. | Members & Fee Management</title>
+  <meta name="description" content="Manage members, track fee payments, and handle enrollment for the badminton academy." />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <script src="config.js?v=1.1"></script>
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- ══ HEADER ═════════════════════════════════════════════ -->
+    <header id="appHeader" class="hidden">
+      <a href="dashboard.html" class="logo" id="logoBtn">
+        <img src="logo.png" alt="Smash Logo" class="logo-icon" />
+        <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
+      </a>
+      <div class="header-right">
+        <nav class="header-nav" id="desktopNav">
+          <a href="dashboard.html" class="nav-link">Dashboard</a>
+          <a href="schedule.html" class="nav-link">Schedule</a>
+          <a href="members.html" class="nav-link active">Members</a>
+          <a href="programs.html" class="nav-link">Programs</a>
+          <a href="settings.html" class="nav-link" id="navSettings">Settings</a>
+        </nav>
+        <div class="user-pill" id="userPill">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">Loading...</span>
+          <div class="user-menu" id="userMenu">
+            <div class="user-menu-item user-menu-email" id="userMenuEmail">user@domain.com</div>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item danger" id="btnSignOut">⎋ Sign Out</button>
+          </div>
+        </div>
+        <button id="themeToggle" class="theme-toggle" title="Switch Theme">☀️</button>
+        <button class="btn-hamburger" id="hamburgerBtn" title="Toggle Menu"><span><span></span></span></button>
+      </div>
+    </header>
+
+    <!-- ══ MEMBERS PAGE ══════════════════════════════════════ -->
+    <div class="page-content">
+
+      <div class="page-header">
+        <h2>Members & <span>Fee Management</span></h2>
+        <div class="page-header-sub">Track all enrolled members, monitor fee payments, and manage overdue alerts.</div>
+      </div>
+
+      <!-- Stats Summary -->
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="stat-card-icon">👥</div>
+          <div class="stat-card-title">Total Active Members</div>
+          <div class="stat-card-value" id="statTotalMembers">—</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-card-icon">🔴</div>
+          <div class="stat-card-title">Overdue Payments</div>
+          <div class="stat-card-value" id="statOverdueCount">—</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-card-icon">🟡</div>
+          <div class="stat-card-title">Due Within 7 Days</div>
+          <div class="stat-card-value" id="statDueSoonCount">—</div>
+        </div>
+      </div>
+
+      <!-- Fee Alerts Panel -->
+      <div class="section-label">Fee Collection Alerts</div>
+      <div class="fee-alerts-panel">
+        <div class="fee-alerts-header">
+          <h3>🔔 Payment Alerts</h3>
+          <div class="fee-alerts-badges">
+            <span class="fee-badge fee-badge-overdue" id="feeOverdueCount">🔴 <span id="feeOverdueNum">0</span> Overdue</span>
+            <span class="fee-badge fee-badge-upcoming" id="feeUpcomingCount">🟡 <span id="feeUpcomingNum">0</span> Due Soon</span>
+          </div>
+        </div>
+        <div class="fee-filter-tabs">
+          <button class="fee-filter-btn active" data-filter="all">All</button>
+          <button class="fee-filter-btn" data-filter="overdue">Overdue</button>
+          <button class="fee-filter-btn" data-filter="upcoming">Due Soon</button>
+        </div>
+        <div id="feeAlertsList" class="fee-alerts-list">
+          <div class="fee-alerts-empty">🎉 All member fees are fully up to date!</div>
+        </div>
+      </div>
+
+      <!-- Members Table -->
+      <div class="section-label">All Members Directory</div>
+      <div class="members-toolbar">
+        <div class="members-search-wrap">
+          <input type="text" id="membersSearchInput" class="members-search-input" placeholder="Search members by name..." />
+        </div>
+        <select id="membersPlanFilter" class="members-filter-select">
+          <option value="all">All Plans</option>
+          <option value="Kids_5d">Kids 5-Day</option>
+          <option value="Kids_3d">Kids 3-Day</option>
+          <option value="Kids_weekend">Kids Weekend</option>
+          <option value="Individual_5d_Male">Indiv. 5d Male</option>
+          <option value="Individual_5d_Female">Indiv. 5d Female</option>
+          <option value="Individual_7d">Indiv. 7-Day</option>
+          <option value="Individual_weekend">Indiv. Weekend</option>
+          <option value="Group_5d">Group 5-Day</option>
+          <option value="Group_7d">Group 7-Day</option>
+          <option value="Group_weekend">Group Weekend</option>
+          <option value="Women_5d">Women 5-Day</option>
+          <option value="Women_3d">Women 3-Day</option>
+          <option value="Adults_5d_weekend">Adults 5d/Wknd</option>
+          <option value="Adults_3d">Adults 3-Day</option>
+          <option value="Advance_6d">Advance 6-Day</option>
+          <option value="PT_session">PT Session</option>
+        </select>
+      </div>
+
+      <div class="members-table-container">
+        <div class="members-table-scroll">
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Plan</th>
+                <th>Last Paid</th>
+                <th>Next Due</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="membersTableBody">
+              <tr><td colspan="6"><div class="members-empty-state"><div class="empty-icon">👥</div><p>Loading members...</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ BOTTOM NAV ════════════════════════════════════════ -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <a href="dashboard.html" class="bottom-nav-item"><span class="nav-icon">🏠</span>Home</a>
+        <a href="schedule.html" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
+        <a href="members.html" class="bottom-nav-item active"><span class="nav-icon">👥</span>Members</a>
+        <a href="programs.html" class="bottom-nav-item"><span class="nav-icon">📋</span>Programs</a>
+        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span class="nav-icon">⚙️</span>Settings</a>
+      </div>
+    </nav>
+
+  </div>
+  <script type="module" src="js/members.js"></script>
+</body>
+</html>

@@ -170,5 +170,20 @@ The browser subagent successfully logged out, logged in as Guest, verified the A
 
 ![Settings Tab Hidden for Guest Login](file:///C:/Users/Admin/.gemini/antigravity-ide/brain/d8bff485-e28a-45ae-9d29-78018afa4960/guest_settings_hide_verify_1782282629620.webp)
 
+---
 
+## 📋 Comprehensive Test Cases & Scenarios
 
+We have created a highly detailed, comprehensive test suite in [test_scenarios.md](file:///c:/Users/Admin/Documents/POC/Badminton/test_scenarios.md) containing **150 test cases** mapping happy flows, negative flows, input boundaries, and security constraints for every component of the system.
+
+### Test Coverage Highlights:
+- **Authentication & Access Control (15 cases):** Verification of Google sign-in whitelisting, session persistence, first-user auto-seeding, and guest access toggles.
+- **Role-Based Access Control (15 cases):** Verifying Super Admin settings page exclusivity, whitelisting operations, read-only guest privileges (UI elements stripped and programmatically blocked).
+- **Court Booking Management (25 cases):** Covers single-day slot allocations, time conflicts (exact overlap, start/end overlaps, nested bookings), bulk daily and weekday bookings, email masking, and cancellation validations.
+- **Member Directory & Status Badges (15 cases):** Name search filters, coaching plans filtration, dynamically calculated fee status badges (Paid, Overdue, Due Soon), and payment updates.
+- **Fee Alert Management (10 cases):** Verifying the alerts list rendering, upcoming vs. overdue filter tabs, inline payment confirmation widgets, and immediate notification updates.
+- **Trainee Enrollment (15 cases):** Coaching registration form, 30-trainee maximum boundary limit enforcement, enrollees list rendering, and guest permission blocks.
+- **Settings & Pricing (15 cases):** Whitelist add/remove handlers with custom inline confirmation, guest checkbox updates, pricing board rates inputs constraint verification (negative/zero bounds block).
+- **Programs & Calculator (10 cases):** Coaching plan selector, guest peak vs. non-peak calculations, tab switches, and live sync of calculator rates with database configurations.
+- **Daily Timeline Schedule (10 cases):** Sticky hours columns rendering, dynamically loaded courts headers, click-to-book empty cells, click-to-view booked details, and calendar daily/monthly pagination.
+- **Security & Boundaries (15 cases):** XSS scripting checks, character truncation inputs validation, midnight crossing slots validation, leap year dates handling, and horizontal matrix scrolling views.

@@ -1,0 +1,81 @@
+# Edge Case Safeguards & Security Hardening Plan
+
+This document details the proposed changes to harden the Badminton Court Operations application, fix security vulnerabilities (XSS, client-side routing bypass, guest privilege escalation), and implement robust input boundaries.
+
+## User Review Required
+Please review the proposed architectural and UI security changes:
+1. **Redirect Guests from Settings:** Anonymous guest accounts will be immediately redirected to `dashboard.html` if they try to access `settings.html` directly.
+2. **Hide/Disable Admin Controls for Guests:** Anonymous guest accounts are in read-only mode for operational settings. They will not see the "Mark Paid" buttons, trainee enrollment inputs, or pricing update options.
+3. **Clean Up Old Files:** We propose deleting the unused monolithic files `app.js` and `style.css` in the project root to clean up the codebase.
+
+## Open Questions
+- None. All requirements align with the badminton operations workflow and standard frontend security guidelines.
+
+---
+
+## Proposed Changes
+
+### 1. Global Layout CSS
+#### [MODIFY] [layout.css](file:///c:/Users/Admin/Documents/POC/Badminton/css/layout.css)
+- Add CSS sibling selector rule to hide `.page-content` and `.bottom-nav` if `#appHeader` is hidden. This prevents Flicker of Unauthenticated Content (FOUC) before authentication state is checked by Firebase.
+
+---
+
+### 2. HTML Inputs Hardening
+#### [MODIFY] [dashboard.html](file:///c:/Users/Admin/Documents/POC/Badminton/dashboard.html)
+- Add `maxlength="40"` to all booking name inputs (`customer_name`, `editCustomerName`, `newEnrolleeInput`).
+- Add `maxlength="80"` to all booking email inputs (`customer_email`, `editCustomerEmail`).
+- Add `min="1"` to all pricing input fields (`rate_single`, `rate_member`, `rate_kid`, and advanced rate inputs).
+
+#### [MODIFY] [schedule.html](file:///c:/Users/Admin/Documents/POC/Badminton/schedule.html)
+- Add `maxlength="40"` to all name inputs (`quickCustomerName`, `editCustomerName`, `newEnrolleeInput`).
+- Add `maxlength="80"` to all email inputs (`quickCustomerEmail`, `editCustomerEmail`).
+
+#### [MODIFY] [settings.html](file:///c:/Users/Admin/Documents/POC/Badminton/settings.html)
+- Add `maxlength="80"` to the whitelist email input (`newWhitelistEmail`).
+
+---
+
+### 3. JavaScript Logic Hardening
+
+#### [MODIFY] [settings.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/settings.js)
+- Escaping email in `title="Remove ${email}"` attribute interpolation (currently causes XSS if email contains double quotes).
+- Redirect anonymous guest players away from settings.html.
+- Add JS validation for whitelist email length (`email.length > 80`).
+
+#### [MODIFY] [members.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/members.js)
+- Import `currentUser` from `shared.js`.
+- If user is anonymous:
+  - Hide "Actions" column in the members directory table.
+  - Hide "Mark Paid" buttons in fee alerts list.
+- Reject fee collection payments programmatically if `currentUser.isAnonymous` is true.
+
+#### [MODIFY] [dashboard.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js)
+- Restrict enrollees list and enrollee addition forms in booking details modal to non-anonymous users only (hide them if `currentUser.isAnonymous` is true).
+- Programmatically reject enrollee additions or removals if the current user is anonymous.
+- Programmatically reject pricing updates if `currentUser.isAnonymous` is true.
+- Add JS verification for input boundaries (name <= 40 chars, email <= 80 chars, rates >= 1).
+
+#### [MODIFY] [schedule.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/schedule.js)
+- Restrict enrollees list and enrollee addition forms in booking details modal to non-anonymous users only.
+- Escaping trainee name in `title="Remove ${member.name}"` attribute interpolation (currently causes XSS).
+- Programmatically reject enrollee additions or removals if the current user is anonymous.
+- Enforce maximum enrollee limit of <= 30 per court booking (matching `dashboard.js`).
+- Add JS verification for input boundaries (name <= 40 chars, email <= 80 chars).
+
+---
+
+### 4. Codebase Cleanup
+#### [DELETE] [app.js](file:///c:/Users/Admin/Documents/POC/Badminton/app.js)
+#### [DELETE] [style.css](file:///c:/Users/Admin/Documents/POC/Badminton/style.css)
+
+---
+
+## Verification Plan
+
+### Automated/Manual Testing (Browser subagent)
+1. **FOUC Test:** Verify dashboard elements are hidden initially until auth resolves.
+2. **Access Bypass Test:** Log in as Guest Administrator, attempt to load `settings.html` directly in the browser. Expected: redirect to `dashboard.html`.
+3. **Guest Operations Restriction:** In Guest Mode, verify "Mark Paid" buttons and trainee enrollment inputs are completely hidden. Try manually triggering `handleMarkPaid` or `handlePricingSubmit` from console. Expected: blocked with Permission Denied error.
+4. **HTML Injection (XSS) Test:** Attempt to whitelist an email like `"<script>alert(1)</script>@test.com"`. Verify that removing it does not execute script block. Similarly, try naming an enrollee `"<img src=x onerror=alert(1)>"`.
+5. **Data Boundary/Time Limit Verification:** Test 0-duration slot bookings, negative pricing saves, name strings > 40 characters, and enrollees volume count > 30.

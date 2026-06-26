@@ -4,185 +4,145 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smash. | Court Operations & Management Dashboard</title>
-  <meta name="description" content="Badminton Court Management Portal for owners and administrators. Manage bookings, schedule blocks, and coordinate training lists." />
-  
-  <!-- Styling -->
-  <link rel="stylesheet" href="style.css?v=2" />
-  
-  <!-- Load Config first -->
+  <meta name="description" content="Badminton Court Management Portal — Manage bookings, revenue, and court schedules." />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
   <script src="config.js?v=1.1"></script>
 </head>
 <body>
-
   <div class="app-container">
-    
-    <!-- ═══════════════════════════════════════════════════════════
-         HEADER
-         ════════════════════════════════════════════════════════════ -->
+
+    <!-- ══ HEADER ═════════════════════════════════════════════ -->
     <header id="appHeader" class="hidden">
-      <div class="logo" id="logoBtn">
-        <img src="logo.png" alt="Smash Logo" class="logo-icon" style="height: 36px; width: auto; border-radius: 6px; object-fit: contain;" />
+      <a href="dashboard.html" class="logo" id="logoBtn">
+        <img src="logo.png" alt="Smash Logo" class="logo-icon" />
         <div class="logo-smash">Smash<span class="logo-dot">.</span></div>
-      </div>
-      
+      </a>
       <div class="header-right">
-        <!-- Desktop Nav -->
         <nav class="header-nav" id="desktopNav">
-          <a href="#" class="nav-link active" id="navHome">Dashboard</a>
-          <a href="#" class="nav-link" id="navDaily">Daily Matrix</a>
-          <a href="#" class="nav-link" id="navPrograms">Programs & Coaching</a>
-          <a href="#" class="nav-link" id="navSettings">Admin Settings</a>
+          <a href="dashboard.html" class="nav-link active">Dashboard</a>
+          <a href="schedule.html" class="nav-link">Schedule</a>
+          <a href="members.html" class="nav-link">Members</a>
+          <a href="programs.html" class="nav-link">Programs</a>
+          <a href="settings.html" class="nav-link" id="navSettings">Settings</a>
         </nav>
-        
-        <!-- User Menu Pill -->
         <div class="user-pill" id="userPill">
           <div class="user-avatar" id="userAvatar">?</div>
           <span class="user-name" id="userName">Loading...</span>
-          
-          <!-- Dropdown menu -->
           <div class="user-menu" id="userMenu">
             <div class="user-menu-item user-menu-email" id="userMenuEmail">user@domain.com</div>
             <div class="user-menu-sep"></div>
             <button class="user-menu-item danger" id="btnSignOut">⎋ Sign Out</button>
           </div>
         </div>
-        
-        <!-- Light/Dark Toggle -->
         <button id="themeToggle" class="theme-toggle" title="Switch Theme">☀️</button>
-        
-        <!-- Mobile Menu Hamburger -->
-        <button class="btn-hamburger" id="hamburgerBtn" title="Toggle Menu">
-          <span><span></span></span>
-        </button>
+        <button class="btn-hamburger" id="hamburgerBtn" title="Toggle Menu"><span><span></span></span></button>
       </div>
     </header>
 
-    <!-- ═══════════════════════════════════════════════════════════
-         2. DASHBOARD / HOME SCREEN
-         ════════════════════════════════════════════════════════════ -->
-    <div id="homeScreen" class="screen active">
-      
-      <!-- Greeting Row -->
-      <div class="home-welcome">
-        <h2>Hello, <span id="homeWelcomeName">Admin</span> 👋</h2>
-        <div class="home-welcome-sub">Court Management Console & Scheduling Dashboard</div>
-      </div>
-      
-      <!-- Dashboard Stats -->
-      <div class="home-section-label">Operations Summary</div>
-      <div class="home-nav-grid">
-        <div class="home-card courts">
-          <div class="home-card-icon">⚡</div>
-          <div class="home-card-title">Active Court Inventory</div>
-          <div class="home-card-stat" id="statCourtsCount">3</div>
-          <div class="home-card-desc">Seeded synthetic courts currently available for schedule mapping.</div>
-        </div>
-        
-        <div class="home-card bookings">
-          <div class="home-card-icon">🗓️</div>
-          <div class="home-card-title">Month Allocations</div>
-          <div class="home-card-stat" id="statBookingsCount">—</div>
-          <div class="home-card-desc">Total bookings processed and active in the current calendar month.</div>
-        </div>
-        
-        <div class="home-card schedule" id="quickDailyGridBtn" style="cursor:pointer;">
-          <div class="home-card-icon">📊</div>
-          <div class="home-card-title">Daily Schedule Matrix</div>
-          <div class="home-card-stat">Open Matrix</div>
-          <div class="home-card-desc">Manage hourly timelines, blocks, and quick reservations.</div>
-        </div>
-      </div>
-      
-      <!-- Revenue & Financial Console -->
-      <div class="home-section-label">Financial Console</div>
-      <div class="glass-panel financial-console-card">
-        
-        <!-- Left: Metrics breakdown -->
-        <div>
-          <h3 style="margin-bottom: 1rem; color: var(--text);">Revenue Projection for <span id="revenueMonthName" style="color: var(--accent);">June 2026</span></h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            
-            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
-              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Memberships</div>
-              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--accent4);" id="revMembersVal">₹0</div>
-              <div style="font-size: 0.7rem; color: var(--muted);" id="revMembersCount">0 active memberships</div>
-            </div>
-            
-            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
-              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Academy Coaching</div>
-              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--purple);" id="revCoachingVal">₹0</div>
-              <div style="font-size: 0.7rem; color: var(--muted);" id="revCoachingCount">0 unique trainees</div>
-            </div>
-            
-            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
-              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Personal Training</div>
-              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--accent3);" id="revPTVal">₹0</div>
-              <div style="font-size: 0.7rem; color: var(--muted);" id="revPTHrs">0 hours booked</div>
-            </div>
+    <!-- ══ DASHBOARD HOME ════════════════════════════════════ -->
+    <div class="page-content">
 
-            <div style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
-              <div style="font-size: 0.75rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Guest Play / Rentals</div>
-              <div style="font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; margin-top: 0.3rem; color: var(--text);" id="revGuestVal">₹0</div>
-              <div style="font-size: 0.7rem; color: var(--muted);" id="revGuestHrs">0 hours booked</div>
-            </div>
-            
+      <!-- Greeting -->
+      <div class="page-header">
+        <h2>Hello, <span id="homeWelcomeName">Admin</span> 👋</h2>
+        <div class="page-header-sub">Court Management Console & Scheduling Dashboard</div>
+      </div>
+
+      <!-- Operations Summary Stats -->
+      <div class="section-label">Operations Summary</div>
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="stat-card-icon">⚡</div>
+          <div class="stat-card-title">Active Court Inventory</div>
+          <div class="stat-card-value" id="statCourtsCount">3</div>
+          <div class="stat-card-desc">Courts currently available for schedule mapping.</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-card-icon">🗓️</div>
+          <div class="stat-card-title">Month Allocations</div>
+          <div class="stat-card-value" id="statBookingsCount">—</div>
+          <div class="stat-card-desc">Bookings processed this calendar month.</div>
+        </div>
+        <div class="stat-card purple clickable" id="quickDailyGridBtn">
+          <div class="stat-card-icon">📊</div>
+          <div class="stat-card-title">Daily Schedule Matrix</div>
+          <div class="stat-card-value">Open →</div>
+          <div class="stat-card-desc">Manage hourly timelines, blocks, and reservations.</div>
+        </div>
+      </div>
+
+      <!-- Financial Console -->
+      <div class="section-label">Financial Console</div>
+      <div class="glass-panel financial-console">
+
+        <!-- Left: Revenue Metrics -->
+        <div>
+          <div class="revenue-header">
+            <h3>Revenue Projection for <span class="revenue-month-name" id="revenueMonthName">June 2026</span></h3>
           </div>
-          
-          <div style="display: flex; align-items: center; gap: 1rem; background: rgba(0, 230, 118, 0.06); border: 1px solid rgba(0, 230, 118, 0.2); padding: 1rem; border-radius: var(--radius-md);">
-            <div style="font-size: 1.8rem;">💰</div>
+          <div class="revenue-metrics-grid">
+            <div class="revenue-metric">
+              <div class="revenue-metric-label">Memberships</div>
+              <div class="revenue-metric-value" style="color:var(--accent4)" id="revMembersVal">₹0</div>
+              <div class="revenue-metric-sub" id="revMembersCount">0 active memberships</div>
+            </div>
+            <div class="revenue-metric">
+              <div class="revenue-metric-label">Academy Coaching</div>
+              <div class="revenue-metric-value" style="color:var(--purple)" id="revCoachingVal">₹0</div>
+              <div class="revenue-metric-sub" id="revCoachingCount">0 unique trainees</div>
+            </div>
+            <div class="revenue-metric">
+              <div class="revenue-metric-label">Personal Training</div>
+              <div class="revenue-metric-value" style="color:var(--accent3)" id="revPTVal">₹0</div>
+              <div class="revenue-metric-sub" id="revPTHrs">0 hours booked</div>
+            </div>
+            <div class="revenue-metric">
+              <div class="revenue-metric-label">Guest Play / Rentals</div>
+              <div class="revenue-metric-value" id="revGuestVal">₹0</div>
+              <div class="revenue-metric-sub" id="revGuestHrs">0 hours booked</div>
+            </div>
+          </div>
+          <div class="revenue-total-bar">
+            <div class="revenue-total-icon">💰</div>
             <div>
-              <div style="font-size: 0.8rem; color: var(--muted); font-weight: 600; text-transform: uppercase;">Total Projected Revenue</div>
-              <div style="font-family: var(--font-mono); font-size: 1.8rem; font-weight: 800; color: var(--accent);" id="revTotalVal">₹0</div>
+              <div class="revenue-total-label">Total Projected Revenue</div>
+              <div class="revenue-total-value" id="revTotalVal">₹0</div>
             </div>
           </div>
         </div>
-        
-        <!-- Right: Pricing Configurations -->
-        <div style="border-left: 1px solid var(--border); padding-left: 2rem; display: flex; flex-direction: column; justify-content: center;">
-          <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text);">Pricing Settings</h4>
-          <form id="pricingForm" style="display: flex; flex-direction: column; gap: 0.8rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-              <label style="font-size: 0.75rem;" for="rate_single">Hourly Court Slot (₹):</label>
-              <input type="number" id="rate_single" style="width: 100px; padding: 0.4rem 0.6rem; text-align: right;" value="300" required />
+
+        <!-- Right: Quick Pricing -->
+        <div class="pricing-sidebar">
+          <h4>Pricing Settings</h4>
+          <form id="pricingForm" class="pricing-form">
+            <div class="pricing-row">
+              <label for="rate_single">Hourly Court Slot (₹):</label>
+              <input type="number" id="rate_single" value="300" min="1" required />
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-              <label style="font-size: 0.75rem;" for="rate_member">PT Session Fee (₹/hr):</label>
-              <input type="number" id="rate_member" style="width: 100px; padding: 0.4rem 0.6rem; text-align: right;" value="700" required />
+            <div class="pricing-row">
+              <label for="rate_member">PT Session Fee (₹/hr):</label>
+              <input type="number" id="rate_member" value="700" min="1" required />
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-              <label style="font-size: 0.75rem;" for="rate_kid">Advance Batch (₹/mo):</label>
-              <input type="number" id="rate_kid" style="width: 100px; padding: 0.4rem 0.6rem; text-align: right;" value="12000" required />
+            <div class="pricing-row">
+              <label for="rate_kid">Advance Batch (₹/mo):</label>
+              <input type="number" id="rate_kid" value="12000" min="1" required />
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.85rem; width: 100%;" id="btnSavePricing">Update Pricing Rates</button>
-            <button type="button" class="btn btn-secondary" style="margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.85rem; width: 100%;" id="btnOpenPricingBoard">⚙️ Advanced Pricing Board</button>
+            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;font-size:0.85rem;" id="btnSavePricing">Update Pricing Rates</button>
+            <button type="button" class="btn btn-secondary" style="width:100%;font-size:0.85rem;" id="btnOpenPricingBoard">⚙️ Advanced Pricing Board</button>
           </form>
-          <div id="pricingMessage" class="message hidden" style="margin-top: 0.5rem; padding: 0.4rem;"></div>
+          <div id="pricingMessage" class="message hidden"></div>
         </div>
-        
+
       </div>
-      
-      <!-- Fee Collection Alerts Panel -->
-      <div class="home-section-label">Fee Collection Alerts</div>
-      <div class="glass-panel fee-alerts-card" id="feeAlertsPanel" style="margin-bottom: 2rem; padding: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-          <div style="display: flex; align-items: center; gap: 0.8rem;">
-            <span style="background: var(--accent); color: var(--bg); font-weight: 800; font-family: var(--font-mono); font-size: 0.85rem; padding: 0.2rem 0.6rem; border-radius: var(--radius-sm);" id="feeAlertsCount">0 Pending Alerts</span>
-            <span class="text-muted" style="font-size: 0.85rem;">Active enrollees who joined or paid over 1 month ago.</span>
-          </div>
-        </div>
-        <div id="feeAlertsList" style="display: flex; flex-direction: column; gap: 0.8rem;">
-          <!-- Empty State -->
-          <div style="display: flex; align-items: center; gap: 0.8rem; color: var(--accent); background: rgba(0, 230, 118, 0.05); border: 1px dashed rgba(0, 230, 118, 0.3); padding: 1rem; border-radius: var(--radius-md);">
-            <span style="font-size: 1.5rem;">🎉</span>
-            <span style="font-size: 0.9rem; font-weight: 600;">All member, trainee, coaching, and personal training fees are fully up to date!</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Main Layout Panels -->
+
+      <!-- Calendar & Bookings -->
+      <div class="section-label" style="margin-top:2.5rem">Calendar & Reservations</div>
       <div class="dashboard-sections">
-        
-        <!-- Left: Calendar panel -->
+
+        <!-- Calendar -->
         <div class="calendar-panel">
           <div class="calendar-header">
             <button id="prev-month">&lt;</button>
@@ -192,821 +152,144 @@
           <div class="calendar-days-header">
             <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
           </div>
-          <div id="calendar-grid" class="calendar-grid">
-            <!-- Dynamic calendar slots -->
-          </div>
+          <div id="calendar-grid" class="calendar-grid"></div>
         </div>
-        
-        <!-- Right: Day listing and actions -->
+
+        <!-- Day Bookings -->
         <div class="selected-day-container">
           <div class="selected-day-header">
             <h3>Reservations</h3>
-            <span class="selected-date-badge" id="selected-date-display">2026-06-20</span>
+            <span class="selected-date-badge" id="selected-date-display">—</span>
           </div>
-          
           <div id="availability-grid" class="availability-grid">
-            <!-- Dynamically listing bookings -->
             <p class="no-bookings-text">No bookings for this date.</p>
           </div>
-          
-          <button class="btn btn-primary" id="btnOpenNewBooking" style="width: 100%; margin-top: 0.5rem;">
-            ➕ Reserve A Court
-          </button>
+          <button class="btn btn-primary" id="btnOpenNewBooking" style="width:100%;margin-top:0.5rem;">➕ Reserve A Court</button>
         </div>
 
-      </div>
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         3. DAILY MATRIX TIMELINE SCREEN
-         ════════════════════════════════════════════════════════════ -->
-    <div id="dailyScreen" class="screen">
-      
-      <!-- Date Picker controls -->
-      <div class="daily-header-row">
-        <div>
-          <h2>Daily Operational Schedule Timeline</h2>
-          <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.2rem;">Select any open block to create a booking or lock a court. Select allocated block to manage enrollees.</p>
-        </div>
-        
-        <div class="daily-date-controls">
-          <button id="prev-day">&lt;</button>
-          <input type="date" id="daily-date-input" class="daily-date-input" />
-          <button id="next-day">&gt;</button>
-        </div>
-      </div>
-
-      <!-- Schedule Table -->
-      <div class="daily-matrix-container">
-        <div class="table-responsive">
-          <table class="daily-matrix">
-            <thead>
-              <tr id="matrix-header-row">
-                <th>Time</th>
-                <!-- Courts headers injected here -->
-              </tr>
-            </thead>
-            <tbody id="matrix-body">
-              <!-- Grid slots injected here -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         4. PROGRAMS, SCHEDULES & ESTIMATOR SCREEN
-         ════════════════════════════════════════════════════════════ -->
-    <div id="programsScreen" class="screen">
-      <div class="programs-header-row">
-        <div>
-          <h2>Iragu Badminton Academy</h2>
-          <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.2rem;">Explore membership programs, coaching schedules, and compute monthly estimations.</p>
-        </div>
-        <div class="registration-pill">
-          <span class="reg-icon">📞</span>
-          <div class="reg-details">
-            <span class="reg-label">Registration Hotlines</span>
-            <span class="reg-numbers"><a href="tel:9176078718">91760 78718</a> / <a href="tel:9940111509">99401 11509</a></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Segmented Navigation for Programs Screen -->
-      <div class="programs-tabs-bar">
-        <button class="prog-tab-btn active" id="btnProgMemberships">Memberships & Play</button>
-        <button class="prog-tab-btn" id="btnProgCoaching">Coaching Schedule</button>
-        <button class="prog-tab-btn" id="btnProgCalculator">Fee Calculator</button>
-      </div>
-
-      <!-- View A: Memberships & Play -->
-      <div id="progMembershipsView" class="prog-view active">
-        <!-- Individual Membership -->
-        <h3 class="prog-section-title">Individual Membership</h3>
-        <div class="prog-grid">
-          <div class="prog-card individual-5d">
-            <div class="prog-card-badge">5 Days</div>
-            <div class="prog-card-days">Mon - Fri</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Individual_5d_Male">₹1,400</span> <span class="per-mo">/ month</span></div>
-            <div class="prog-card-note">Women Membership: <span class="dyn-price" data-rate-key="Individual_5d_Female">₹1,200</span> / month</div>
-          </div>
-          <div class="prog-card individual-7d">
-            <div class="prog-card-badge">7 Days</div>
-            <div class="prog-card-days">Mon - Sun</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Individual_7d">₹1,800</span> <span class="per-mo">/ month</span></div>
-            <div class="prog-card-note">Full-week court access</div>
-          </div>
-          <div class="prog-card individual-wknd">
-            <div class="prog-card-badge">Weekend</div>
-            <div class="prog-card-days">Sat - Sun</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Individual_weekend">₹1,050</span> <span class="per-mo">/ month</span></div>
-            <div class="prog-card-note">Weekend warriors special</div>
-          </div>
-        </div>
-
-        <!-- Group Membership -->
-        <h3 class="prog-section-title" style="margin-top: 2rem;">Group Membership</h3>
-        <div class="prog-grid">
-          <div class="prog-card group-5d">
-            <div class="prog-card-badge">5 Days</div>
-            <div class="prog-card-days">Mon - Fri</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Group_5d">₹8,500</span> <span class="per-mo">/ month</span></div>
-            <div class="prog-card-note">Ideal for corporate groups & clubs</div>
-          </div>
-          <div class="prog-card group-7d">
-            <div class="prog-card-badge">7 Days</div>
-            <div class="prog-card-days">Mon - Sun</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Group_7d">₹10,000</span> <span class="per-mo">/ month</span></div>
-            <div class="prog-card-note">Unlimited full-week group play</div>
-          </div>
-          <div class="prog-card group-wknd">
-            <div class="prog-card-badge">Weekend</div>
-            <div class="prog-card-days">Sat - Sun</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Group_weekend">₹5,000</span> <span class="per-mo">/ month</span></div>
-            <div class="prog-card-note">Perfect for weekend groups</div>
-          </div>
-        </div>
-
-        <!-- Guest Play & Hourly Booking -->
-        <h3 class="prog-section-title" style="margin-top: 2rem;">Guest Play & Hourly Slots</h3>
-        <div class="prog-grid guest-grid">
-          <div class="prog-card guest-nonpeak">
-            <div class="prog-card-badge header-blue">Non-Peak Hours</div>
-            <div class="prog-card-desc-text">Available during mid-day blocks</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Guest_non_peak">₹150</span> <span class="per-mo">/ hour</span></div>
-          </div>
-          <div class="prog-card guest-peak">
-            <div class="prog-card-badge header-orange">Peak Hours</div>
-            <div class="prog-card-desc-text">High-demand morning & evening slots</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Guest_peak">₹200</span> <span class="per-mo">/ person per hour</span></div>
-          </div>
-          <div class="prog-card guest-hourly">
-            <div class="prog-card-badge header-yellow">Hourly Court Slot</div>
-            <div class="prog-card-desc-text">Flat rental rate for court booking</div>
-            <div class="prog-card-price"><span class="dyn-price" data-rate-key="Guest_hourly_slot">₹300</span> <span class="per-mo">/ hour</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- View B: Coaching Schedule -->
-      <div id="progCoachingView" class="prog-view">
-        <div class="coaching-schedule-grid">
-          
-          <!-- Morning & Evening Sessions -->
-          <div class="coaching-sched-card">
-            <h4>Weekday Training Schedules</h4>
-            <ul class="sched-list">
-              <li>
-                <span class="sched-time">05:30 AM - 06:30 AM</span>
-                <span class="sched-desc">Adults Morning Session (Mon-Fri)</span>
-              </li>
-              <li>
-                <span class="sched-time">06:00 AM - 07:00 AM</span>
-                <span class="sched-desc">Kids Morning Session (Mon-Fri)</span>
-              </li>
-              <li>
-                <span class="sched-time">09:00 AM - 10:00 AM</span>
-                <span class="sched-desc">Women Morning Session (Mon-Fri)</span>
-              </li>
-              <li class="sched-sep"></li>
-              <li>
-                <span class="sched-time">04:00 PM - 05:00 PM</span>
-                <span class="sched-desc">Kids Beginners (Evening Batch 1)</span>
-              </li>
-              <li>
-                <span class="sched-time">05:00 PM - 06:00 PM</span>
-                <span class="sched-desc">Kids Beginners (Evening Batch 2)</span>
-              </li>
-              <li>
-                <span class="sched-time">06:00 PM - 07:00 PM</span>
-                <span class="sched-desc">Kids Beginners (Evening Batch 3)</span>
-              </li>
-              <li>
-                <span class="sched-time">05:30 PM - 07:00 PM</span>
-                <span class="sched-desc">Intermediate Level Coaching (Mon-Fri)</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Weekend & Working Professionals -->
-          <div class="coaching-sched-card">
-            <h4>Special & Weekend Batches</h4>
-            <ul class="sched-list">
-              <li>
-                <span class="sched-time">09:00 AM - 10:00 AM</span>
-                <span class="sched-desc">Women Weekend Session (Sat-Sun)</span>
-              </li>
-              <li>
-                <span class="sched-time">09:30 AM - 10:30 AM</span>
-                <span class="sched-desc">Adults Weekend Session (Sat-Sun)</span>
-              </li>
-              <li>
-                <span class="sched-time">06:00 AM - 09:00 AM</span>
-                <span class="sched-desc">Kids Weekend Session (Sat-Sun)</span>
-              </li>
-              <li>
-                <span class="sched-time">04:00 PM - 07:00 PM</span>
-                <span class="sched-desc">Evening Weekend Coaching (Sat-Sun)</span>
-              </li>
-              <li class="sched-sep"></li>
-              <li>
-                <span class="sched-time">08:00 PM - 09:00 PM</span>
-                <span class="sched-desc">Exclusive Session for Working Professionals (Fri-Sat)</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Advance Batch -->
-          <div class="coaching-sched-card full-width">
-            <h4>Advance Batch Schedule <span class="tag-national">State & National Players</span></h4>
-            <div class="advance-sched-grid">
-              <div class="adv-item">
-                <span class="adv-label">Ground Fitness</span>
-                <span class="adv-time">05:00 AM - 06:00 AM</span>
-              </div>
-              <div class="adv-item">
-                <span class="adv-label">Morning Practice</span>
-                <span class="adv-time">08:00 AM - 10:00 AM</span>
-              </div>
-              <div class="adv-item">
-                <span class="adv-label">Evening Session</span>
-                <span class="adv-time">06:00 PM - 09:00 PM</span>
-              </div>
-            </div>
-            <div class="coaching-fees-table-container" style="margin-top: 1.5rem;">
-              <table class="coaching-fees-table">
-                <thead>
-                  <tr>
-                    <th>Program Type</th>
-                    <th>Schedule Option</th>
-                    <th>Monthly Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td rowspan="3"><strong>Kids Coaching</strong></td>
-                    <td>3 Days/Week (Mon/Wed/Fri or Tue/Thu/Fri)</td>
-                    <td><span class="dyn-price" data-rate-key="Kids_3d">₹2,000</span></td>
-                  </tr>
-                  <tr>
-                    <td>5 Days/Week (Mon-Fri)</td>
-                    <td><span class="dyn-price" data-rate-key="Kids_5d">₹2,500</span></td>
-                  </tr>
-                  <tr>
-                    <td>Weekend (Sat-Sun)</td>
-                    <td><span class="dyn-price" data-rate-key="Kids_weekend">₹1,500</span></td>
-                  </tr>
-                  <tr>
-                    <td rowspan="2"><strong>Women Coaching</strong></td>
-                    <td>5 Days/Week</td>
-                    <td><span class="dyn-price" data-rate-key="Women_5d">₹2,500</span></td>
-                  </tr>
-                  <tr>
-                    <td>3 Days/Week</td>
-                    <td><span class="dyn-price" data-rate-key="Women_3d">₹2,000</span></td>
-                  </tr>
-                  <tr>
-                    <td rowspan="2"><strong>Adults Coaching</strong></td>
-                    <td>5 Days/Weekend</td>
-                    <td><span class="dyn-price" data-rate-key="Adults_5d_weekend">₹3,000</span></td>
-                  </tr>
-                  <tr>
-                    <td>3 Days/Week</td>
-                    <td><span class="dyn-price" data-rate-key="Adults_3d">₹2,500</span></td>
-                  </tr>
-                  <tr class="highlight-row">
-                    <td><strong>Advance Batch</strong></td>
-                    <td>For all 3 sessions (6 Days/Week)</td>
-                    <td><span class="dyn-price" data-rate-key="Advance_6d">₹12,000</span></td>
-                  </tr>
-                  <tr class="pt-row">
-                    <td><strong>Personal Training (PT)</strong></td>
-                    <td>1-Hour Session (Custom Timing)</td>
-                    <td><span class="dyn-price" data-rate-key="PT_session">₹700</span> / hour</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- View C: Fee Calculator -->
-      <div id="progCalculatorView" class="prog-view">
-        <div class="calculator-container">
-          
-          <div class="calc-form-panel">
-            <h4 style="margin-bottom: 1.25rem;">Estimate Membership & Training Fees</h4>
-            <div id="academyCalcForm" style="display: flex; flex-direction: column; gap: 1rem;">
-              
-              <div class="form-group">
-                <label for="calcCategory">Select Category</label>
-                <select id="calcCategory" required>
-                  <option value="individual">Individual Membership</option>
-                  <option value="group">Group Membership</option>
-                  <option value="coaching">Academy Coaching Program</option>
-                  <option value="pt">Personal Training (PT)</option>
-                  <option value="guest">Guest Play & Hourly Slots</option>
-                </select>
-              </div>
-
-              <!-- Options for Individual Membership -->
-              <div class="calc-option-block" id="calcBlockIndividual">
-                <div class="form-group">
-                  <label for="calcIndivType">Membership Tier</label>
-                  <select id="calcIndivType">
-                    <option value="5d_male">5 Days (Mon-Fri) - Male (₹1400/mo)</option>
-                    <option value="5d_female">5 Days (Mon-Fri) - Female (₹1200/mo)</option>
-                    <option value="7d">7 Days (Mon-Sun) (₹1800/mo)</option>
-                    <option value="weekend">Weekend (Sat-Sun) (₹1050/mo)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Options for Group Membership -->
-              <div class="calc-option-block hidden" id="calcBlockGroup">
-                <div class="form-group">
-                  <label for="calcGroupType">Group Membership Tier</label>
-                  <select id="calcGroupType">
-                    <option value="5d">5 Days (Mon-Fri) (₹8500/mo)</option>
-                    <option value="7d">7 Days (Mon-Sun) (₹10000/mo)</option>
-                    <option value="weekend">Weekend (Sat-Sun) (₹5000/mo)</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Options for Coaching -->
-              <div class="calc-option-block hidden" id="calcBlockCoaching">
-                <div class="form-group">
-                  <label for="calcCoachProgram">Select Program</label>
-                  <select id="calcCoachProgram">
-                    <option value="kids">Kids Coaching</option>
-                    <option value="women">Women Coaching</option>
-                    <option value="adults">Adults Coaching</option>
-                    <option value="advance">Advance Batch (State/National)</option>
-                  </select>
-                </div>
-                <div class="form-group" id="calcCoachFreqGroup" style="margin-top: 1rem;">
-                  <label for="calcCoachFreq">Frequency / Timing</label>
-                  <select id="calcCoachFreq">
-                    <!-- Options injected dynamically by JS -->
-                  </select>
-                </div>
-              </div>
-
-              <!-- Options for PT -->
-              <div class="calc-option-block hidden" id="calcBlockPT">
-                <div class="form-group">
-                  <label for="calcPTHours">Number of PT Hours</label>
-                  <input type="number" id="calcPTHours" min="1" max="100" value="10" />
-                  <p class="text-muted" style="font-size:0.75rem; margin-top:0.3rem;">Personal training is charged at ₹700 per hour session.</p>
-                </div>
-              </div>
-
-              <!-- Options for Guest Play -->
-              <div class="calc-option-block hidden" id="calcBlockGuest">
-                <div class="form-group">
-                  <label for="calcGuestMode">Guest Play Mode</label>
-                  <select id="calcGuestMode">
-                    <option value="non_peak">Non-Peak Hours (₹150 / hr)</option>
-                    <option value="peak">Peak Hours (₹200 / person per hr)</option>
-                    <option value="hourly_slot">Hourly Court Slot (₹300 / hr)</option>
-                  </select>
-                </div>
-                <div class="form-group" style="margin-top: 1rem;">
-                  <label for="calcGuestHours">Hours of Play</label>
-                  <input type="number" id="calcGuestHours" min="1" max="10" value="1" />
-                </div>
-                <div class="form-group hidden" id="calcGuestPersonsGroup" style="margin-top: 1rem;">
-                  <label for="calcGuestPersons">Number of Players</label>
-                  <input type="number" id="calcGuestPersons" min="1" max="12" value="4" />
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <div class="calc-result-panel">
-            <h4 style="color: var(--accent); margin-bottom: 0.5rem;">Calculation Projection</h4>
-            <div class="calc-result-details">
-              <div class="calc-res-item">
-                <span class="calc-res-lbl">Selected Plan</span>
-                <span class="calc-res-val" id="calcResultPlanName">—</span>
-              </div>
-              <div class="calc-res-item">
-                <span class="calc-res-lbl">Schedule Info</span>
-                <span class="calc-res-val" id="calcResultSchedule">—</span>
-              </div>
-              <div class="calc-res-item">
-                <span class="calc-res-lbl">Billing Frequency</span>
-                <span class="calc-res-val" id="calcResultFreq">Monthly Billing</span>
-              </div>
-            </div>
-            
-            <div class="calc-total-badge-container">
-              <span class="calc-total-lbl">ESTIMATED AMOUNT</span>
-              <div class="calc-total-val" id="calcResultPrice">₹0</div>
-            </div>
-
-            <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--muted); text-align: center; line-height: 1.4;">
-              * Projections are based on standard academy tariff guides. For signups and court reservations, please contact admin desks directly.
-            </div>
-          </div>
-
-        </div>
       </div>
     </div>
 
-      </div>
-
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         4.5. ADMIN SETTINGS SCREEN
-         ════════════════════════════════════════════════════════════ -->
-    <div id="settingsScreen" class="screen">
-      <div class="settings-header-row" style="margin-bottom: 1.5rem;">
-        <div>
-          <h2 style="color: var(--text);">Admin Settings & Security Controls</h2>
-          <p class="text-muted" style="font-size: 0.85rem; margin-top: 0.2rem;">Configure access controls, allowed user emails, and guest login behaviors.</p>
-        </div>
-      </div>
-
-      <div class="settings-content-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-        
-        <!-- Panel 1: Whitelist Settings -->
-        <div class="glass-panel settings-card" style="padding: 1.5rem;">
-          <h3 style="margin-bottom: 0.5rem; color: var(--text); font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Authorized Emails Whitelist</h3>
-          <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1rem;">Only Google accounts with emails listed below will be allowed to log into this command center.</p>
-          
-          <ul class="whitelist-list" id="whitelist-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto; margin-bottom: 1rem;">
-            <li class="empty-list-msg" style="color: var(--muted); font-size: 0.85rem; font-style: italic; padding: 0.5rem; background: rgba(0,0,0,0.1); border-radius: var(--radius-sm); border: 1px dashed var(--border);">No authorized emails configured.</li>
-          </ul>
-
-          <form id="addWhitelistForm" style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-            <input type="email" id="newWhitelistEmail" placeholder="Enter user's email" required style="flex: 1; padding: 0.5rem 0.8rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);" />
-            <button type="submit" class="btn btn-primary" style="margin-top: 0; width: auto; padding: 0.5rem 1rem; font-size: 0.85rem; white-space: nowrap;">Add Email</button>
-          </form>
-          <div id="whitelistMsg" class="message hidden" style="margin-top: 0.5rem; padding: 0.4rem;"></div>
-        </div>
-
-        <!-- Panel 2: General System Access Toggle -->
-        <div class="glass-panel settings-card" style="padding: 1.5rem; display: flex; flex-direction: column;">
-          <h3 style="margin-bottom: 0.5rem; color: var(--text); font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Access Controls</h3>
-          <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1.5rem;">Configure login methods allowed for this app instance.</p>
-          
-          <div class="setting-toggle-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
-            <div class="setting-toggle-info" style="flex: 1; padding-right: 1.5rem;">
-              <span class="setting-toggle-title" style="display: block; font-weight: 600; font-size: 0.9rem; color: var(--text); margin-bottom: 0.2rem;">Guest Administrator Access</span>
-              <span class="setting-toggle-desc" style="display: block; font-size: 0.75rem; color: var(--muted); line-height: 1.3;">Allow users to log in using the "Continue as Guest" local session option. If disabled, only whitelisted Google users can enter.</span>
-            </div>
-            
-            <!-- Custom CSS Toggle Switch -->
-            <label class="switch-container" style="position: relative; display: inline-block; width: 46px; height: 24px;">
-              <input type="checkbox" id="toggleGuestLogin" style="opacity: 0; width: 0; height: 0;" checked />
-              <span class="switch-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .3s; border-radius: 24px;"></span>
-            </label>
-          </div>
-          
-          <div id="settingsSaveMsg" class="message hidden" style="margin-top: 1rem; padding: 0.4rem;"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         5. MODAL POPUPS (Unified Popup Controller)
-         ════════════════════════════════════════════════════════════ -->
-    <div class="modal-overlay hidden" id="bookingModal">
+    <!-- ══ BOOKING MODAL ═════════════════════════════════════ -->
+    <div id="bookingModal" class="modal-overlay hidden">
       <div class="modal-content">
-        <span class="close-modal" id="modalClose">&times;</span>
-        
-        <!-- Header -->
-        <div class="modal-header-section">
-          <h2 id="modalTitle">Allocate Court Slot</h2>
-        </div>
-        
-        <!-- Body -->
+        <button class="close-modal" id="modalClose">&times;</button>
+        <div class="modal-header-section"><h2 id="modalTitle">Booking</h2></div>
         <div class="modal-body-section">
-          
-          <!-- View 1: Booking Details & Enrollment / Edit Option -->
+          <div id="modalMessage" class="message hidden"></div>
+
+          <!-- Details View -->
           <div id="modalDetailsView" class="hidden">
             <div class="booking-details-list">
-              <div class="booking-details-item">
-                <span class="booking-details-label">Court:</span>
-                <span class="booking-details-val" id="detCourt">Court 1</span>
-              </div>
-              <div class="booking-details-item">
-                <span class="booking-details-label">Time:</span>
-                <span class="booking-details-val" id="detTime">08:00 - 09:00</span>
-              </div>
-              <div class="booking-details-item">
-                <span class="booking-details-label">Organizer:</span>
-                <span class="booking-details-val" id="detName">John Doe</span>
-              </div>
-              <div class="booking-details-item">
-                <span class="booking-details-label">Contact:</span>
-                <span class="booking-details-val" id="detEmail">john@domain.com</span>
-              </div>
+              <div class="booking-details-item"><span class="booking-details-label">Court</span><span class="booking-details-val" id="detCourt"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Time</span><span class="booking-details-val" id="detTime"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Name</span><span class="booking-details-val" id="detName"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Email</span><span class="booking-details-val" id="detEmail"></span></div>
             </div>
-            
-            <!-- Owner actions (Edit / Delete) -->
-            <div style="display: flex; gap: 0.8rem; margin-bottom: 1.5rem;" id="ownerActions" class="hidden">
-              <button class="btn btn-secondary" style="flex: 1;" id="btnEditBooking">Edit Details</button>
-              <button class="btn btn-danger" style="flex: 1;" id="btnDeleteBooking">Cancel Booking</button>
-            </div>
-            
-            <!-- Enrollees list -->
             <div class="enrollees-container">
-              <div class="enrollees-header">Registered Members / Trainees</div>
-              <ul class="enrollees-list" id="enrollees-list">
-                <li>👤 Alice</li>
-                <li>👤 Bob</li>
-              </ul>
-              
-              <div class="enrollees-input-block" id="enrollActionRow" style="background: rgba(0,0,0,0.15); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); margin-top: 1rem; display: flex; flex-direction: column; gap: 0.8rem;">
-                <div class="enrollees-input-row" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                  <input type="text" id="newEnrolleeInput" placeholder="Enter trainee name" maxlength="40" style="flex: 1.5; padding: 0.5rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); min-width: 150px;" />
-                  <select id="newEnrolleeType" style="flex: 1.5; padding: 0.5rem; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); min-width: 150px;">
-                    <option value="Individual_5d_Male">Indiv. 5-Day Male (₹1400)</option>
-                    <option value="Individual_5d_Female">Indiv. 5-Day Female (₹1200)</option>
-                    <option value="Individual_7d">Indiv. 7-Day (₹1800)</option>
-                    <option value="Individual_weekend">Indiv. Weekend (₹1050)</option>
-                    <option value="Group_5d">Group 5-Day (₹8500)</option>
-                    <option value="Group_7d">Group 7-Day (₹10000)</option>
-                    <option value="Group_weekend">Group Weekend (₹5000)</option>
-                    <option value="Kids_3d">Kids 3-Day/wk (₹2000)</option>
-                    <option value="Kids_5d">Kids 5-Day/wk (₹2500)</option>
-                    <option value="Kids_weekend">Kids Weekend (₹1500)</option>
-                    <option value="Women_5d">Women 5-Day/wk (₹2500)</option>
-                    <option value="Women_3d">Women 3-Day/wk (₹2000)</option>
-                    <option value="Adults_5d_weekend">Adults 5-Day/Wknd (₹3000)</option>
-                    <option value="Adults_3d">Adults 3-Day/wk (₹2500)</option>
-                    <option value="Advance_6d">Advance 6-Day/wk (₹12000)</option>
-                    <option value="PT_session">PT Session (₹700/hr)</option>
+              <div class="enrollees-header">Enrolled Members / Trainees</div>
+              <ul class="enrollees-list" id="enrollees-list"><li class="text-muted" style="list-style:none;">No enrollees yet</li></ul>
+              <div class="enroll-block">
+                <div class="enroll-input-row">
+                  <input type="text" id="newEnrolleeInput" placeholder="Trainee name..." maxlength="40" />
+                  <select id="newEnrolleeType">
+                    <option value="Kids_5d">Kids 5-Day</option><option value="Kids_3d">Kids 3-Day</option><option value="Kids_weekend">Kids Weekend</option>
+                    <option value="Individual_5d_Male">Indiv. 5d Male</option><option value="Individual_5d_Female">Indiv. 5d Female</option><option value="Individual_7d">Indiv. 7-Day</option><option value="Individual_weekend">Indiv. Weekend</option>
+                    <option value="Group_5d">Group 5-Day</option><option value="Group_7d">Group 7-Day</option><option value="Group_weekend">Group Weekend</option>
+                    <option value="Women_5d">Women 5-Day</option><option value="Women_3d">Women 3-Day</option>
+                    <option value="Adults_5d_weekend">Adults 5d/Wknd</option><option value="Adults_3d">Adults 3-Day</option>
+                    <option value="Advance_6d">Advance 6-Day</option><option value="PT_session">PT Session</option>
                   </select>
+                  <button type="button" class="btn btn-primary" id="btnEnrollSubmit">+ Add</button>
                 </div>
-                <div class="enrollees-input-row" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                  <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1.5; min-width: 180px;">
-                    <label for="newEnrolleeJoinDate" style="font-size: 0.75rem; color: var(--muted); white-space: nowrap;">Join Date:</label>
-                    <input type="date" id="newEnrolleeJoinDate" style="padding: 0.4rem; font-size: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); flex: 1;" />
-                  </div>
-                  <button class="btn btn-primary" id="btnEnrollSubmit" style="margin-top: 0; padding: 0.5rem 1.2rem; font-size: 0.85rem; flex: 1; min-width: 80px;">Add Member</button>
+                <div class="enroll-join-date-row">
+                  <label for="newEnrolleeJoinDate">Join Date:</label>
+                  <input type="date" id="newEnrolleeJoinDate" />
                 </div>
               </div>
+            </div>
+            <div id="ownerActions" class="hidden" style="display:flex;gap:0.8rem;margin-top:1.5rem;">
+              <button class="btn btn-secondary" id="btnEditBooking" style="flex:1;">✏️ Edit</button>
+              <button class="btn btn-danger" id="btnDeleteBooking" style="flex:1;">🗑 Cancel Booking</button>
             </div>
           </div>
 
-          <!-- View 2: Edit Booking Form -->
+          <!-- Edit Form View -->
           <div id="modalEditFormView" class="hidden">
             <form id="editBookingForm">
-              <div class="form-group">
-                <label for="editCustomerName">Organizer Name</label>
-                <input type="text" id="editCustomerName" maxlength="40" required />
-              </div>
-              <div class="form-group">
-                <label for="editCustomerEmail">Email Address</label>
-                <input type="email" id="editCustomerEmail" maxlength="80" required />
-              </div>
-              <div style="display: flex; gap: 0.8rem; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-secondary" style="flex: 1;" id="btnCancelEdit">Cancel</button>
-                <button type="submit" class="btn btn-primary" style="flex: 1;">Save Changes</button>
+              <div class="form-group"><label for="editCustomerName">Customer Name</label><input type="text" id="editCustomerName" maxlength="40" required /></div>
+              <div class="form-group"><label for="editCustomerEmail">Customer Email</label><input type="email" id="editCustomerEmail" maxlength="80" required /></div>
+              <div style="display:flex;gap:0.8rem;margin-top:1.5rem;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">💾 Save Changes</button>
+                <button type="button" class="btn btn-secondary" id="btnCancelEdit" style="flex:1;">Cancel</button>
               </div>
             </form>
           </div>
 
-          <!-- View 3: Full/Form Booking Reservation (dashboard standard) -->
+          <!-- New Booking Form View -->
           <div id="modalBookingFormView" class="hidden">
             <form id="bookingForm">
-              <div class="form-group">
-                <label for="booking_type">Allocation Schedule Mode</label>
-                <select id="booking_type" name="booking_type" required>
-                  <option value="single">Single Day Block (Selected date only)</option>
-                  <option value="month_all">Daily Recurring Month Block (All dates in month)</option>
-                  <option value="month_weekdays">Weekday Recurring Month Block (Mon-Fri only)</option>
-                </select>
+              <div class="form-group"><label for="booking_type">Booking Type</label>
+                <select id="booking_type"><option value="single">Single Day</option><option value="month_weekdays">Entire Month (Weekdays)</option><option value="month_all">Entire Month (All Days)</option></select>
               </div>
-
-              <div class="form-group">
-                <label for="booking_category">Booking Category</label>
-                <select id="booking_category" name="booking_category" required>
-                  <option value="court_rental">Regular Court Rental / Guest Play</option>
-                  <option value="coaching">Academy Coaching Block</option>
-                  <option value="personal_training">Personal Training (PT) Session</option>
-                  <option value="advance_batch">Advance Batch (State/National)</option>
-                </select>
+              <div class="form-group"><label for="booking_category">Category</label>
+                <select id="booking_category"><option value="court_rental">Court Rental</option><option value="coaching">Coaching</option><option value="personal_training">Personal Training</option><option value="advance_batch">Advance Batch</option></select>
               </div>
-              
+              <div class="form-group"><label for="court_id">Court</label><select id="court_id" required><option value="" disabled selected>Select Court</option></select></div>
               <div class="form-row">
-                <div class="form-group">
-                  <label for="start_time">Start Time</label>
-                  <input type="time" id="start_time" name="start_time" required />
-                </div>
-                <div class="form-group">
-                  <label for="end_time">End Time</label>
-                  <input type="time" id="end_time" name="end_time" required />
-                </div>
+                <div class="form-group"><label for="start_time">Start Time</label><input type="time" id="start_time" required /></div>
+                <div class="form-group"><label for="end_time">End Time</label><input type="time" id="end_time" required /></div>
               </div>
-              
-              <div class="form-group">
-                <label for="court_id">Select Court</label>
-                <select id="court_id" name="court_id" required>
-                  <option value="" disabled selected>Loading courts...</option>
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label for="customer_name">Organizer Name / Allocation Description</label>
-                <input type="text" id="customer_name" name="customer_name" placeholder="E.g. Coaching Academy, Tournament Block, or John Doe" maxlength="40" required />
-              </div>
-              
-              <div class="form-group">
-                <label for="customer_email">Admin/Organizer Contact Email</label>
-                <input type="email" id="customer_email" name="customer_email" placeholder="admin@yesmash.in" maxlength="80" required />
-              </div>
-              
-              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Confirm Reservation</button>
+              <div class="form-group"><label for="customer_name">Name</label><input type="text" id="customer_name" maxlength="40" required /></div>
+              <div class="form-group"><label for="customer_email">Email</label><input type="email" id="customer_email" maxlength="80" required /></div>
+              <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Confirm Reservation</button>
             </form>
           </div>
-          
-          <!-- View 4: Quick Booking Form (from matrix cell click) -->
-          <div id="modalQuickFormView" class="hidden">
-            <form id="quickBookingForm">
-              <input type="hidden" id="quickCourtId" />
-              <input type="hidden" id="quickStartTime" />
-              <input type="hidden" id="quickEndTime" />
-              
-              <div class="form-group">
-                <label>Selected Slot</label>
-                <p id="quickSlotDesc" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 1rem;"></p>
-              </div>
-              <div class="form-group">
-                <label for="quickCustomerName">Your Name</label>
-                <input type="text" id="quickCustomerName" maxlength="40" required />
-              </div>
-              <div class="form-group">
-                <label for="quickCustomerEmail">Your Email</label>
-                <input type="email" id="quickCustomerEmail" maxlength="80" required />
-              </div>
-              <div class="form-group">
-                <label for="quickBookingCategory">Booking Category</label>
-                <select id="quickBookingCategory" name="booking_category" required>
-                  <option value="court_rental">Regular Court Rental / Guest Play</option>
-                  <option value="coaching">Academy Coaching Block</option>
-                  <option value="personal_training">Personal Training (PT) Session</option>
-                  <option value="advance_batch">Advance Batch (State/National)</option>
-                </select>
-              </div>
-              
-              <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Confirm Slot Reservation</button>
-            </form>
-          </div>
-          
-          <!-- Modal error / success alerts -->
-          <div id="modalMessage" class="message hidden"></div>
         </div>
-
       </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════════
-         6. ADVANCED PRICING BOARD MODAL
-         ════════════════════════════════════════════════════════════ -->
-    <div class="modal-overlay hidden" id="pricingBoardModal">
-      <div class="modal-content" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
-        <span class="close-modal" id="pricingBoardModalClose">&times;</span>
-        
-        <div class="modal-header-section">
-          <h2>Manage Academy Pricing Board</h2>
-          <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.2rem;">Configure baseline tariffs for all memberships, coaching programs, and play models.</p>
-        </div>
-        
-        <div class="modal-body-section" style="overflow-y: auto; flex: 1;">
-          <form id="pricingBoardForm" style="display: flex; flex-direction: column; gap: 1.5rem;">
-            
-            <!-- Category: Individual Memberships -->
-            <div>
-              <h4 style="border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--accent4);">Individual Memberships</h4>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_indiv_5d_male">5 Days Male (₹):</label>
-                  <input type="number" id="p_indiv_5d_male" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_indiv_5d_female">5 Days Female (₹):</label>
-                  <input type="number" id="p_indiv_5d_female" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_indiv_7d">7 Days (₹):</label>
-                  <input type="number" id="p_indiv_7d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_indiv_weekend">Weekend (₹):</label>
-                  <input type="number" id="p_indiv_weekend" required min="1" />
-                </div>
-              </div>
-            </div>
-            
-            <!-- Category: Group Memberships -->
-            <div>
-              <h4 style="border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--accent);">Group Memberships</h4>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_group_5d">5 Days (₹):</label>
-                  <input type="number" id="p_group_5d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_group_7d">7 Days (₹):</label>
-                  <input type="number" id="p_group_7d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_group_weekend">Weekend (₹):</label>
-                  <input type="number" id="p_group_weekend" required min="1" />
-                </div>
-              </div>
-            </div>
-            
-            <!-- Category: Kids Coaching -->
-            <div>
-              <h4 style="border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--purple);">Kids Coaching</h4>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_kids_3d">3 Days/Week (Mon/Wed/Fri) (₹):</label>
-                  <input type="number" id="p_kids_3d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_kids_5d">5 Days/Week (Mon-Fri) (₹):</label>
-                  <input type="number" id="p_kids_5d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_kids_weekend">Weekend Coaching (₹):</label>
-                  <input type="number" id="p_kids_weekend" required min="1" />
-                </div>
-              </div>
-            </div>
-
-            <!-- Category: Women & Adults Coaching -->
-            <div>
-              <h4 style="border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--accent2);">Women & Adults Coaching</h4>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_women_5d">Women 5 Days/Week (₹):</label>
-                  <input type="number" id="p_women_5d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_women_3d">Women 3 Days/Week (₹):</label>
-                  <input type="number" id="p_women_3d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_adults_5d">Adults 5 Days/Weekend (₹):</label>
-                  <input type="number" id="p_adults_5d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_adults_3d">Adults 3 Days/Week (₹):</label>
-                  <input type="number" id="p_adults_3d" required min="1" />
-                </div>
-              </div>
-            </div>
-
-            <!-- Category: Advance, PT & Guest Play -->
-            <div>
-              <h4 style="border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--accent3);">Advance, PT & Guest Play</h4>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_advance_6d">Advance Batch 6 Days (₹):</label>
-                  <input type="number" id="p_advance_6d" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_pt_session">PT 1-Hour Session (₹):</label>
-                  <input type="number" id="p_pt_session" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_guest_nonpeak">Guest Non-Peak / hr (₹):</label>
-                  <input type="number" id="p_guest_nonpeak" required min="1" />
-                </div>
-                <div class="form-group">
-                  <label style="font-size:0.75rem;" for="p_guest_peak">Guest Peak / person / hr (₹):</label>
-                  <input type="number" id="p_guest_peak" required min="1" />
-                </div>
-                <div class="form-group" style="grid-column: span 2;">
-                  <label style="font-size:0.75rem;" for="p_guest_hourly">Hourly Court Slot / hr (₹):</label>
-                  <input type="number" id="p_guest_hourly" required min="1" />
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem; margin-top: 0.5rem;" id="btnSavePricingBoard">Save Advanced Rates</button>
+    <!-- ══ PRICING BOARD MODAL ═══════════════════════════════ -->
+    <div id="pricingBoardModal" class="modal-overlay hidden">
+      <div class="modal-content" style="max-width:600px;">
+        <button class="close-modal" id="pricingBoardModalClose">&times;</button>
+        <div class="modal-header-section"><h2>Advanced Pricing Board</h2></div>
+        <div class="modal-body-section">
+          <div id="pricingBoardMessage" class="message hidden"></div>
+          <form id="pricingBoardForm">
+            <div class="section-label">Individual Membership (₹/month)</div>
+            <div class="form-row"><div class="form-group"><label>5-Day Male</label><input type="number" id="p_indiv_5d_male" min="1" /></div><div class="form-group"><label>5-Day Female</label><input type="number" id="p_indiv_5d_female" min="1" /></div></div>
+            <div class="form-row"><div class="form-group"><label>7-Day</label><input type="number" id="p_indiv_7d" min="1" /></div><div class="form-group"><label>Weekend</label><input type="number" id="p_indiv_weekend" min="1" /></div></div>
+            <div class="section-label" style="margin-top:1.5rem;">Group Membership (₹/month)</div>
+            <div class="form-row"><div class="form-group"><label>5-Day</label><input type="number" id="p_group_5d" min="1" /></div><div class="form-group"><label>7-Day</label><input type="number" id="p_group_7d" min="1" /></div></div>
+            <div class="form-group"><label>Weekend</label><input type="number" id="p_group_weekend" min="1" /></div>
+            <div class="section-label" style="margin-top:1.5rem;">Coaching (₹/month)</div>
+            <div class="form-row"><div class="form-group"><label>Kids 3-Day</label><input type="number" id="p_kids_3d" min="1" /></div><div class="form-group"><label>Kids 5-Day</label><input type="number" id="p_kids_5d" min="1" /></div></div>
+            <div class="form-row"><div class="form-group"><label>Kids Weekend</label><input type="number" id="p_kids_weekend" min="1" /></div><div class="form-group"><label>Women 5-Day</label><input type="number" id="p_women_5d" min="1" /></div></div>
+            <div class="form-row"><div class="form-group"><label>Women 3-Day</label><input type="number" id="p_women_3d" min="1" /></div><div class="form-group"><label>Adults 5d/Wknd</label><input type="number" id="p_adults_5d" min="1" /></div></div>
+            <div class="form-row"><div class="form-group"><label>Adults 3-Day</label><input type="number" id="p_adults_3d" min="1" /></div><div class="form-group"><label>Advance 6-Day</label><input type="number" id="p_advance_6d" min="1" /></div></div>
+            <div class="form-group"><label>PT Session (₹/hr)</label><input type="number" id="p_pt_session" min="1" /></div>
+            <div class="section-label" style="margin-top:1.5rem;">Guest Play (₹/hour)</div>
+            <div class="form-row"><div class="form-group"><label>Non-Peak</label><input type="number" id="p_guest_nonpeak" min="1" /></div><div class="form-group"><label>Peak</label><input type="number" id="p_guest_peak" min="1" /></div></div>
+            <div class="form-group"><label>Hourly Slot</label><input type="number" id="p_guest_hourly" min="1" /></div>
+            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1.5rem;" id="btnSavePricingBoard">Save Advanced Rates</button>
           </form>
-          <div id="pricingBoardMessage" class="message hidden" style="margin-top: 1rem; padding: 0.6rem;"></div>
         </div>
       </div>
     </div>
+
+    <!-- ══ BOTTOM NAV (MOBILE) ═══════════════════════════════ -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        <a href="dashboard.html" class="bottom-nav-item active"><span class="nav-icon">🏠</span>Home</a>
+        <a href="schedule.html" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
+        <a href="members.html" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
+        <a href="programs.html" class="bottom-nav-item"><span class="nav-icon">📋</span>Programs</a>
+        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span class="nav-icon">⚙️</span>Settings</a>
+      </div>
+    </nav>
 
   </div>
-
-  <!-- App modular script -->
-  <script type="module" src="app.js?v=4"></script>
+  <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>

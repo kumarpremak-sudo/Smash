@@ -1,0 +1,194 @@
+/* ============================================================
+   schedule.css — Daily Matrix Timeline
+   ============================================================ */
+
+.daily-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.daily-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.4rem;
+  border-radius: var(--radius-lg);
+}
+
+.daily-date-controls button {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1.1rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.daily-date-controls button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.daily-date-input {
+  background: transparent;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+  outline: none;
+  padding: 0.2rem 0.5rem;
+}
+
+.daily-matrix-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.daily-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.daily-matrix th {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 1.2rem;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  text-align: center;
+}
+
+.daily-matrix th:first-child {
+  width: 160px;
+  position: sticky;
+  left: 0;
+  background: var(--surface2) !important;
+  z-index: 6;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.25);
+}
+
+.daily-matrix td {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0.8rem;
+  text-align: center;
+}
+
+.daily-matrix td:last-child { border-right: none; }
+.daily-matrix tr:last-child td { border-bottom: none; }
+
+.matrix-time-col {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: var(--surface2);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.25);
+}
+
+.matrix-cell {
+  cursor: pointer;
+  background: transparent;
+  transition: var(--transition);
+  height: 75px;
+  position: relative;
+  font-size: 0.85rem;
+}
+
+.matrix-cell:hover { background: rgba(0, 229, 160, 0.06); }
+
+.matrix-cell.booked {
+  background: rgba(77, 171, 247, 0.08);
+  border-left: 3px solid var(--accent4);
+  text-align: left;
+  padding: 0.8rem 1.2rem;
+  cursor: pointer;
+}
+
+.matrix-cell.booked:hover { background: rgba(77, 171, 247, 0.15); }
+
+/* Category color variants */
+.matrix-cell.coaching {
+  background: rgba(167, 139, 250, 0.08);
+  border-left-color: var(--purple);
+}
+.matrix-cell.coaching:hover { background: rgba(167, 139, 250, 0.15); }
+
+.matrix-cell.personal_training {
+  background: rgba(255, 209, 102, 0.08);
+  border-left-color: var(--accent3);
+}
+.matrix-cell.personal_training:hover { background: rgba(255, 209, 102, 0.15); }
+
+.matrix-cell.advance_batch {
+  background: rgba(255, 107, 107, 0.08);
+  border-left-color: var(--accent2);
+}
+.matrix-cell.advance_batch:hover { background: rgba(255, 107, 107, 0.15); }
+
+.matrix-cell-booked-by {
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matrix-cell-enrollees {
+  display: inline-flex;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  background: rgba(77, 171, 247, 0.12);
+  color: var(--accent4);
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-weight: 600;
+}
+
+.matrix-cell-empty-text {
+  font-size: 0.75rem;
+  color: var(--muted);
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.matrix-cell:hover .matrix-cell-empty-text { opacity: 1; }
+
+@media (max-width: 768px) {
+  .daily-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,445 @@
+/* ============================================================
+   programs.css — Programs, Coaching Schedule, Fee Calculator
+   ============================================================ */
+
+.programs-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.registration-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-md);
+}
+
+.reg-icon { font-size: 1.5rem; }
+
+.reg-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.reg-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.reg-numbers a {
+  color: var(--accent);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+/* Programs Segmented Tabs */
+.programs-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 2.5rem;
+  gap: 0.25rem;
+  max-width: 500px;
+}
+
+@media (max-width: 480px) {
+  .programs-tabs-bar { max-width: 100%; }
+}
+
+.prog-tab-btn {
+  flex: 1 1 auto;
+  background: transparent;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.prog-tab-btn:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.prog-tab-btn.active {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+:root.light-theme .prog-tab-btn.active { color: #fff; }
+
+.prog-view {
+  display: none;
+  animation: fadeUp 0.4s ease forwards;
+}
+
+.prog-view.active { display: block; }
+
+.prog-section-title {
+  font-size: 1.25rem;
+  margin-bottom: 1.25rem;
+  color: var(--text);
+  border-left: 3px solid var(--accent);
+  padding-left: 0.75rem;
+}
+
+/* Programs Cards Grid */
+.prog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.prog-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.prog-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 10px 20px rgba(0, 229, 160, 0.05);
+}
+
+.prog-card-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: rgba(0, 229, 160, 0.12);
+  color: var(--accent);
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid rgba(0, 229, 160, 0.2);
+}
+
+.prog-card.individual-wknd .prog-card-badge,
+.prog-card.group-wknd .prog-card-badge {
+  background: rgba(255, 209, 102, 0.12);
+  color: var(--accent3);
+  border-color: rgba(255, 209, 102, 0.2);
+}
+
+.prog-card-days {
+  font-family: var(--font-head);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.prog-card-price {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.per-mo {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.prog-card-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.prog-card-desc-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Guest Play Badge Headers */
+.prog-card-badge.header-blue {
+  background: rgba(77, 171, 247, 0.12);
+  color: var(--accent4);
+  border-color: rgba(77, 171, 247, 0.2);
+}
+
+.prog-card-badge.header-orange {
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--accent2);
+  border-color: rgba(255, 107, 107, 0.2);
+}
+
+.prog-card-badge.header-yellow {
+  background: rgba(255, 209, 102, 0.12);
+  color: var(--accent3);
+  border-color: rgba(255, 209, 102, 0.2);
+}
+
+/* Coaching Schedule Cards */
+.coaching-schedule-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 850px) {
+  .coaching-schedule-grid { grid-template-columns: 1fr; }
+}
+
+.coaching-sched-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+}
+
+.coaching-sched-card.full-width { grid-column: 1 / -1; }
+
+.coaching-sched-card h4 {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.tag-national {
+  font-size: 0.7rem;
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--accent2);
+  border: 1px solid rgba(255, 107, 107, 0.25);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sched-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.sched-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sched-list li.sched-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0.25rem 0;
+}
+
+.sched-time {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: rgba(0, 229, 160, 0.05);
+  border: 1px solid rgba(0, 229, 160, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.sched-desc {
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+/* Advance Batch Layout */
+.advance-sched-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .advance-sched-grid { grid-template-columns: 1fr; }
+}
+
+.adv-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.adv-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.adv-time {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent2);
+}
+
+/* Coaching Fees Table */
+.coaching-fees-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.coaching-fees-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.coaching-fees-table th,
+.coaching-fees-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.coaching-fees-table th {
+  background: var(--surface2);
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.coaching-fees-table tbody tr:last-child td { border-bottom: none; }
+
+.coaching-fees-table tr.highlight-row { background: rgba(255, 107, 107, 0.05); }
+.coaching-fees-table tr.highlight-row td { border-color: rgba(255, 107, 107, 0.15); }
+
+.coaching-fees-table tr.pt-row { background: rgba(255, 209, 102, 0.05); }
+.coaching-fees-table tr.pt-row td { border-color: rgba(255, 209, 102, 0.15); }
+
+/* Fee Calculator */
+.calculator-container {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+@media (max-width: 850px) {
+  .calculator-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.calc-form-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+}
+
+.calc-result-panel {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(21, 28, 40, 0.6) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem;
+  position: sticky;
+  top: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.calc-option-block.hidden { display: none; }
+
+.calc-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.calc-res-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 0.6rem;
+}
+
+.calc-res-lbl { font-size: 0.85rem; color: var(--muted); }
+.calc-res-val { font-size: 0.9rem; font-weight: 600; text-align: right; }
+
+.calc-total-badge-container {
+  background: rgba(0, 229, 160, 0.05);
+  border: 1px solid rgba(0, 229, 160, 0.18);
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.calc-total-lbl {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 1.5px;
+}
+
+.calc-total-val {
+  font-family: var(--font-mono);
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+/* Dynamic price spans */
+.dyn-price {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .programs-header-row { flex-direction: column; align-items: flex-start; }
+  .sched-list li { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+  .sched-desc { text-align: left; }
+}
