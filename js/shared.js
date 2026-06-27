@@ -379,7 +379,9 @@ function setupSharedListeners() {
 // ── Initialization ──────────────────────────────────────────
 export function initApp() {
   initTheme();
-  const isConfigured = window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
+  const isConfigured = window.FIREBASE_CONFIG && 
+                       window.FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY" && 
+                       window.FIREBASE_CONFIG.apiKey !== "__FIREBASE_API_KEY__";
   if (!isConfigured) {
     const banner = document.getElementById("setupBanner");
     if (banner) banner.classList.remove("hidden");

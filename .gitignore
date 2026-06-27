@@ -1,1 +1,2 @@
-# config.js is tracked for GitHub Pages deployment
+# Ignore local config overrides so credentials never get committed
+config.local.js
