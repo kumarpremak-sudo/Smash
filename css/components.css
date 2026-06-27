@@ -375,6 +375,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   min-width: 140px;
 }
 
+/* ── Generic Containers & Cards ────────────────────────────── */
+.card, .table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: var(--transition);
+}
+
+.card:hover, .table-card:hover {
+  border-color: rgba(0, 229, 160, 0.25);
+}
+
+.card-interactive {
+  cursor: pointer;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 229, 160, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
 /* ── Stat Cards Grid ─────────────────────────────────────── */
 .stats-grid {
   display: grid;
@@ -573,4 +597,44 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: rgba(167, 139, 250, 0.12);
   color: var(--purple);
   border-color: rgba(167, 139, 250, 0.2);
+}
+
+.badge-live {
+  background: rgba(0, 229, 160, 0.15);
+  color: var(--accent);
+  border-color: rgba(0, 229, 160, 0.35);
+}
+
+/* ── Data Tables ─────────────────────────────────────────── */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.data-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--surface2);
 }

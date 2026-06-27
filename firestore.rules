@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      // Guests do not have an email or user document, so return null
+      return request.auth.token.firebase.sign_in_provider == 'anonymous' ? null : 
+             get(/databases/$(database)/documents/users/$(request.auth.token.email)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && !isGuest() && (
+        getUserData().role == 'SUPER_ADMIN' || 
+        request.auth.token.email == 'kumarprem.ak@gmail.com'
+      );
+    }
+    
+    function isGuest() {
+      return isAuthenticated() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function hasAcademyAccess(targetAcademyId) {
+      return isAuthenticated() && (
+        (isGuest() && targetAcademyId == 'demo_' + request.auth.uid) ||
+        (!isGuest() && getUserData().academyId == targetAcademyId)
+      );
+    }
+
+    function isTenantAdmin(targetAcademyId) {
+      return hasAcademyAccess(targetAcademyId) && !isGuest() && getUserData().role == 'TENANT_ADMIN';
+    }
+
+    // --- Rules ---
+
+    // 1. Academies (Tenants)
+    match /academies/{academyId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(academyId);
+      allow write: if isSuperAdmin(); // Only Super Admins can create/edit academies
+    }
+
+    // 2. Users (RBAC)
+    match /users/{userEmail} {
+      // Super admin can read all. A user can read themselves (by email). Tenant/Staff can read users in their own academy.
+      // Guests cannot read the users collection.
+      allow read: if isSuperAdmin() 
+                  || (!isGuest() && request.auth.token.email == userEmail)
+                  || (!isGuest() && hasAcademyAccess(resource.data.academyId));
+      
+      // Super admins can create users. Tenant Admins can create STAFF (but not super admins) for their own academy.
+      allow create: if isSuperAdmin() || (
+        isTenantAdmin(request.resource.data.academyId) && 
+        request.resource.data.role != 'SUPER_ADMIN'
+      );
+      
+      // Updates: similar logic, but ensure they don't change the academyId maliciously.
+      allow update: if isSuperAdmin() || (
+        isTenantAdmin(resource.data.academyId) && 
+        request.resource.data.role != 'SUPER_ADMIN' && 
+        request.resource.data.academyId == resource.data.academyId
+      );
+      
+      allow delete: if isSuperAdmin() || isTenantAdmin(resource.data.academyId);
+    }
+
+    // 3. Tenant Data Collections (Bookings, Members, Configs, Courts, etc.)
+    match /bookings/{bookingId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.academyId);
+      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+    }
+    
+    match /members/{memberId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.academyId);
+      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+    }
+
+    match /configs/{configId} {
+      allow read: if configId == 'auth' || isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.academyId) || isTenantAdmin(request.resource.data.academyId);
+    }
+
+    match /courts/{courtId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.academyId) || isTenantAdmin(request.resource.data.academyId);
+    }
+    
+    match /programs/{programId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.academyId) || isTenantAdmin(request.resource.data.academyId);
+    }
+    
+    match /coaching/{coachingId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow write: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId) || hasAcademyAccess(request.resource.data.academyId);
+    }
+  }
+}

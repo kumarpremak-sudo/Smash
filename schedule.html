@@ -50,10 +50,13 @@
           <h2>Daily Schedule <span>Matrix</span></h2>
           <div class="page-header-sub">Select any open block to book or manage enrollees on allocated blocks.</div>
         </div>
-        <div class="daily-date-controls">
-          <button id="prev-day">&lt;</button>
-          <input type="date" id="daily-date-input" class="daily-date-input" />
-          <button id="next-day">&gt;</button>
+        <div class="daily-actions-wrapper" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <div class="daily-date-controls">
+            <button id="prev-day">&lt;</button>
+            <input type="date" id="daily-date-input" class="daily-date-input" />
+            <button id="next-day">&gt;</button>
+          </div>
+          <button id="btnOpenBulkCancel" class="btn-bulk-cancel">🗓️ Bulk Cancel Month</button>
         </div>
       </div>
 
@@ -136,6 +139,50 @@
               <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Confirm Reservation</button>
             </form>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ BULK CANCEL MODAL ══════════════════════════════ -->
+    <div id="bulkCancelModal" class="modal-overlay hidden">
+      <div class="modal-container" style="max-width:480px;">
+        <div class="modal-header">
+          <h3 id="bulkCancelTitle">🗓️ Bulk Cancel Monthly Slots</h3>
+          <button class="modal-close" id="bulkCancelClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="bulkCancelMsg" class="message hidden" style="margin-bottom:1rem;"></div>
+          <form id="bulkCancelForm">
+            <div class="form-group">
+              <label for="bulkTargetType">Target Type</label>
+              <select id="bulkTargetType">
+                <option value="member">Specific Member / Phone</option>
+                <option value="group">Coaching Group / Program</option>
+              </select>
+            </div>
+            <div class="form-group" id="bulkMemberGroup">
+              <label for="bulkMemberPhone">Member Phone</label>
+              <input type="tel" id="bulkMemberPhone" placeholder="e.g. +91 9876543210" maxlength="20" />
+            </div>
+            <div class="form-group hidden" id="bulkCategoryGroup">
+              <label for="bulkCategory">Coaching Group / Program</label>
+              <select id="bulkCategory">
+                <option value="coaching">Coaching</option>
+                <option value="personal_training">Personal Training</option>
+                <option value="advance_batch">Advance Batch</option>
+                <option value="court_rental">Court Rental</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="bulkYearMonth">Target Month</label>
+              <input type="month" id="bulkYearMonth" required />
+            </div>
+            <div class="form-group">
+              <label for="bulkReason">Cancellation Reason</label>
+              <input type="text" id="bulkReason" value="Admin Monthly Cancellation" maxlength="100" />
+            </div>
+            <button type="submit" class="btn btn-danger" id="btnSubmitBulkCancel" style="width:100%;margin-top:1rem;">🗑️ Execute Bulk Cancellation</button>
+          </form>
         </div>
       </div>
     </div>

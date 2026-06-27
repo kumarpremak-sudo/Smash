@@ -4,7 +4,7 @@ import {
   monthNames, escapeHTML, formatSelectedDate, showMsg, showInlineToast,
   loadMembers, setOnAuthReady, initApp, updateDynamicPricesUI,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail,
+  query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone,
   signOut
 } from "./shared.js";
 
@@ -30,9 +30,9 @@ setOnAuthReady(async (user) => {
   // Prefill user info
   if (user && !user.isAnonymous) {
     const nameInput = document.getElementById("customer_name");
-    const emailInput = document.getElementById("customer_email");
+    const phoneInput = document.getElementById("customer_phone");
     if (nameInput) nameInput.value = user.displayName || "";
-    if (emailInput) emailInput.value = user.email || "";
+    if (phoneInput && !phoneInput.value.trim()) phoneInput.value = "+91 ";
   }
   const nameEl = document.getElementById("homeWelcomeName");
   if (nameEl) nameEl.textContent = user.displayName || (user.isAnonymous ? "Guest" : "Admin");
@@ -87,7 +87,7 @@ async function renderCalendar() {
   const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
   const endStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-31`;
   try {
-    const q = query(collection(db, "bookings"), where("date", ">=", startStr), where("date", "<=", endStr));
+    const q = query(collection(db, "bookings"), where("date", ">=", startStr), where("date", "<=", endStr), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     currentMonthBookings = [];
     snap.forEach(docSnap => { currentMonthBookings.push({ id: docSnap.id, ...docSnap.data() }); });
@@ -259,8 +259,9 @@ async function openBookingDetailsModal(booking) {
 
   const ownerActions = document.getElementById("ownerActions");
   const isOwner = currentUser && booking.userId === currentUser.uid;
-  if (isOwner) { document.getElementById("detEmail").textContent = booking.customer_email; ownerActions.classList.remove("hidden"); }
-  else { document.getElementById("detEmail").textContent = maskEmail(booking.customer_email); ownerActions.classList.add("hidden"); }
+  const contactInfo = booking.customer_phone || booking.customer_email || "N/A";
+  if (isOwner) { document.getElementById("detPhone").textContent = contactInfo; ownerActions.classList.remove("hidden"); }
+  else { document.getElementById("detPhone").textContent = maskPhone(contactInfo); ownerActions.classList.add("hidden"); }
   await renderModalEnrolleesList(booking.id);
 }
 
@@ -270,7 +271,7 @@ async function renderModalEnrolleesList(bookingId) {
   ul.innerHTML = '<li class="text-muted" style="list-style:none;">Loading members...</li>';
   if (!db) return;
   try {
-    const q = query(collection(db, "members"), where("bookingId", "==", bookingId));
+    const q = query(collection(db, "members"), where("bookingId", "==", bookingId), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     ul.innerHTML = "";
     let activeCount = 0;
@@ -331,8 +332,8 @@ function openBookingFormModal() {
   document.getElementById("end_time").value = "";
   if (currentUser && !currentUser.isAnonymous) {
     document.getElementById("customer_name").value = currentUser.displayName || "";
-    document.getElementById("customer_email").value = currentUser.email || "";
   }
+  document.getElementById("customer_phone").value = "+91 ";
 }
 
 function showEditBookingForm() {
@@ -341,7 +342,7 @@ function showEditBookingForm() {
   document.getElementById("modalDetailsView").classList.add("hidden");
   document.getElementById("modalEditFormView").classList.remove("hidden");
   document.getElementById("editCustomerName").value = selectedBooking.customer_name;
-  document.getElementById("editCustomerEmail").value = selectedBooking.customer_email;
+  document.getElementById("editCustomerPhone").value = selectedBooking.customer_phone || selectedBooking.customer_email || "+91 ";
 }
 
 // ── Form Submissions ────────────────────────────────────────
@@ -354,9 +355,9 @@ async function handleBookingSubmit(event) {
   const startTime = document.getElementById("start_time").value + ":00";
   const endTime = document.getElementById("end_time").value + ":00";
   const name = document.getElementById("customer_name").value.trim();
-  const email = document.getElementById("customer_email").value.trim();
+  const phone = document.getElementById("customer_phone").value.trim();
   if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); return; }
-  if (email.length > 80) { showMsg("modalMessage", "Email cannot exceed 80 characters.", "error"); return; }
+  if (phone.length > 20) { showMsg("modalMessage", "Phone cannot exceed 20 characters.", "error"); return; }
   if (startTime >= endTime) { showMsg("modalMessage", "End time must occur after start time.", "error"); return; }
   btn.disabled = true; btn.textContent = "Processing Reservation...";
   try {
@@ -364,7 +365,7 @@ async function handleBookingSubmit(event) {
     if (type === "single") {
       const dateStr = formatSelectedDate(selectedDate);
       if (await checkBookingConflicts(courtId, dateStr, startTime, endTime)) throw new Error("This court is already reserved for the selected time range.");
-      await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, createdAt: serverTimestamp() });
+      await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_phone: phone, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
       showMsg("modalMessage", "Reservation confirmed successfully!", "success");
       setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
     } else {
@@ -372,7 +373,7 @@ async function handleBookingSubmit(event) {
       const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
       const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
       const endStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-31`;
-      const q2 = query(collection(db, "bookings"), where("date", ">=", startStr), where("date", "<=", endStr2));
+      const q2 = query(collection(db, "bookings"), where("date", ">=", startStr), where("date", "<=", endStr2), where("academyId", "==", currentUser.academyId));
       const snap2 = await getDocs(q2);
       const existing = []; snap2.forEach(d => { if (d.data().court_id == courtId) existing.push(d.data()); });
       const batch = writeBatch(db);
@@ -383,7 +384,7 @@ async function handleBookingSubmit(event) {
         if (daysMode === "weekdays" && (dayOfWeek === 0 || dayOfWeek === 6)) continue;
         const curDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         if (existing.some(b => curDateStr === b.date && startTime < b.end_time && endTime > b.start_time)) { skipped++; continue; }
-        batch.set(doc(collection(db, "bookings")), { court_id: courtId, customer_name: name, customer_email: email, category, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, createdAt: serverTimestamp() });
+        batch.set(doc(collection(db, "bookings")), { court_id: courtId, customer_name: name, customer_phone: phone, category, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
         created++;
       }
       if (created > 0) { await batch.commit(); showMsg("modalMessage", `Bulk complete. Processed ${created} slots, skipped ${skipped} conflicts.`, "success"); }
@@ -400,13 +401,13 @@ async function handleEditBookingSubmit(event) {
   const btn = event.target.querySelector("button[type='submit']");
   btn.disabled = true;
   const name = document.getElementById("editCustomerName").value.trim();
-  const email = document.getElementById("editCustomerEmail").value.trim();
+  const phone = document.getElementById("editCustomerPhone").value.trim();
   if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); return; }
-  if (email.length > 80) { showMsg("modalMessage", "Email cannot exceed 80 characters.", "error"); return; }
+  if (phone.length > 20) { showMsg("modalMessage", "Phone cannot exceed 20 characters.", "error"); return; }
   try {
     if (!(currentUser && selectedBooking.userId === currentUser.uid)) throw new Error("Permission Denied.");
-    await updateDoc(doc(db, "bookings", selectedBooking.id), { customer_name: name, customer_email: email });
-    selectedBooking.customer_name = name; selectedBooking.customer_email = email;
+    await updateDoc(doc(db, "bookings", selectedBooking.id), { customer_name: name, customer_phone: phone });
+    selectedBooking.customer_name = name; selectedBooking.customer_phone = phone;
     showMsg("modalMessage", "Reservation details saved.", "success");
     setTimeout(() => { openBookingDetailsModal(selectedBooking); renderCalendar(); }, 1200);
   } catch (error) { showMsg("modalMessage", "Failed to update: " + error.message, "error"); }
@@ -445,7 +446,7 @@ async function handleEnrollmentSubmit() {
   const type = typeSelect.value;
   const joinDate = joinDateInput.value || formatSelectedDate(selectedDate);
   try {
-    await addDoc(collection(db, "members"), { name: newName, type, joinDate, lastPaidDate: joinDate, bookingId: selectedBooking.id, status: "active", createdTime: Date.now() });
+    await addDoc(collection(db, "members"), { name: newName, type, joinDate, lastPaidDate: joinDate, bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
     input.value = "";
     showMsg("modalMessage", "Trainee enrolled successfully!", "success");
     await renderModalEnrolleesList(selectedBooking.id);

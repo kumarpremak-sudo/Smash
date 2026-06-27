@@ -3,7 +3,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import {
-  getFirestore, collection, doc, addDoc, getDocs, setDoc,
+  getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc,
   updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import {
@@ -57,7 +57,7 @@ export const planLabels = {
 
 // Re-export Firebase utilities for page modules
 export {
-  getFirestore, collection, doc, addDoc, getDocs, setDoc,
+  getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc,
   updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp,
   signOut
 };
@@ -91,11 +91,18 @@ export function showMsg(containerId, text, type) {
 }
 
 export function maskEmail(email) {
-  if (!email) return "N/A";
-  const parts = email.split("@");
-  if (parts.length !== 2) return "***";
-  const name = parts[0];
-  return name.length <= 2 ? `${name.charAt(0)}*@${parts[1]}` : `${name.substring(0, 2)}***@${parts[1]}`;
+  if (!email || typeof email !== "string") return "N/A";
+  const [local, domain] = email.split("@");
+  if (!domain) return email;
+  if (local.length <= 2) return `${local}***@${domain}`;
+  return `${local.substring(0, 2)}***@${domain}`;
+}
+
+export function maskPhone(phone) {
+  if (!phone) return "N/A";
+  const p = phone.trim();
+  if (p.length <= 4) return p;
+  return "XXXX" + p.slice(-4);
 }
 
 // ── Toast Notification System ───────────────────────────────
@@ -147,13 +154,15 @@ export function initTheme() {
 
 // ── Data Loaders ────────────────────────────────────────────
 async function seedCourtsIfEmpty() {
+  if (!currentUser?.academyId) return;
   try {
-    const snap = await getDocs(collection(db, "courts"));
+    const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
+    const snap = await getDocs(q);
     if (snap.empty) {
       const batch = writeBatch(db);
-      batch.set(doc(collection(db, "courts"), "court_1"), { id: 1, name: "Court 1" });
-      batch.set(doc(collection(db, "courts"), "court_2"), { id: 2, name: "Court 2" });
-      batch.set(doc(collection(db, "courts"), "court_3"), { id: 3, name: "Court 3" });
+      batch.set(doc(collection(db, "courts")), { id: 1, name: "Court 1", academyId: currentUser.academyId });
+      batch.set(doc(collection(db, "courts")), { id: 2, name: "Court 2", academyId: currentUser.academyId });
+      batch.set(doc(collection(db, "courts")), { id: 3, name: "Court 3", academyId: currentUser.academyId });
       await batch.commit();
     }
   } catch (error) {
@@ -163,7 +172,13 @@ async function seedCourtsIfEmpty() {
 
 export async function loadCourts() {
   await seedCourtsIfEmpty();
-  const snap = await getDocs(collection(db, "courts"));
+  let snap;
+  if (currentUser?.academyId) {
+    const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
+    snap = await getDocs(q);
+  } else {
+    snap = { forEach: () => {} }; 
+  }
   courtsList = [];
   courtsMap = {};
   snap.forEach(d => {
@@ -177,7 +192,11 @@ export async function loadCourts() {
 export async function loadMembers() {
   if (!db) return;
   try {
-    const snap = await getDocs(collection(db, "members"));
+    let snap = { forEach: () => {} };
+    if (currentUser?.academyId) {
+      const q = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
+      snap = await getDocs(q);
+    }
     membersList = [];
     snap.forEach(d => {
       membersList.push({ id: d.id, ...d.data() });
@@ -219,28 +238,58 @@ export function updateDynamicPricesUI() {
 async function checkUserAccess(user) {
   if (!db) return false;
   try {
-    let allowedEmails = [];
-    let allowGuestLogin = true;
-    const configSnap = await getDocs(collection(db, "configs"));
-    configSnap.forEach(d => {
-      if (d.id === "auth") {
-        const data = d.data();
-        allowedEmails = data.allowedEmails || [];
-        allowGuestLogin = data.allowGuestLogin !== undefined ? data.allowGuestLogin : true;
-      }
-    });
-    authConfig.allowedEmails = allowedEmails;
-    authConfig.allowGuestLogin = allowGuestLogin;
-    // Auto-seed first Google user
-    if (allowedEmails.length === 0 && !user.isAnonymous && user.email) {
-      allowedEmails.push(user.email.toLowerCase().trim());
-      await setDoc(doc(db, "configs", "auth"), { allowedEmails, allowGuestLogin });
-      authConfig.allowedEmails = allowedEmails;
-      return true;
+    // 1. Check Global Guest Setting
+    const configDoc = await getDoc(doc(db, "configs", "auth"));
+    if (configDoc.exists()) {
+      const data = configDoc.data();
+      authConfig.allowGuestLogin = data.allowGuestLogin !== undefined ? data.allowGuestLogin : true;
     }
-    if (user.isAnonymous) return allowGuestLogin;
+    
+    // 2. Handle Anonymous Users
+    if (user.isAnonymous) {
+      if (authConfig.allowGuestLogin) {
+        // Enforce 24-hour expiration
+        const creationTime = new Date(user.metadata.creationTime).getTime();
+        const now = Date.now();
+        if (now - creationTime > 24 * 60 * 60 * 1000) {
+          await signOut(auth);
+          return false;
+        }
+
+        user.role = "GUEST";
+        user.academyId = "demo_" + user.uid; // Isolate each guest to their own private demo tenant
+        return true;
+      }
+      return false;
+    }
+
     const userEmail = (user.email || "").toLowerCase().trim();
-    return allowedEmails.map(e => e.toLowerCase().trim()).includes(userEmail);
+    const userDocRef = doc(db, "users", userEmail);
+    const userDoc = await getDoc(userDocRef);
+    
+    if (!userDoc.exists()) {
+      // Auto-seed super admin if they match the admin email
+      if (userEmail === "kumarprem.ak@gmail.com") {
+        const adminData = {
+          email: userEmail,
+          role: "SUPER_ADMIN",
+          academyId: null,
+          createdAt: Date.now()
+        };
+        // Save using their email as the document ID
+        await setDoc(userDocRef, adminData);
+        user.role = "SUPER_ADMIN";
+        user.academyId = null;
+        return true;
+      }
+      return false;
+    }
+    
+    // User found via email document ID
+    const userData = userDoc.data();
+    user.role = userData.role;
+    user.academyId = userData.academyId;
+    return true;
   } catch (error) {
     console.error("Access verification error:", error);
     return false;
@@ -248,15 +297,22 @@ async function checkUserAccess(user) {
 }
 
 export function isSuperAdmin(user) {
-  if (!user || user.isAnonymous) return false;
-  const adminEmail = "kumarprem.ak@gmail.com";
-  return (user.email || "").toLowerCase().trim() === adminEmail;
+  return user && user.role === "SUPER_ADMIN";
+}
+
+export function isTenantAdmin(user) {
+  return user && user.role === "TENANT_ADMIN";
+}
+
+export function isStaff(user) {
+  return user && user.role === "STAFF";
 }
 
 // ── Booking Conflict Check ──────────────────────────────────
 export async function checkBookingConflicts(courtId, dateStr, startTime, endTime, skipBookingId = null) {
   try {
-    const q = query(collection(db, "bookings"), where("date", "==", dateStr));
+    if (!currentUser?.academyId) return true;
+    const q = query(collection(db, "bookings"), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     let conflict = false;
     snap.forEach(d => {
@@ -398,3 +454,96 @@ export function initApp() {
   onAuthStateChanged(auth, handleAuthStateChange);
   setupSharedListeners();
 }
+
+// ── Bulk Monthly Cancellation Backend Function ─────────────
+export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMonth, cancelledBy, reason = "Admin Bulk Cancellation" }) {
+  if (!db) throw new Error("Database not initialized.");
+  if (!yearMonth || (!memberPhone && !groupId)) {
+    throw new Error("YearMonth and either Member Phone or Group ID are required.");
+  }
+
+  const startDate = `${yearMonth}-01`;
+  const [year, month] = yearMonth.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const endDate = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
+
+  const bookingsRef = collection(db, "bookings");
+  let snapshot;
+  
+  try {
+    let constraints = [
+      where("date", ">=", startDate),
+      where("date", "<=", endDate)
+    ];
+    if (memberPhone) {
+      constraints.push(where("customer_phone", "==", memberPhone));
+    } else if (groupId) {
+      constraints.push(where("category", "==", groupId));
+    }
+
+    const q = query(bookingsRef, ...constraints);
+    snapshot = await getDocs(q);
+  } catch (err) {
+    // Fallback in-memory scan if composite index or custom queries hit constraints locally
+    const allSnap = await getDocs(bookingsRef);
+    const filteredDocs = [];
+    allSnap.forEach(d => {
+      const data = d.data();
+      const matchDate = data.date >= startDate && data.date <= endDate;
+      const matchMember = memberPhone ? (data.customer_phone === memberPhone) : true;
+      const matchGroup = groupId ? (data.category === groupId) : true;
+      const matchStatus = data.status !== "cancelled";
+      if (matchDate && matchMember && matchGroup && matchStatus) {
+        filteredDocs.push(d);
+      }
+    });
+    snapshot = { docs: filteredDocs, empty: filteredDocs.length === 0 };
+  }
+
+  if (snapshot.empty) {
+    return { success: true, processedCount: 0, failedCount: 0, cancelledIds: [], failures: [] };
+  }
+
+  const BATCH_SIZE = 450;
+  const docs = snapshot.docs;
+  const chunks = [];
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    chunks.push(docs.slice(i, i + BATCH_SIZE));
+  }
+
+  const cancelledIds = [];
+  const failures = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const batch = writeBatch(db);
+    const chunkIds = [];
+
+    chunk.forEach((docSnap) => {
+      const ref = doc(db, "bookings", docSnap.id);
+      batch.update(ref, {
+        status: "cancelled",
+        cancelledAt: serverTimestamp(),
+        cancelledBy: cancelledBy || "Admin",
+        cancellationReason: reason
+      });
+      chunkIds.push(docSnap.id);
+    });
+
+    try {
+      await batch.commit();
+      cancelledIds.push(...chunkIds);
+    } catch (error) {
+      chunkIds.forEach(id => failures.push({ id, error: error.message }));
+    }
+  }
+
+  return {
+    success: failures.length === 0,
+    processedCount: cancelledIds.length,
+    failedCount: failures.length,
+    cancelledIds,
+    failures
+  };
+}
+

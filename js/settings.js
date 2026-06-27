@@ -1,66 +1,99 @@
-// js/settings.js — Admin Settings: Whitelist, Guest Toggle
+// js/settings.js — Admin Settings: Manage Academies (Super Admin) and Staff (Tenant Admin)
 import {
   db, currentUser, authConfig, escapeHTML, showMsg, showInlineToast,
-  setOnAuthReady, initApp, isSuperAdmin,
-  collection, doc, getDocs, setDoc
+  setOnAuthReady, initApp, isSuperAdmin, isTenantAdmin, isStaff,
+  collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, addDoc
 } from "./shared.js";
 
 setOnAuthReady(async (user) => {
-  if (!user || !isSuperAdmin(user)) {
+  if (!user || isStaff(user)) {
     window.location.href = "dashboard.html";
     return;
   }
-  await loadSettingsData();
+  
+  if (isSuperAdmin(user)) {
+    document.getElementById("superAdminPanel").classList.remove("hidden");
+    const guestTogglePanel = document.getElementById("guestTogglePanel");
+    if (guestTogglePanel) guestTogglePanel.classList.remove("hidden");
+    await loadAcademies();
+    await loadSettingsData();
+  } else if (isTenantAdmin(user)) {
+    document.getElementById("tenantAdminPanel").classList.remove("hidden");
+    await loadStaff();
+  }
 });
 
-async function loadSettingsData() {
+// --- Super Admin: Academies ---
+async function loadAcademies() {
   if (!db) return;
+  const list = document.getElementById("academiesList");
+  list.innerHTML = '<div class="empty-list-msg">Loading academies...</div>';
   try {
-    const configSnap = await getDocs(collection(db, "configs"));
-    configSnap.forEach(d => {
-      if (d.id === "auth") {
-        const data = d.data();
-        authConfig.allowedEmails = data.allowedEmails || [];
-        authConfig.allowGuestLogin = data.allowGuestLogin !== undefined ? data.allowGuestLogin : true;
-      }
+    const snap = await getDocs(collection(db, "academies"));
+    list.innerHTML = "";
+    if (snap.empty) {
+      list.innerHTML = '<div class="empty-list-msg">No academies configured yet.</div>';
+      return;
+    }
+    snap.forEach(d => {
+      const acad = d.data();
+      const li = document.createElement("li");
+      li.className = "whitelist-item";
+      li.innerHTML = `
+        <span class="whitelist-item-email"><strong>${escapeHTML(acad.name)}</strong> (Created: ${new Date(acad.createdAt).toLocaleDateString()})</span>
+        <button class="btn-remove-whitelist" title="Delete Academy">&times;</button>
+      `;
+      li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(d.id, acad.name, li));
+      list.appendChild(li);
     });
-    renderWhitelistEmails();
-    const guestToggle = document.getElementById("guestLoginToggle");
-    if (guestToggle) guestToggle.checked = authConfig.allowGuestLogin;
   } catch (error) {
-    console.error("Failed to load settings:", error);
+    console.error("Failed to load academies:", error);
+    list.innerHTML = `<div class="empty-list-msg" style="color:var(--accent2)">Error loading academies.</div>`;
   }
 }
 
-function renderWhitelistEmails() {
-  const list = document.getElementById("whitelistEmailsList");
-  if (!list) return;
-  list.innerHTML = "";
-  if (authConfig.allowedEmails.length === 0) {
-    list.innerHTML = '<div class="empty-list-msg">No whitelisted emails configured yet.</div>';
-    return;
+async function handleCreateAcademy(e) {
+  e.preventDefault();
+  if (!isSuperAdmin(currentUser)) return;
+  
+  const nameInput = document.getElementById("newAcademyName");
+  const emailInput = document.getElementById("newTenantAdminEmail");
+  const academyName = nameInput.value.trim();
+  const adminEmail = emailInput.value.trim().toLowerCase();
+  
+  if (!academyName || !adminEmail.includes("@")) return;
+
+  try {
+    // 1. Create Academy
+    const acadRef = await addDoc(collection(db, "academies"), {
+      name: academyName,
+      createdAt: Date.now()
+    });
+    
+    // 2. Create Tenant Admin user using email as the document ID
+    await setDoc(doc(db, "users", adminEmail), {
+      email: adminEmail,
+      role: "TENANT_ADMIN",
+      academyId: acadRef.id,
+      createdAt: Date.now()
+    });
+    
+    nameInput.value = "";
+    emailInput.value = "";
+    showInlineToast(`Academy created successfully!`, "success");
+    await loadAcademies();
+  } catch (error) {
+    showMsg("settingsMessage", "Failed to create academy: " + error.message, "error");
   }
-  authConfig.allowedEmails.forEach(email => {
-    const li = document.createElement("li");
-    li.className = "whitelist-item";
-    li.innerHTML = `
-      <span class="whitelist-item-email">${escapeHTML(email)}</span>
-      <button class="btn-remove-whitelist" title="Remove ${escapeHTML(email)}">&times;</button>
-    `;
-    li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleRemoveWhitelistEmail(email, li));
-    list.appendChild(li);
-  });
 }
 
-async function handleRemoveWhitelistEmail(email, liEl) {
-  if (!currentUser || !isSuperAdmin(currentUser)) {
-    showInlineToast("Permission Denied: Only the super administrator can remove whitelisted admins.", "error");
-    return;
-  }
+async function handleDeleteAcademy(academyId, academyName, liEl) {
+  if (!isSuperAdmin(currentUser)) return;
+  
   const originalHtml = liEl.innerHTML;
   liEl.innerHTML = `
     <div class="fee-confirm-wrap" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-      <span class="fee-confirm-text" style="font-size: 0.8rem; font-weight: 600; color: var(--accent2);">Remove email?</span>
+      <span class="fee-confirm-text" style="font-size: 0.8rem; font-weight: 600; color: var(--accent2);">Delete ${escapeHTML(academyName)}?</span>
       <div class="fee-confirm-btns" style="display: flex; gap: 0.4rem;">
         <button class="btn-confirm-yes" style="padding: 2px 8px; font-size: 0.75rem; background: var(--accent2); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer;">✓ Yes</button>
         <button class="btn-confirm-no" style="padding: 2px 8px; font-size: 0.75rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">✕ No</button>
@@ -69,71 +102,45 @@ async function handleRemoveWhitelistEmail(email, liEl) {
   `;
   liEl.querySelector(".btn-confirm-no").addEventListener("click", () => {
     liEl.innerHTML = originalHtml;
-    liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleRemoveWhitelistEmail(email, liEl));
+    liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(academyId, academyName, liEl));
   });
   liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
-    liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Removing...</span>';
+    liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Deleting...</span>';
     try {
-      authConfig.allowedEmails = authConfig.allowedEmails.filter(e => e.toLowerCase().trim() !== email.toLowerCase().trim());
-      await setDoc(doc(db, "configs", "auth"), {
-        allowedEmails: authConfig.allowedEmails,
-        allowGuestLogin: authConfig.allowGuestLogin
-      });
-      renderWhitelistEmails();
-      showInlineToast(`Removed ${email} from whitelist`, "success");
+      await deleteDoc(doc(db, "academies", academyId));
+      showInlineToast(`Deleted academy ${academyName}`, "success");
+      await loadAcademies();
     } catch (error) {
-      showInlineToast(`Failed to remove: ${error.message}`, "error");
-      renderWhitelistEmails();
+      showInlineToast(`Failed to delete: ${error.message}`, "error");
+      await loadAcademies();
     }
   });
 }
 
-async function handleAddWhitelistEmail(event) {
-  event.preventDefault();
-  if (!currentUser || !isSuperAdmin(currentUser)) {
-    showMsg("settingsMessage", "Permission Denied: Only the super administrator can add whitelisted admins.", "error");
-    return;
-  }
-  const input = document.getElementById("newWhitelistEmail");
-  const email = input.value.trim().toLowerCase();
-  if (!email || !email.includes("@")) {
-    showMsg("settingsMessage", "Please enter a valid email address.", "error");
-    return;
-  }
-  if (email.length > 80) {
-    showMsg("settingsMessage", "Email cannot exceed 80 characters.", "error");
-    return;
-  }
-  if (authConfig.allowedEmails.map(e => e.toLowerCase()).includes(email)) {
-    showMsg("settingsMessage", "This email is already whitelisted.", "error");
-    return;
-  }
+// --- Global Settings (Guest Login) ---
+async function loadSettingsData() {
+  if (!db) return;
   try {
-    authConfig.allowedEmails.push(email);
-    await setDoc(doc(db, "configs", "auth"), {
-      allowedEmails: authConfig.allowedEmails,
-      allowGuestLogin: authConfig.allowGuestLogin
-    });
-    input.value = "";
-    renderWhitelistEmails();
-    showInlineToast(`Added ${email} to whitelist`, "success");
+    const configDoc = await getDoc(doc(db, "configs", "auth"));
+    if (configDoc.exists()) {
+      const data = configDoc.data();
+      authConfig.allowGuestLogin = data.allowGuestLogin !== undefined ? data.allowGuestLogin : true;
+    }
+    const guestToggle = document.getElementById("guestLoginToggle");
+    if (guestToggle) guestToggle.checked = authConfig.allowGuestLogin;
   } catch (error) {
-    showMsg("settingsMessage", "Failed to add: " + error.message, "error");
+    console.error("Failed to load settings:", error);
   }
 }
 
 async function handleGuestToggle() {
-  if (!currentUser || !isSuperAdmin(currentUser)) {
-    showInlineToast("Permission Denied: Only the super administrator can modify guest settings.", "error");
-    return;
-  }
+  if (!currentUser || !isSuperAdmin(currentUser)) return;
   const toggle = document.getElementById("guestLoginToggle");
   authConfig.allowGuestLogin = toggle.checked;
   try {
     await setDoc(doc(db, "configs", "auth"), {
-      allowedEmails: authConfig.allowedEmails,
       allowGuestLogin: authConfig.allowGuestLogin
-    });
+    }, { merge: true });
     showInlineToast(`Guest login ${authConfig.allowGuestLogin ? "enabled" : "disabled"}`, "success");
   } catch (error) {
     showInlineToast(`Failed: ${error.message}`, "error");
@@ -141,9 +148,62 @@ async function handleGuestToggle() {
   }
 }
 
+// --- Tenant Admin: Staff ---
+async function loadStaff() {
+  if (!db || !currentUser.academyId) return;
+  const list = document.getElementById("staffList");
+  list.innerHTML = '<div class="empty-list-msg">Loading staff...</div>';
+  try {
+    const q = query(collection(db, "users"), where("academyId", "==", currentUser.academyId), where("role", "==", "STAFF"));
+    const snap = await getDocs(q);
+    list.innerHTML = "";
+    if (snap.empty) {
+      list.innerHTML = '<div class="empty-list-msg">No staff users configured yet.</div>';
+      return;
+    }
+    snap.forEach(d => {
+      const staff = d.data();
+      const li = document.createElement("li");
+      li.className = "whitelist-item";
+      li.innerHTML = `<span class="whitelist-item-email">${escapeHTML(staff.email)}</span>`;
+      list.appendChild(li);
+    });
+  } catch (error) {
+    console.error("Failed to load staff:", error);
+    list.innerHTML = `<div class="empty-list-msg" style="color:var(--accent2)">Error loading staff.</div>`;
+  }
+}
+
+async function handleAddStaff(e) {
+  e.preventDefault();
+  if (!isTenantAdmin(currentUser)) return;
+  
+  const emailInput = document.getElementById("newStaffEmail");
+  const staffEmail = emailInput.value.trim().toLowerCase();
+  
+  if (!staffEmail || !staffEmail.includes("@")) return;
+
+  try {
+    await setDoc(doc(db, "users", staffEmail), {
+      email: staffEmail,
+      role: "STAFF",
+      academyId: currentUser.academyId,
+      createdAt: Date.now()
+    });
+    
+    emailInput.value = "";
+    showInlineToast(`Staff user added!`, "success");
+    await loadStaff();
+  } catch (error) {
+    showMsg("settingsMessage", "Failed to add staff: " + error.message, "error");
+  }
+}
+
 function setupSettingsListeners() {
   const addSubmit = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("submit", fn); };
-  addSubmit("whitelistForm", handleAddWhitelistEmail);
+  addSubmit("createAcademyForm", handleCreateAcademy);
+  addSubmit("staffForm", handleAddStaff);
+  
   const guestToggle = document.getElementById("guestLoginToggle");
   if (guestToggle) guestToggle.addEventListener("change", handleGuestToggle);
 }

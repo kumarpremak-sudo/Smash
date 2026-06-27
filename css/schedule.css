@@ -21,7 +21,7 @@
   border-radius: var(--radius-lg);
 }
 
-.daily-date-controls button {
+.daily-date-controls > button {
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
@@ -36,9 +36,33 @@
   transition: var(--transition);
 }
 
-.daily-date-controls button:hover {
+.daily-date-controls > button:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.btn-bulk-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 107, 107, 0.12);
+  color: var(--accent2);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease-in-out;
+  height: 46px;
+}
+
+.btn-bulk-cancel:hover {
+  background: rgba(255, 107, 107, 0.22);
+  border-color: var(--accent2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
 }
 
 .daily-date-input {

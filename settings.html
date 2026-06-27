@@ -55,21 +55,39 @@
 
       <div class="settings-grid">
 
-        <!-- Whitelisted Emails -->
-        <div class="glass-panel settings-card">
-          <h3>🔐 Whitelisted Admins</h3>
-          <div class="settings-card-desc">Only whitelisted email addresses can sign in with Google. The first Google sign-in is auto-whitelisted as the owner.</div>
-          <ul class="whitelist-list" id="whitelistEmailsList">
-            <div class="empty-list-msg">Loading...</div>
-          </ul>
-          <form id="whitelistForm" class="whitelist-form">
-            <input type="email" id="newWhitelistEmail" placeholder="email@example.com" maxlength="80" required />
-            <button type="submit" class="btn btn-primary">+ Add</button>
+        <!-- Super Admin Panel: Manage Academies -->
+        <div class="glass-panel settings-card hidden" id="superAdminPanel">
+          <h3>🏢 Manage Academies (Super Admin)</h3>
+          <div class="settings-card-desc">Create new academies and assign their Tenant Admin.</div>
+          
+          <form id="createAcademyForm" class="whitelist-form" style="margin-bottom:1rem;">
+            <input type="text" id="newAcademyName" placeholder="Academy Name (e.g. Smash Downtown)" maxlength="80" required style="flex:1" />
+            <input type="email" id="newTenantAdminEmail" placeholder="Admin Email" maxlength="80" required style="flex:1" />
+            <button type="submit" class="btn btn-primary">+ Create</button>
           </form>
+
+          <ul class="whitelist-list" id="academiesList">
+            <div class="empty-list-msg">Loading academies...</div>
+          </ul>
         </div>
 
-        <!-- Guest Login Toggle -->
-        <div class="glass-panel settings-card">
+        <!-- Tenant Admin Panel: Manage Staff -->
+        <div class="glass-panel settings-card hidden" id="tenantAdminPanel">
+          <h3>👥 Manage Staff Users</h3>
+          <div class="settings-card-desc">Add staff members to your academy. They can manage bookings and members, but cannot access settings.</div>
+          
+          <form id="staffForm" class="whitelist-form" style="margin-bottom:1rem;">
+            <input type="email" id="newStaffEmail" placeholder="Staff Email" maxlength="80" required />
+            <button type="submit" class="btn btn-primary">+ Add Staff</button>
+          </form>
+
+          <ul class="whitelist-list" id="staffList">
+            <div class="empty-list-msg">Loading staff users...</div>
+          </ul>
+        </div>
+
+        <!-- Guest Login Toggle (Super Admin) -->
+        <div class="glass-panel settings-card hidden" id="guestTogglePanel">
           <h3>👤 Guest Access</h3>
           <div class="settings-card-desc">Control whether anonymous guest administrators can access the dashboard.</div>
           <div class="toggle-row">

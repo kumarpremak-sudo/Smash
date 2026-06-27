@@ -60,15 +60,15 @@ Compare text Find the difference between two text files Tools History Real-time 
   border-radius: var(--radius-md);
 }
 
-/* Massive Headline Size Reductions */
+/* Singleline Headline Display */
 .login-brand-headline {
-  font-size: 1.85rem;
-  /* Reduced from a massive 2.5rem */
-  font-weight: 800;
-  line-height: 1.2;
-  margin-bottom: 1rem;
-  /* Reduced spacing gap */
+  font-size: 24px;
   font-family: var(--font-head);
+  font-weight: 700;
+  color: #E8EDF5;
+  line-height: 1.2;
+  margin: 0 0 9.075px;
+  white-space: nowrap;
 }
 
 .login-brand-headline em {

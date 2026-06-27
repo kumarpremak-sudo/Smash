@@ -2,6 +2,7 @@
 import {
   db, currentUser, courtsList, courtsMap, escapeHTML, formatSelectedDate,
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail, planLabels,
+  bulkCancelMonthlyBookings,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
   query, where, serverTimestamp
 } from "./shared.js";
@@ -15,6 +16,7 @@ setOnAuthReady(async () => {
   const dateInput = document.getElementById("daily-date-input");
   if (dateInput) dateInput.value = formatSelectedDate(selectedDate);
   await loadDailyGrid();
+  setupScheduleListeners();
 });
 
 function setupScheduleListeners() {
@@ -38,7 +40,79 @@ function setupScheduleListeners() {
   addClick("btnDeleteBooking", handleBookingDelete);
   addSubmit("editBookingForm", handleEditBookingSubmit);
   addClick("btnEnrollSubmit", handleEnrollmentSubmit);
+
+  // Bulk Cancel Modal listeners
+  addClick("btnOpenBulkCancel", openBulkCancelModal);
+  addClick("bulkCancelClose", closeBulkCancelModal);
+  const bulkModal = document.getElementById("bulkCancelModal");
+  if (bulkModal) bulkModal.addEventListener("click", (e) => { if (e.target === bulkModal) closeBulkCancelModal(); });
+  
+  const targetTypeSelect = document.getElementById("bulkTargetType");
+  if (targetTypeSelect) {
+    targetTypeSelect.addEventListener("change", (e) => {
+      const isMember = e.target.value === "member";
+      document.getElementById("bulkMemberGroup").classList.toggle("hidden", !isMember);
+      document.getElementById("bulkCategoryGroup").classList.toggle("hidden", isMember);
+    });
+  }
+  addSubmit("bulkCancelForm", handleBulkCancelSubmit);
 }
+
+function openBulkCancelModal() {
+  const modal = document.getElementById("bulkCancelModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  const now = new Date();
+  const yearMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const ymInput = document.getElementById("bulkYearMonth");
+  if (ymInput && !ymInput.value) ymInput.value = yearMonthStr;
+}
+
+function closeBulkCancelModal() {
+  const modal = document.getElementById("bulkCancelModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function handleBulkCancelSubmit(e) {
+  e.preventDefault();
+  const btn = document.getElementById("btnSubmitBulkCancel");
+  const targetType = document.getElementById("bulkTargetType").value;
+  const memberPhone = document.getElementById("bulkMemberPhone").value.trim();
+  const groupId = document.getElementById("bulkCategory").value;
+  const yearMonth = document.getElementById("bulkYearMonth").value;
+  const reason = document.getElementById("bulkReason").value.trim();
+
+  if (targetType === "member" && !memberPhone) {
+    showMsg("bulkCancelMsg", "Please enter member phone.", "error");
+    return;
+  }
+
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = "Processing Bulk Cancellation..."; }
+    const res = await bulkCancelMonthlyBookings({
+      memberPhone: targetType === "member" ? memberPhone : null,
+      groupId: targetType === "group" ? groupId : null,
+      yearMonth,
+      cancelledBy: currentUser ? currentUser.email : "Admin",
+      reason
+    });
+
+    if (res.processedCount === 0) {
+      showMsg("bulkCancelMsg", "No active reservations found matching criteria.", "error");
+    } else {
+      showMsg("bulkCancelMsg", `Successfully cancelled ${res.processedCount} slot(s) for ${yearMonth}!`, "success");
+      setTimeout(() => {
+        closeBulkCancelModal();
+        loadDailyGrid();
+      }, 1500);
+    }
+  } catch (err) {
+    showMsg("bulkCancelMsg", "Bulk Cancellation failed: " + err.message, "error");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "🗑️ Execute Bulk Cancellation"; }
+  }
+}
+
 
 function changeDailyDay(delta) {
   selectedDate.setDate(selectedDate.getDate() + delta);
@@ -64,7 +138,7 @@ async function loadDailyGrid() {
     delete cell.dataset.bookingId;
   });
   try {
-    const q = query(collection(db, "bookings"), where("date", "==", dateStr));
+    const q = query(collection(db, "bookings"), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     dailyBookings = [];
     snap.forEach(d => dailyBookings.push({ id: d.id, ...d.data() }));
@@ -173,7 +247,7 @@ async function renderModalEnrolleesList(bookingId) {
   if (!ul || !db) return;
   ul.innerHTML = '<li class="text-muted" style="list-style:none;">Loading...</li>';
   try {
-    const q = query(collection(db, "members"), where("bookingId", "==", bookingId));
+    const q = query(collection(db, "members"), where("bookingId", "==", bookingId), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     ul.innerHTML = "";
     let activeCount = 0;
@@ -269,7 +343,7 @@ async function handleEnrollmentSubmit() {
   const submitBtn = document.getElementById("btnEnrollSubmit");
   submitBtn.disabled = true;
   try {
-    await addDoc(collection(db, "members"), { name: newName, type: typeSelect.value, joinDate: joinDateInput.value || formatSelectedDate(selectedDate), lastPaidDate: joinDateInput.value || formatSelectedDate(selectedDate), bookingId: selectedBooking.id, status: "active", createdTime: Date.now() });
+    await addDoc(collection(db, "members"), { name: newName, type: typeSelect.value, joinDate: joinDateInput.value || formatSelectedDate(selectedDate), lastPaidDate: joinDateInput.value || formatSelectedDate(selectedDate), bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
     input.value = "";
     showMsg("modalMessage", "Enrolled!", "success");
     await renderModalEnrolleesList(selectedBooking.id);
@@ -294,7 +368,7 @@ async function handleQuickBookingSubmit(event) {
   try {
     if (!currentUser) throw new Error("You must be signed in.");
     if (await checkBookingConflicts(courtId, dateStr, startTime, endTime)) throw new Error("Slot already booked.");
-    await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, createdAt: serverTimestamp() });
+    await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
     showMsg("modalMessage", "Quick reservation confirmed!", "success");
     setTimeout(() => { closeModal(); loadDailyGrid(); }, 1200);
   } catch (error) { showMsg("modalMessage", error.message, "error"); }
