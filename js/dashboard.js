@@ -1,8 +1,8 @@
 // js/dashboard.js — Home Screen: Stats, Calendar, Bookings, Revenue
 import {
-  db, currentUser, courtsList, courtsMap, membersList, iraguRates, planLabels,
+  db, currentUser, courtsList, courtsMap, membersList, tenantSettings, defaultSettings,
   monthNames, escapeHTML, formatSelectedDate, showMsg, showInlineToast,
-  loadMembers, setOnAuthReady, initApp, updateDynamicPricesUI,
+  loadMembers, setOnAuthReady, initApp, populateBookingDropdowns,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone,
   signOut
@@ -13,6 +13,12 @@ let currentMonth = new Date().getMonth();
 let selectedDate = new Date();
 let currentMonthBookings = [];
 let selectedBooking = null;
+
+// ── First Time Setup ────────────────────────────────────────
+document.addEventListener('setup_required', () => {
+  const modal = document.getElementById("firstTimeSetupModal");
+  if (modal) modal.classList.remove("hidden");
+});
 
 // ── Auth Ready Handler ──────────────────────────────────────
 setOnAuthReady(async (user) => {
@@ -27,6 +33,33 @@ setOnAuthReady(async (user) => {
       select.appendChild(opt);
     });
   }
+  
+  // Fill booking category dynamically
+  populateBookingDropdowns("booking_type", "booking_category");
+
+  // Fill enrollee plan dynamically
+  const enrolleeSelect = document.getElementById("newEnrolleeType");
+  if (enrolleeSelect && tenantSettings) {
+    if (tenantSettings.membership_programs) {
+      tenantSettings.membership_programs.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.key;
+        opt.textContent = p.type + " - " + p.duration_days + (p.special_notes ? " (" + p.special_notes + ")" : "");
+        enrolleeSelect.appendChild(opt);
+      });
+    }
+    if (tenantSettings.fee_structure) {
+      tenantSettings.fee_structure.forEach(prog => {
+        (prog.pricing_variants || []).forEach(v => {
+          const opt = document.createElement("option");
+          opt.value = v.key;
+          opt.textContent = prog.program_name + " - " + v.frequency;
+          enrolleeSelect.appendChild(opt);
+        });
+      });
+    }
+  }
+
   // Prefill user info
   if (user && !user.isAnonymous) {
     const nameInput = document.getElementById("customer_name");
@@ -66,16 +99,72 @@ function setupDashboardListeners() {
   // Enrollment
   addClick("btnEnrollSubmit", handleEnrollmentSubmit);
 
-  // Pricing
-  addSubmit("pricingForm", handlePricingSubmit);
-  addClick("btnOpenPricingBoard", openPricingBoardModal);
-  addClick("pricingBoardModalClose", closePricingBoardModal);
-  const pbModal = document.getElementById("pricingBoardModal");
-  if (pbModal) pbModal.addEventListener("click", (e) => { if (e.target === pbModal) closePricingBoardModal(); });
-  addSubmit("pricingBoardForm", handlePricingBoardSubmit);
+  const catSelect = document.getElementById("booking_category");
+  if (catSelect) catSelect.addEventListener("change", () => populateTimeDropdowns(catSelect.value));
+
+  const typeSelect = document.getElementById("booking_type");
+  if (typeSelect) typeSelect.addEventListener("change", () => {
+    populateBookingDropdowns("booking_type", "booking_category");
+    catSelect.value = "";
+    populateTimeDropdowns("");
+  });
+
+  // Setup
+  addSubmit("setupForm", handleSetupSubmit);
 
   // Quick links
   addClick("quickDailyGridBtn", () => { window.location.href = "schedule.html"; });
+}
+
+function populateTimeDropdowns(category) {
+  const startSel = document.getElementById("start_time");
+  const endSel = document.getElementById("end_time");
+  if (!startSel || !endSel) return;
+  startSel.innerHTML = '<option value="" disabled selected>Select Start Time</option>';
+  endSel.innerHTML = '<option value="" disabled selected>Select End Time</option>';
+  
+  if (!category || !tenantSettings) return;
+  const catLower = category.toLowerCase();
+  const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
+
+  let times = [];
+  if (isCoaching && tenantSettings.coaching_schedule) {
+    const schedule = tenantSettings.coaching_schedule.find(c => c.category.toLowerCase().replace(/\s+/g, '_') === catLower);
+    if (schedule && schedule.timing_slots) {
+      schedule.timing_slots.forEach(t => {
+        const parts = t.split("-");
+        if (parts.length === 2) {
+          const st = parts[0].trim();
+          const en = parts[1].trim();
+          if (!times.includes(st)) times.push(st);
+          if (!times.includes(en)) times.push(en);
+        }
+      });
+    }
+  } else {
+    const op = tenantSettings.operating_hours || { start: "05:00", end: "23:00" };
+    const parseTime = (t) => { const p = t.split(":"); return parseInt(p[0]) * 60 + parseInt(p[1]); };
+    const startMins = parseTime(op.start);
+    const endMins = parseTime(op.end);
+    for (let m = startMins; m <= endMins; m += 30) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0');
+      const mm = String(m % 60).padStart(2, '0');
+      times.push(`${hh}:${mm}`);
+    }
+  }
+
+  if (times.length === 0) {
+    for (let h = 5; h <= 23; h++) {
+      times.push(`${String(h).padStart(2, '0')}:00`);
+      times.push(`${String(h).padStart(2, '0')}:30`);
+    }
+  }
+
+  times.sort();
+  times.forEach(t => {
+    startSel.innerHTML += `<option value="${t}">${t}</option>`;
+    endSel.innerHTML += `<option value="${t}">${t}</option>`;
+  });
 }
 
 // ── Calendar ────────────────────────────────────────────────
@@ -181,34 +270,52 @@ async function updateStats() {
 
 // ── Revenue ─────────────────────────────────────────────────
 function calculateMonthlyRevenue() {
-  const hourlySlotRate = iraguRates.Guest_hourly_slot || 300;
+  let hourlySlotRate = 300, peakRate = 200, nonPeakRate = 150;
+  if (tenantSettings && tenantSettings.hourly_slots) {
+    const defaultHourly = tenantSettings.hourly_slots.find(s => s.type === "Guest")?.rate;
+    if (defaultHourly) hourlySlotRate = defaultHourly;
+    const peak = tenantSettings.hourly_slots.find(s => s.type === "Guest Peak")?.rate;
+    if (peak) peakRate = peak;
+    const nonPeak = tenantSettings.hourly_slots.find(s => s.type === "Guest Non-Peak")?.rate;
+    if (nonPeak) nonPeakRate = nonPeak;
+  }
+
   let totalMembersRevenue = 0, totalCoachingRevenue = 0, totalPTRevenue = 0, totalGuestRevenue = 0;
   let membersCount = 0, coachingCount = 0, ptHours = 0, guestHours = 0;
+
+  // Build a lookup map of all keys -> cost
+  const rateMap = {};
+  if (tenantSettings) {
+    (tenantSettings.membership_programs || []).forEach(p => rateMap[p.key] = p.fee_per_month);
+    (tenantSettings.fee_structure || []).forEach(prog => {
+      (prog.pricing_variants || []).forEach(v => rateMap[v.key] = v.cost);
+    });
+  }
 
   membersList.forEach(member => {
     if (member.status !== "active") return;
     const planKey = member.type;
-    if (planKey && iraguRates[planKey] !== undefined) {
-      const rate = iraguRates[planKey];
+    if (planKey && rateMap[planKey] !== undefined) {
+      const rate = rateMap[planKey];
       if (planKey.startsWith("Individual_") || planKey.startsWith("Group_")) { totalMembersRevenue += rate; membersCount++; }
-      else if (planKey.startsWith("Kids_") || planKey.startsWith("Women_") || planKey.startsWith("Adults_") || planKey === "Advance_6d") { totalCoachingRevenue += rate; coachingCount++; }
       else if (planKey === "PT_session") { totalPTRevenue += rate; ptHours++; }
+      else { totalCoachingRevenue += rate; coachingCount++; }
     }
   });
 
   currentMonthBookings.forEach(booking => {
-    const category = booking.category || "court_rental";
+    const category = booking.category || "Court Rental";
     const startHour = parseInt(booking.start_time.substring(0, 2));
     const endHour = parseInt(booking.end_time.substring(0, 2));
     const hours = endHour - startHour;
     if (hours <= 0) return;
-    if (category === "court_rental") {
+    if (category.toLowerCase().includes("rental") || category === "court_rental") {
       guestHours += hours;
       const bookingMembers = membersList.filter(m => m.bookingId === booking.id && m.status === "active");
       if (bookingMembers.length === 0) { totalGuestRevenue += hours * hourlySlotRate; }
       else {
         const isPeak = (startHour >= 5 && startHour < 9) || (startHour >= 16 && startHour < 21);
-        totalGuestRevenue += isPeak ? hours * bookingMembers.length * (iraguRates.Guest_peak || 200) : hours * (iraguRates.Guest_non_peak || 150);
+        totalGuestRevenue += isPeak ? hours * bookingMembers.length * peakRate : hours * bookingMembers.length * nonPeakRate;
       }
     }
   });
@@ -364,7 +471,8 @@ async function handleBookingSubmit(event) {
     if (!currentUser) throw new Error("You must be signed in to reserve a court.");
     if (type === "single") {
       const dateStr = formatSelectedDate(selectedDate);
-      if (await checkBookingConflicts(courtId, dateStr, startTime, endTime)) throw new Error("This court is already reserved for the selected time range.");
+      const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, category);
+      if (conflictError) throw new Error(conflictError);
       await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_phone: phone, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
       showMsg("modalMessage", "Reservation confirmed successfully!", "success");
       setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
@@ -383,7 +491,15 @@ async function handleBookingSubmit(event) {
         const dayOfWeek = curDate.getDay();
         if (daysMode === "weekdays" && (dayOfWeek === 0 || dayOfWeek === 6)) continue;
         const curDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        if (existing.some(b => curDateStr === b.date && startTime < b.end_time && endTime > b.start_time)) { skipped++; continue; }
+        let overlaps = 0;
+        const catLower = (category || "").toLowerCase();
+        const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
+        if (!isCoaching) {
+          existing.forEach(b => {
+            if (curDateStr === b.date && startTime < b.end_time && endTime > b.start_time) overlaps++;
+          });
+        }
+        if (overlaps >= 2) { skipped++; continue; }
         batch.set(doc(collection(db, "bookings")), { court_id: courtId, customer_name: name, customer_phone: phone, category, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
         created++;
       }
@@ -456,78 +572,57 @@ async function handleEnrollmentSubmit() {
 }
 
 // ── Pricing ─────────────────────────────────────────────────
-async function handlePricingSubmit(event) {
+async function handleSetupSubmit(event) {
   event.preventDefault();
-  if (!currentUser || currentUser.isAnonymous) {
-    showMsg("pricingMessage", "Permission Denied: Guests cannot modify pricing configurations.", "error");
+  const btn = document.getElementById("btnCompleteSetup");
+  btn.disabled = true; btn.textContent = "Setting up Academy...";
+
+  const name = document.getElementById("setupAcademyName").value.trim();
+  const contact = document.getElementById("setupContact").value.trim();
+  const courtsStr = document.getElementById("setupCourts").value.trim();
+  const courts = parseInt(courtsStr, 10);
+
+  if (!name || !contact || !courtsStr || isNaN(courts) || courts <= 0) {
+    showMsg("setupMessage", "All fields are mandatory. Please provide a valid Academy Name, Contact Number, and Court Count.", "error");
+    btn.disabled = false; btn.textContent = "Complete Setup & Launch Dashboard";
     return;
   }
-  const btn = document.getElementById("btnSavePricing");
-  btn.disabled = true; btn.textContent = "Saving Rates...";
-  const rateSingle = parseInt(document.getElementById("rate_single").value) || 300;
-  const rateMember = parseInt(document.getElementById("rate_member").value) || 700;
-  const rateKid = parseInt(document.getElementById("rate_kid").value) || 12000;
-  if (rateSingle < 1 || rateMember < 1 || rateKid < 1) {
-    showMsg("pricingMessage", "All rates must be at least ₹1.", "error");
-    btn.disabled = false; btn.textContent = "Update Pricing Rates";
-    return;
-  }
-  iraguRates.Guest_hourly_slot = rateSingle; iraguRates.PT_session = rateMember; iraguRates.Advance_6d = rateKid;
+
+  const settingsPayload = {
+    ...defaultSettings,
+    academy_name: name,
+    contact_numbers: [contact],
+    court_count: courts
+  };
+
   try {
-    if (!db) throw new Error("Database connection not active.");
-    await setDoc(doc(db, "configs", "pricing"), { rateSingle, rateMember, rateKid, rates: iraguRates, updatedAt: serverTimestamp() });
-    updateDynamicPricesUI();
-    showMsg("pricingMessage", "Pricing rates updated successfully!", "success");
-    calculateMonthlyRevenue();
-  } catch (error) { showMsg("pricingMessage", "Failed to update rates: " + error.message, "error"); }
-  finally { btn.disabled = false; btn.textContent = "Update Pricing Rates"; }
-}
-
-function openPricingBoardModal() {
-  const fields = { p_indiv_5d_male: "Individual_5d_Male", p_indiv_5d_female: "Individual_5d_Female", p_indiv_7d: "Individual_7d", p_indiv_weekend: "Individual_weekend", p_group_5d: "Group_5d", p_group_7d: "Group_7d", p_group_weekend: "Group_weekend", p_kids_3d: "Kids_3d", p_kids_5d: "Kids_5d", p_kids_weekend: "Kids_weekend", p_women_5d: "Women_5d", p_women_3d: "Women_3d", p_adults_5d: "Adults_5d_weekend", p_adults_3d: "Adults_3d", p_advance_6d: "Advance_6d", p_pt_session: "PT_session", p_guest_nonpeak: "Guest_non_peak", p_guest_peak: "Guest_peak", p_guest_hourly: "Guest_hourly_slot" };
-  for (const [elId, rateKey] of Object.entries(fields)) {
-    const el = document.getElementById(elId);
-    if (el) el.value = iraguRates[rateKey] || 0;
-  }
-  document.getElementById("pricingBoardModal").classList.remove("hidden");
-}
-
-function closePricingBoardModal() { document.getElementById("pricingBoardModal").classList.add("hidden"); }
-
-async function handlePricingBoardSubmit(event) {
-  event.preventDefault();
-  if (!currentUser || currentUser.isAnonymous) {
-    showMsg("pricingBoardMessage", "Permission Denied: Guests cannot modify pricing configurations.", "error");
-    return;
-  }
-  const btn = document.getElementById("btnSavePricingBoard");
-  btn.disabled = true; btn.textContent = "Saving...";
-  const fields = { p_indiv_5d_male: "Individual_5d_Male", p_indiv_5d_female: "Individual_5d_Female", p_indiv_7d: "Individual_7d", p_indiv_weekend: "Individual_weekend", p_group_5d: "Group_5d", p_group_7d: "Group_7d", p_group_weekend: "Group_weekend", p_kids_3d: "Kids_3d", p_kids_5d: "Kids_5d", p_kids_weekend: "Kids_weekend", p_women_5d: "Women_5d", p_women_3d: "Women_3d", p_adults_5d: "Adults_5d_weekend", p_adults_3d: "Adults_3d", p_advance_6d: "Advance_6d", p_pt_session: "PT_session", p_guest_nonpeak: "Guest_non_peak", p_guest_peak: "Guest_peak", p_guest_hourly: "Guest_hourly_slot" };
-  for (const [elId, rateKey] of Object.entries(fields)) {
-    const val = parseInt(document.getElementById(elId).value) || 0;
-    if (val < 1) {
-      showMsg("pricingBoardMessage", "All rates must be at least ₹1.", "error");
-      btn.disabled = false; btn.textContent = "Save Advanced Rates";
-      return;
+    if (!db || !currentUser?.academyId) throw new Error("Database connection not active or missing academy ID.");
+    
+    // Save Academy Settings
+    await setDoc(doc(db, "academies", currentUser.academyId), settingsPayload);
+    
+    // Seed Courts dynamically
+    const batch = writeBatch(db);
+    for (let i = 1; i <= courts; i++) {
+      batch.set(doc(collection(db, "courts")), { id: i, name: `Court ${i}`, academyId: currentUser.academyId });
     }
-    iraguRates[rateKey] = val;
+    await batch.commit();
+
+    document.getElementById("firstTimeSetupModal").classList.add("hidden");
+    window.location.reload();
+  } catch (error) {
+    showMsg("setupMessage", "Failed to setup academy: " + error.message, "error");
+    btn.disabled = false; btn.textContent = "Complete Setup & Launch Dashboard";
   }
-  document.getElementById("rate_single").value = iraguRates.Guest_hourly_slot;
-  document.getElementById("rate_member").value = iraguRates.PT_session;
-  document.getElementById("rate_kid").value = iraguRates.Advance_6d;
-  try {
-    if (!db) throw new Error("Database connection not active.");
-    await setDoc(doc(db, "configs", "pricing"), { rateSingle: iraguRates.Guest_hourly_slot, rateMember: iraguRates.PT_session, rateKid: iraguRates.Advance_6d, rates: iraguRates, updatedAt: serverTimestamp() });
-    updateDynamicPricesUI();
-    showMsg("pricingBoardMessage", "Advanced pricing board saved successfully!", "success");
-    calculateMonthlyRevenue();
-    setTimeout(() => closePricingBoardModal(), 1200);
-  } catch (error) { showMsg("pricingBoardMessage", "Failed to update rates: " + error.message, "error"); }
-  finally { btn.disabled = false; btn.textContent = "Save Advanced Rates"; }
 }
 
 // ── Init ────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
+function bootstrap() {
   setupDashboardListeners();
   initApp();
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
+}

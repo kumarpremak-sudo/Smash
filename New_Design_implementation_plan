@@ -1,0 +1,52 @@
+# Goal Description
+
+Convert the hardcoded pricing and hardcoded program categories (like `iraguRates`, `planLabels`, and fixed dropdowns in `dashboard.html`) into a dynamic, tenant-specific schema. 
+
+This major modification will allow every Court Admin (Tenant) to have their own completely customized lists of Programs, Memberships, Hourly Rates, and Schedules.
+
+## Open Questions
+> [!IMPORTANT]
+> The appended text in your prompt requested a strict JSON output matching a specific vision-extraction template. I have included that JSON as my chat response to satisfy your system requirements. However, to actually implement the dynamic settings feature you requested, we need to completely overhaul the codebase. 
+
+> Do you want me to proceed with implementing this dynamic database architecture?
+
+## Proposed Changes
+
+### 1. First-Time Tenant Setup (Onboarding)
+When a new Court Admin (Tenant) logs into the application for the very first time, they will be prompted with a setup modal to provide:
+- **Academy Name**
+- **Contact Information**
+- Default configuration seed (so they don't start from an entirely blank slate).
+
+### 2. Database Schema Overhaul (Firestore)
+Instead of a global `iraguRates` object in the frontend, each Tenant will have a dedicated `settings` document in Firestore (`academies/{academyId}/settings`). This document will follow the JSON schema you provided (Programs, Hourly Slots, Coaching Schedule, Fee Structure).
+
+### 3. Move Pricing to Programs Page
+#### [MODIFY] [dashboard.html](file:///c:/Users/Admin/Documents/POC/Badminton/dashboard.html)
+- Remove the "Manage Pricing Board" button and modal completely from the dashboard.
+- Remove hardcoded `<option>` elements for "Booking Category".
+
+#### [MODIFY] [programs.html](file:///c:/Users/Admin/Documents/POC/Badminton/programs.html)
+- Transform this page into an intuitive, user-friendly settings dashboard for the Tenant Admin.
+- Add easy-to-use CRUD (Create, Read, Update, Delete) forms so the admin can modify their Membership Programs, Hourly Slots, and Coaching Schedules at any time.
+- Allow them to update the Pricing Schedule dynamically per program without needing developer support.
+
+### 4. Dynamic Dropdowns for Bookings
+#### [MODIFY] [js/dashboard.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js)
+- Fetch the Tenant's custom programs and categories from Firestore when loading the Dashboard.
+- Dynamically inject these as `<option>` tags into the "Reserve A Court" dropdown (e.g., instead of hardcoding "Coaching", "Personal Training", it will use whatever the Admin defined).
+
+### 5. Dynamic Pricing Calculation
+#### [MODIFY] [js/shared.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js)
+- Remove the hardcoded `iraguRates` and `planLabels`.
+- Add a new loader function `loadTenantSettings()` that pulls the JSON config from Firestore for the current `currentUser.academyId`.
+
+#### [MODIFY] [js/programs.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/programs.js)
+- Update revenue calculators to use the dynamic prices fetched from the tenant's configuration.
+
+## Verification Plan
+### Manual Verification
+1. Log in as a newly registered Court Admin.
+2. Go to the **Programs** tab and create custom pricing and a custom category (e.g., "Summer Camp").
+3. Go to the **Dashboard** and verify that "Summer Camp" now appears as a selectable Booking Type when reserving a court.
+4. Verify that the revenue calculates properly based on the custom rate entered in step 2.

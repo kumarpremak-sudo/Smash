@@ -8,16 +8,8 @@
 
 /* ── Financial Console ───────────────────────────────────── */
 .financial-console {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 2rem;
+  display: block;
   margin-bottom: 3rem;
-}
-
-@media (max-width: 900px) {
-  .financial-console {
-    grid-template-columns: 1fr;
-  }
 }
 
 .revenue-header {

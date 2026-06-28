@@ -1,6 +1,6 @@
 // js/members.js — Members Management & Fee Alerts
 import {
-  db, currentUser, membersList, iraguRates, planLabels, escapeHTML,
+  db, currentUser, membersList, tenantSettings, defaultSettings, escapeHTML,
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp,
   collection, doc, getDocs, updateDoc, query, where
@@ -12,6 +12,30 @@ let currentPlanFilter = "all";
 
 setOnAuthReady(async () => {
   await loadMembers();
+
+  // Populate Plan Filter
+  const planFilter = document.getElementById("membersPlanFilter");
+  if (planFilter && tenantSettings) {
+    if (tenantSettings.membership_programs) {
+      tenantSettings.membership_programs.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.key;
+        opt.textContent = p.type + " - " + p.duration_days;
+        planFilter.appendChild(opt);
+      });
+    }
+    if (tenantSettings.fee_structure) {
+      tenantSettings.fee_structure.forEach(prog => {
+        (prog.pricing_variants || []).forEach(v => {
+          const opt = document.createElement("option");
+          opt.value = v.key;
+          opt.textContent = prog.program_name + " - " + v.frequency;
+          planFilter.appendChild(opt);
+        });
+      });
+    }
+  }
+
   renderMembersTable();
   renderFeeAlerts();
   renderMemberStats();
@@ -84,8 +108,25 @@ function renderMembersTable() {
     return;
   }
 
+  function getPlanDetails(key) {
+    if (!tenantSettings) return { name: key, price: 0 };
+    if (tenantSettings.membership_programs) {
+      const p = tenantSettings.membership_programs.find(x => x.key === key);
+      if (p) return { name: p.type + " - " + p.duration_days, price: p.fee_per_month };
+    }
+    if (tenantSettings.fee_structure) {
+      for (const prog of tenantSettings.fee_structure) {
+        const v = (prog.pricing_variants || []).find(x => x.key === key);
+        if (v) return { name: prog.program_name + " - " + v.frequency, price: v.cost };
+      }
+    }
+    return { name: key, price: 0 };
+  }
+
   filtered.forEach(member => {
-    const plan = planLabels[member.type] || { name: member.type, color: "var(--accent4)", bg: "rgba(77,171,247,0.12)" };
+    const plan = getPlanDetails(member.type);
+    plan.color = "var(--accent4)";
+    plan.bg = "rgba(77,171,247,0.12)";
     const lastPaid = member.lastPaidDate || member.joinDate || "—";
     const nextDue = (member.lastPaidDate || member.joinDate) ? addOneMonth(member.lastPaidDate || member.joinDate) : "—";
 
@@ -197,6 +238,21 @@ function renderFeeAlerts() {
     return;
   }
 
+  function getPlanDetails(key) {
+    if (!tenantSettings) return { name: key, price: 0 };
+    if (tenantSettings.membership_programs) {
+      const p = tenantSettings.membership_programs.find(x => x.key === key);
+      if (p) return { name: p.type + " - " + p.duration_days, price: p.fee_per_month };
+    }
+    if (tenantSettings.fee_structure) {
+      for (const prog of tenantSettings.fee_structure) {
+        const v = (prog.pricing_variants || []).find(x => x.key === key);
+        if (v) return { name: prog.program_name + " - " + v.frequency, price: v.cost };
+      }
+    }
+    return { name: key, price: 0 };
+  }
+
   let lastKind = null;
   toRender.forEach(member => {
     if (currentFeeFilter === "all" && member.alertKind !== lastKind) {
@@ -206,9 +262,9 @@ function renderFeeAlerts() {
       alertsListEl.appendChild(hdr);
       lastKind = member.alertKind;
     }
-    const plan = planLabels[member.type] || { name: member.type, color: "var(--accent4)", bg: "rgba(77,171,247,0.12)" };
-    let priceVal = iraguRates[member.type] !== undefined ? `₹${iraguRates[member.type].toLocaleString()}` : "₹0";
-    if (member.type === "PT_session") priceVal = `₹${iraguRates.PT_session || 700}/hr`;
+    const planDetails = getPlanDetails(member.type);
+    const plan = { name: planDetails.name, color: "var(--accent4)", bg: "rgba(77,171,247,0.12)" };
+    let priceVal = `₹${planDetails.price.toLocaleString()}`;
 
     let daysLabel = "";
     if (member.alertKind === "overdue") {
@@ -263,7 +319,12 @@ async function handleMarkPaidAlert(member, btnEl, rowEl) {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootstrap() {
   setupMembersListeners();
   initApp();
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
+}

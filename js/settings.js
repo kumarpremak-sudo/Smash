@@ -2,11 +2,12 @@
 import {
   db, currentUser, authConfig, escapeHTML, showMsg, showInlineToast,
   setOnAuthReady, initApp, isSuperAdmin, isTenantAdmin, isStaff,
-  collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, addDoc
+  collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, addDoc, writeBatch,
+  defaultSettings
 } from "./shared.js";
 
 setOnAuthReady(async (user) => {
-  if (!user || isStaff(user)) {
+  if (!user || isStaff(user) || user.role === "GUEST") {
     window.location.href = "dashboard.html";
     return;
   }
@@ -35,17 +36,32 @@ async function loadAcademies() {
       list.innerHTML = '<div class="empty-list-msg">No academies configured yet.</div>';
       return;
     }
-    snap.forEach(d => {
+    for (const d of snap.docs) {
       const acad = d.data();
+      
+      let adminEmail = "No Admin Associated";
+      try {
+        const uq = query(collection(db, "users"), where("academyId", "==", d.id), where("role", "==", "TENANT_ADMIN"));
+        const usnap = await getDocs(uq);
+        if (!usnap.empty) {
+          adminEmail = usnap.docs[0].data().email;
+        }
+      } catch (e) {
+        console.warn("Could not fetch admin email for", d.id);
+      }
+
       const li = document.createElement("li");
       li.className = "whitelist-item";
       li.innerHTML = `
-        <span class="whitelist-item-email"><strong>${escapeHTML(acad.name)}</strong> (Created: ${new Date(acad.createdAt).toLocaleDateString()})</span>
-        <button class="btn-remove-whitelist" title="Delete Academy">&times;</button>
+        <div style="display:flex; flex-direction:column; gap:0.25rem;">
+          <span class="whitelist-item-email" style="font-size:1.05rem;"><strong>${escapeHTML(acad.name)}</strong></span>
+          <span style="font-size:0.8rem; color:var(--muted); font-family:var(--font-mono);">${escapeHTML(adminEmail)} &nbsp;|&nbsp; Created: ${new Date(acad.createdAt).toLocaleDateString()}</span>
+        </div>
+        <button class="btn-remove-whitelist" style="margin-left:auto;" title="Delete Academy">&times;</button>
       `;
       li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(d.id, acad.name, li));
       list.appendChild(li);
-    });
+    }
   } catch (error) {
     console.error("Failed to load academies:", error);
     list.innerHTML = `<div class="empty-list-msg" style="color:var(--accent2)">Error loading academies.</div>`;
@@ -66,6 +82,7 @@ async function handleCreateAcademy(e) {
   try {
     // 1. Create Academy
     const acadRef = await addDoc(collection(db, "academies"), {
+      ...defaultSettings,
       name: academyName,
       createdAt: Date.now()
     });
@@ -107,8 +124,18 @@ async function handleDeleteAcademy(academyId, academyName, liEl) {
   liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
     liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Deleting...</span>';
     try {
+      // 1. Delete all users belonging to this academy
+      const q = query(collection(db, "users"), where("academyId", "==", academyId));
+      const usersSnap = await getDocs(q);
+      const batch = writeBatch(db);
+      usersSnap.forEach(uDoc => {
+        batch.delete(doc(db, "users", uDoc.id));
+      });
+      await batch.commit();
+
+      // 2. Delete the academy itself
       await deleteDoc(doc(db, "academies", academyId));
-      showInlineToast(`Deleted academy ${academyName}`, "success");
+      showInlineToast(`Deleted academy ${academyName} and associated users.`, "success");
       await loadAcademies();
     } catch (error) {
       showInlineToast(`Failed to delete: ${error.message}`, "error");
@@ -208,7 +235,12 @@ function setupSettingsListeners() {
   if (guestToggle) guestToggle.addEventListener("change", handleGuestToggle);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootstrap() {
   setupSettingsListeners();
   initApp();
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
+}

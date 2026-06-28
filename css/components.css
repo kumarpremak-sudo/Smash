@@ -80,6 +80,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 0.9rem;
 }
 
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  gap: 0.25rem;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-outline:hover {
+  background: var(--surface2);
+  border-color: var(--accent);
+}
+
 .btn-primary {
   background: var(--accent);
   color: #0d1117;

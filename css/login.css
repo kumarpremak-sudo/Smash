@@ -65,7 +65,7 @@ Compare text Find the difference between two text files Tools History Real-time 
   font-size: 24px;
   font-family: var(--font-head);
   font-weight: 700;
-  color: #E8EDF5;
+  color: var(--text);
   line-height: 1.2;
   margin: 0 0 9.075px;
   white-space: nowrap;

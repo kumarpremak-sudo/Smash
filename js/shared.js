@@ -3,7 +3,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import {
-  getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc,
+  getFirestore, collection, doc, addDoc, getDocs, getDoc, getDocFromServer, setDoc,
   updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import {
@@ -21,38 +21,45 @@ export let membersList = [];
 export let authConfig = { allowedEmails: [], allowGuestLogin: true };
 
 export const monthNames = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
 
-export const iraguRates = {
-  Individual_5d_Male: 1400, Individual_5d_Female: 1200,
-  Individual_7d: 1800, Individual_weekend: 1050,
-  Group_5d: 8500, Group_7d: 10000, Group_weekend: 5000,
-  Kids_3d: 2000, Kids_5d: 2500, Kids_weekend: 1500,
-  Women_5d: 2500, Women_3d: 2000,
-  Adults_5d_weekend: 3000, Adults_3d: 2500,
-  Advance_6d: 12000, PT_session: 700,
-  Guest_non_peak: 150, Guest_peak: 200, Guest_hourly_slot: 300
-};
+export let tenantSettings = null;
 
-export const planLabels = {
-  Individual_5d_Male:   { name: "Indiv. 5-Day Male",  color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" },
-  Individual_5d_Female: { name: "Indiv. 5-Day Female",color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" },
-  Individual_7d:        { name: "Indiv. 7-Day",       color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" },
-  Individual_weekend:   { name: "Indiv. Weekend",     color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" },
-  Group_5d:             { name: "Group 5-Day",        color: "var(--accent)",  bg: "rgba(0, 229, 160, 0.12)" },
-  Group_7d:             { name: "Group 7-Day",        color: "var(--accent)",  bg: "rgba(0, 229, 160, 0.12)" },
-  Group_weekend:        { name: "Group Weekend",      color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" },
-  Kids_3d:              { name: "Kids 3-Day/wk",      color: "var(--purple)",  bg: "rgba(167, 139, 250, 0.12)" },
-  Kids_5d:              { name: "Kids 5-Day/wk",      color: "var(--purple)",  bg: "rgba(167, 139, 250, 0.12)" },
-  Kids_weekend:         { name: "Kids Weekend",       color: "var(--purple)",  bg: "rgba(167, 139, 250, 0.12)" },
-  Women_5d:             { name: "Women 5-Day/wk",     color: "var(--accent2)", bg: "rgba(255, 107, 107, 0.12)" },
-  Women_3d:             { name: "Women 3-Day/wk",     color: "var(--accent2)", bg: "rgba(255, 107, 107, 0.12)" },
-  Adults_5d_weekend:    { name: "Adults 5-Day/Wknd",  color: "var(--text)",    bg: "rgba(255, 255, 255, 0.08)" },
-  Adults_3d:            { name: "Adults 3-Day/wk",    color: "var(--text)",    bg: "rgba(255, 255, 255, 0.08)" },
-  Advance_6d:           { name: "Advance 6-Day/wk",   color: "var(--accent2)", bg: "rgba(255, 107, 107, 0.12)" },
-  PT_session:           { name: "PT Session",         color: "var(--accent3)", bg: "rgba(255, 209, 102, 0.12)" }
+export const defaultSettings = {
+  "academy_name": "",
+  "contact_numbers": [],
+  "court_count": 3,
+  "membership_programs": [
+    { "type": "Individual", "duration_days": "5 Days", "days_description": "Monday - Friday", "fee_per_month": 1400, "special_notes": "Male", "key": "Individual_5d_Male" },
+    { "type": "Individual", "duration_days": "5 Days", "days_description": "Monday - Friday", "fee_per_month": 1200, "special_notes": "Female", "key": "Individual_5d_Female" },
+    { "type": "Individual", "duration_days": "7 Days", "days_description": "Monday - Sunday", "fee_per_month": 1800, "special_notes": "", "key": "Individual_7d" },
+    { "type": "Individual", "duration_days": "Weekend", "days_description": "Saturday & Sunday", "fee_per_month": 1050, "special_notes": "", "key": "Individual_weekend" },
+    { "type": "Group", "duration_days": "5 Days", "days_description": "Monday - Friday", "fee_per_month": 8500, "special_notes": "", "key": "Group_5d" }
+  ],
+  "hourly_slots": [
+    { "type": "Hourly Slot", "rate": 300, "unit": "per hour" },
+    { "type": "Guest play (Peak hours)", "rate": 200, "unit": "per hour per person" },
+    { "type": "Guest play (Non Peak hours)", "rate": 150, "unit": "per hour per person" }
+  ],
+  "coaching_schedule": [
+    { "category": "Kids", "timing_slots": [], "days": "5 Days/wk" },
+    { "category": "Women", "timing_slots": [], "days": "5 Days/wk" },
+    { "category": "Adults", "timing_slots": [], "days": "5-Day/Wknd" },
+    { "category": "Advance Batch", "timing_slots": [], "days": "6-Day/wk" }
+  ],
+  "fee_structure": [
+    { "program_name": "Kids Coaching", "pricing_variants": [{ "frequency": "5 Days/Week", "cost": 2500, "key": "Kids_5d" }, { "frequency": "3 Days/Week", "cost": 2000, "key": "Kids_3d" }, { "frequency": "Weekend", "cost": 1500, "key": "Kids_weekend" }] },
+    { "program_name": "Women Coaching", "pricing_variants": [{ "frequency": "5-Day/wk", "cost": 2500, "key": "Women_5d" }, { "frequency": "3-Day/wk", "cost": 2000, "key": "Women_3d" }] },
+    { "program_name": "Adults Coaching", "pricing_variants": [{ "frequency": "5-Day/Wknd", "cost": 3000, "key": "Adults_5d_weekend" }, { "frequency": "3-Day/wk", "cost": 2500, "key": "Adults_3d" }] },
+    { "program_name": "Advance Batch", "pricing_variants": [{ "frequency": "6-Day/wk", "cost": 12000, "key": "Advance_6d" }] },
+    { "program_name": "Personal Training", "pricing_variants": [{ "frequency": "1 Session", "cost": 700, "key": "PT_session" }] }
+  ],
+  "operating_hours": {
+    "start": "05:00",
+    "end": "23:00"
+  }
 };
 
 // Re-export Firebase utilities for page modules
@@ -96,6 +103,63 @@ export function maskEmail(email) {
   if (!domain) return email;
   if (local.length <= 2) return `${local}***@${domain}`;
   return `${local.substring(0, 2)}***@${domain}`;
+}
+
+export function populateBookingDropdowns(typeSelectId, categorySelectId) {
+  const typeSelect = document.getElementById(typeSelectId);
+  const catSelect = document.getElementById(categorySelectId);
+  if (!typeSelect || !catSelect || !tenantSettings) return;
+
+  // Ensure we don't duplicate options if called multiple times
+  if (typeSelect.options.length <= 1) {
+    typeSelect.innerHTML = '<option value="" disabled selected>Select Booking Type</option>';
+    typeSelect.innerHTML += '<option value="single">Spot Booking</option>';
+    typeSelect.innerHTML += '<option value="month_weekdays">Entire Month (Weekdays)</option>';
+    typeSelect.innerHTML += '<option value="month_all">Entire Month (All Days)</option>';
+  }
+
+  const currentType = typeSelect.value;
+  catSelect.innerHTML = '<option value="" disabled selected>Select Category</option>';
+
+  const categories = new Set();
+
+  if (currentType === "single") {
+    // Only show hourly/spot slots
+    if (tenantSettings.hourly_slots) {
+      tenantSettings.hourly_slots.forEach(s => categories.add(s.type));
+    }
+  } else if (currentType && currentType.startsWith("month")) {
+    // Only show Memberships and Coaching
+    if (tenantSettings.coaching_schedule) {
+      tenantSettings.coaching_schedule.forEach(c => categories.add(c.category));
+    }
+    if (tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes("personal training"))) {
+      categories.add("Personal Training");
+    }
+    if (tenantSettings.membership_programs) {
+      tenantSettings.membership_programs.forEach(m => categories.add(m.type + " Membership"));
+    }
+  } else {
+    // Show all if nothing selected yet
+    if (tenantSettings.hourly_slots) tenantSettings.hourly_slots.forEach(s => categories.add(s.type));
+    if (tenantSettings.coaching_schedule) tenantSettings.coaching_schedule.forEach(c => categories.add(c.category));
+    if (tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes("personal training"))) {
+      categories.add("Personal Training");
+    }
+    if (tenantSettings.membership_programs) tenantSettings.membership_programs.forEach(m => categories.add(m.type + " Membership"));
+  }
+
+  if (categories.size === 0) {
+    categories.add("Court Rental");
+    categories.add("Coaching");
+  }
+
+  categories.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat.toLowerCase().replace(/\s+/g, '_');
+    opt.textContent = cat;
+    catSelect.appendChild(opt);
+  });
 }
 
 export function maskPhone(phone) {
@@ -153,31 +217,13 @@ export function initTheme() {
 }
 
 // ── Data Loaders ────────────────────────────────────────────
-async function seedCourtsIfEmpty() {
-  if (!currentUser?.academyId) return;
-  try {
-    const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      const batch = writeBatch(db);
-      batch.set(doc(collection(db, "courts")), { id: 1, name: "Court 1", academyId: currentUser.academyId });
-      batch.set(doc(collection(db, "courts")), { id: 2, name: "Court 2", academyId: currentUser.academyId });
-      batch.set(doc(collection(db, "courts")), { id: 3, name: "Court 3", academyId: currentUser.academyId });
-      await batch.commit();
-    }
-  } catch (error) {
-    console.error("Court seeding check failed:", error);
-  }
-}
-
 export async function loadCourts() {
-  await seedCourtsIfEmpty();
   let snap;
   if (currentUser?.academyId) {
     const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
     snap = await getDocs(q);
   } else {
-    snap = { forEach: () => {} }; 
+    snap = { forEach: () => { } };
   }
   courtsList = [];
   courtsMap = {};
@@ -186,13 +232,21 @@ export async function loadCourts() {
     courtsList.push(court);
     courtsMap[court.id] = court.name;
   });
+  
+  if (courtsList.length === 0 && tenantSettings && tenantSettings.court_count) {
+    for (let i = 1; i <= tenantSettings.court_count; i++) {
+      courtsList.push({ id: i, name: `Court ${i}` });
+      courtsMap[i] = `Court ${i}`;
+    }
+  }
+  
   courtsList.sort((a, b) => a.id - b.id);
 }
 
 export async function loadMembers() {
   if (!db) return;
   try {
-    let snap = { forEach: () => {} };
+    let snap = { forEach: () => { } };
     if (currentUser?.academyId) {
       const q = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
       snap = await getDocs(q);
@@ -206,32 +260,55 @@ export async function loadMembers() {
   }
 }
 
-export async function loadPricingRates() {
-  if (!db) return;
+export async function loadTenantSettings() {
+  if (!db || !currentUser?.academyId) return;
   try {
-    const snap = await getDocs(collection(db, "configs"));
-    snap.forEach(d => {
-      if (d.id === "pricing") {
-        const data = d.data();
-        if (data.rates) Object.assign(iraguRates, data.rates);
-        iraguRates.Guest_hourly_slot = data.rateSingle !== undefined ? data.rateSingle : iraguRates.Guest_hourly_slot;
-        iraguRates.PT_session = data.rateMember !== undefined ? data.rateMember : iraguRates.PT_session;
-        iraguRates.Advance_6d = data.rateKid !== undefined ? data.rateKid : iraguRates.Advance_6d;
+    const docRef = doc(db, "academies", currentUser.academyId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      tenantSettings = snap.data();
+      
+      // Inject missing template arrays for backward compatibility and UX
+      if (!tenantSettings.membership_programs) tenantSettings.membership_programs = defaultSettings.membership_programs;
+      if (!tenantSettings.hourly_slots) tenantSettings.hourly_slots = defaultSettings.hourly_slots;
+      if (!tenantSettings.coaching_schedule) tenantSettings.coaching_schedule = defaultSettings.coaching_schedule;
+      if (!tenantSettings.fee_structure) tenantSettings.fee_structure = defaultSettings.fee_structure;
+      if (!tenantSettings.operating_hours) tenantSettings.operating_hours = defaultSettings.operating_hours;
+      
+      // In-memory migration for existing users
+      if (tenantSettings.hourly_slots) {
+        tenantSettings.hourly_slots.forEach(s => {
+          if (s.type.includes("Guest") || s.type.includes("Spot Booking") || s.type.includes("Hourly Slot Peak")) {
+            if (s.type.includes("Peak")) {
+              s.type = s.type.includes("Non") ? "Guest play (Non Peak hours)" : "Guest play (Peak hours)";
+            } else if (s.type === "Guest" || s.type === "Spot Booking") {
+              s.type = "Hourly Slot";
+            }
+          }
+        });
       }
-    });
-    updateDynamicPricesUI();
-  } catch (error) {
-    console.error("Failed to load pricing configurations:", error);
-  }
-}
-
-export function updateDynamicPricesUI() {
-  document.querySelectorAll(".dyn-price").forEach(el => {
-    const key = el.dataset.rateKey;
-    if (key && iraguRates[key] !== undefined) {
-      el.textContent = `₹${iraguRates[key].toLocaleString()}`;
+      
+      // Check for missing mandatory onboarding fields
+      if (!tenantSettings.court_count) {
+        if (!window.location.pathname.endsWith("dashboard.html")) {
+          window.location.href = "dashboard.html";
+          return;
+        }
+        document.dispatchEvent(new Event('setup_required'));
+      }
+      
+    } else {
+      // First-time login: missing settings
+      tenantSettings = null;
+      if (!window.location.pathname.endsWith("dashboard.html")) {
+        window.location.href = "dashboard.html";
+        return;
+      }
+      document.dispatchEvent(new Event('setup_required'));
     }
-  });
+  } catch (error) {
+    console.error("Failed to load tenant settings:", error);
+  }
 }
 
 // ── Auth Checking ───────────────────────────────────────────
@@ -244,7 +321,7 @@ async function checkUserAccess(user) {
       const data = configDoc.data();
       authConfig.allowGuestLogin = data.allowGuestLogin !== undefined ? data.allowGuestLogin : true;
     }
-    
+
     // 2. Handle Anonymous Users
     if (user.isAnonymous) {
       if (authConfig.allowGuestLogin) {
@@ -265,8 +342,8 @@ async function checkUserAccess(user) {
 
     const userEmail = (user.email || "").toLowerCase().trim();
     const userDocRef = doc(db, "users", userEmail);
-    const userDoc = await getDoc(userDocRef);
-    
+    const userDoc = await getDocFromServer(userDocRef);
+
     if (!userDoc.exists()) {
       // Auto-seed super admin if they match the admin email
       if (userEmail === "kumarprem.ak@gmail.com") {
@@ -284,9 +361,34 @@ async function checkUserAccess(user) {
       }
       return false;
     }
-    
+
     // User found via email document ID
     const userData = userDoc.data();
+
+    // Validate that the academy still exists (prevents orphaned users from logging in)
+    if (userData.role === "TENANT_ADMIN" || userData.role === "STAFF") {
+      if (!userData.academyId) {
+        console.warn("User has no assigned academy. Access denied.");
+        // Auto-cleanup invalid user
+        await deleteDoc(userDocRef);
+        return false;
+      }
+      try {
+        const acadDoc = await getDocFromServer(doc(db, "academies", userData.academyId));
+        if (!acadDoc.exists()) {
+          console.warn("Academy has been deleted. Access denied for orphaned user.");
+
+          // Auto-cleanup the orphaned user
+          await deleteDoc(userDocRef);
+
+          return false;
+        }
+      } catch (err) {
+        console.error("Error verifying academy existence:", err);
+        return false;
+      }
+    }
+
     user.role = userData.role;
     user.academyId = userData.academyId;
     return true;
@@ -309,23 +411,36 @@ export function isStaff(user) {
 }
 
 // ── Booking Conflict Check ──────────────────────────────────
-export async function checkBookingConflicts(courtId, dateStr, startTime, endTime, skipBookingId = null) {
+// Returns false if no conflict, or an error string if there is a conflict.
+export async function checkBookingConflicts(courtId, dateStr, startTime, endTime, category) {
   try {
-    if (!currentUser?.academyId) return true;
-    const q = query(collection(db, "bookings"), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
+    const q = query(collection(db, "bookings"), where("court_id", "==", courtId), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
-    let conflict = false;
+    
+    // Rule 1: Coaching Sessions (No Limit)
+    const catLower = (category || "").toLowerCase();
+    const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
+    if (isCoaching) {
+      return false; 
+    }
+
+    // Rule 2: Individual / Guest Bookings (Max 2 Per Court)
+    let overlapCount = 0;
     snap.forEach(d => {
-      if (skipBookingId && d.id === skipBookingId) return;
       const b = d.data();
-      if (b.court_id == courtId) {
-        if (startTime < b.end_time && endTime > b.start_time) conflict = true;
+      if (startTime < b.end_time && endTime > b.start_time) {
+        overlapCount++;
       }
     });
-    return conflict;
+
+    if (overlapCount >= 2) {
+      return "Court is unavailable: Maximum capacity of 2 players reached for this slot.";
+    }
+
+    return false;
   } catch (err) {
     console.error("Conflict checking query error:", err);
-    return true;
+    return "Error validating court availability.";
   }
 }
 
@@ -364,9 +479,9 @@ async function handleAuthStateChange(user) {
         : (user.isAnonymous ? "👤" : (user.email ? user.email.charAt(0).toUpperCase() : "?"));
     }
     if (header) header.classList.remove("hidden");
-    
-    // Hide settings nav for non-super-admins
-    const showSettings = isSuperAdmin(user);
+
+    // Hide settings nav for non-admin roles
+    const showSettings = isSuperAdmin(user) || isTenantAdmin(user);
     const navSettings = document.getElementById("navSettings");
     if (navSettings) {
       navSettings.classList.toggle("hidden", !showSettings);
@@ -377,7 +492,12 @@ async function handleAuthStateChange(user) {
     }
     // Load core data, then call page-specific ready handler
     await loadCourts();
-    await loadPricingRates();
+    await loadTenantSettings();
+
+    // Reveal page content after data is loaded
+    const pageContent = document.querySelector(".page-content");
+    if (pageContent) pageContent.classList.remove("hidden");
+
     if (_onAuthReady) _onAuthReady(user);
   } else {
     currentUser = null;
@@ -435,9 +555,9 @@ function setupSharedListeners() {
 // ── Initialization ──────────────────────────────────────────
 export function initApp() {
   initTheme();
-  const isConfigured = window.FIREBASE_CONFIG && 
-                       window.FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY" && 
-                       window.FIREBASE_CONFIG.apiKey !== "__FIREBASE_API_KEY__";
+  const isConfigured = window.FIREBASE_CONFIG &&
+    window.FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY" &&
+    window.FIREBASE_CONFIG.apiKey !== "__FIREBASE_API_KEY__";
   if (!isConfigured) {
     const banner = document.getElementById("setupBanner");
     if (banner) banner.classList.remove("hidden");
@@ -469,7 +589,7 @@ export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMont
 
   const bookingsRef = collection(db, "bookings");
   let snapshot;
-  
+
   try {
     let constraints = [
       where("date", ">=", startDate),

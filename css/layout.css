@@ -10,14 +10,14 @@
 }
 
 /* ── Header ──────────────────────────────────────────────── */
-header {
+#appHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 2rem;
-  background: rgba(21, 28, 40, 0.92);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 0 var(--border), 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 0 var(--border), 0 4px 20px rgba(0, 0, 0, 0.05);
   position: sticky;
   top: 0;
   z-index: 100;

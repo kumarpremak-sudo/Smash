@@ -44,7 +44,7 @@
     </header>
 
     <!-- ══ DASHBOARD HOME ════════════════════════════════════ -->
-    <div class="page-content">
+    <div class="page-content hidden">
 
       <!-- Greeting -->
       <div class="page-header">
@@ -114,29 +114,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Right: Quick Pricing -->
-        <div class="pricing-sidebar">
-          <h4>Pricing Settings</h4>
-          <form id="pricingForm" class="pricing-form">
-            <div class="pricing-row">
-              <label for="rate_single">Hourly Court Slot (₹):</label>
-              <input type="number" id="rate_single" value="300" min="1" required />
-            </div>
-            <div class="pricing-row">
-              <label for="rate_member">PT Session Fee (₹/hr):</label>
-              <input type="number" id="rate_member" value="700" min="1" required />
-            </div>
-            <div class="pricing-row">
-              <label for="rate_kid">Advance Batch (₹/mo):</label>
-              <input type="number" id="rate_kid" value="12000" min="1" required />
-            </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem;font-size:0.85rem;" id="btnSavePricing">Update Pricing Rates</button>
-            <button type="button" class="btn btn-secondary" style="width:100%;font-size:0.85rem;" id="btnOpenPricingBoard">⚙️ Advanced Pricing Board</button>
-          </form>
-          <div id="pricingMessage" class="message hidden"></div>
-        </div>
-
       </div>
 
       <!-- Calendar & Bookings -->
@@ -194,12 +171,7 @@
                 <div class="enroll-input-row">
                   <input type="text" id="newEnrolleeInput" placeholder="Trainee name..." maxlength="40" />
                   <select id="newEnrolleeType">
-                    <option value="Kids_5d">Kids 5-Day</option><option value="Kids_3d">Kids 3-Day</option><option value="Kids_weekend">Kids Weekend</option>
-                    <option value="Individual_5d_Male">Indiv. 5d Male</option><option value="Individual_5d_Female">Indiv. 5d Female</option><option value="Individual_7d">Indiv. 7-Day</option><option value="Individual_weekend">Indiv. Weekend</option>
-                    <option value="Group_5d">Group 5-Day</option><option value="Group_7d">Group 7-Day</option><option value="Group_weekend">Group Weekend</option>
-                    <option value="Women_5d">Women 5-Day</option><option value="Women_3d">Women 3-Day</option>
-                    <option value="Adults_5d_weekend">Adults 5d/Wknd</option><option value="Adults_3d">Adults 3-Day</option>
-                    <option value="Advance_6d">Advance 6-Day</option><option value="PT_session">PT Session</option>
+                    <option value="" disabled selected>Select Plan</option>
                   </select>
                   <button type="button" class="btn btn-primary" id="btnEnrollSubmit">+ Add</button>
                 </div>
@@ -231,15 +203,21 @@
           <div id="modalBookingFormView" class="hidden">
             <form id="bookingForm">
               <div class="form-group"><label for="booking_type">Booking Type</label>
-                <select id="booking_type"><option value="single">Single Day</option><option value="month_weekdays">Entire Month (Weekdays)</option><option value="month_all">Entire Month (All Days)</option></select>
+                <select id="booking_type" required>
+                  <option value="" disabled selected>Select Booking Type</option>
+                  <!-- Populated by JS -->
+                </select>
               </div>
               <div class="form-group"><label for="booking_category">Category</label>
-                <select id="booking_category"><option value="court_rental">Court Rental</option><option value="coaching">Coaching</option><option value="personal_training">Personal Training</option><option value="advance_batch">Advance Batch</option></select>
+                <select id="booking_category" required>
+                  <option value="" disabled selected>Select Category</option>
+                  <!-- Populated by JS -->
+                </select>
               </div>
               <div class="form-group"><label for="court_id">Court</label><select id="court_id" required><option value="" disabled selected>Select Court</option></select></div>
               <div class="form-row">
-                <div class="form-group"><label for="start_time">Start Time</label><input type="time" id="start_time" required /></div>
-                <div class="form-group"><label for="end_time">End Time</label><input type="time" id="end_time" required /></div>
+                <div class="form-group"><label for="start_time">Start Time</label><select id="start_time" required><option value="" disabled selected>Select Start Time</option></select></div>
+                <div class="form-group"><label for="end_time">End Time</label><select id="end_time" required><option value="" disabled selected>Select End Time</option></select></div>
               </div>
               <div class="form-group"><label for="customer_name">Name</label><input type="text" id="customer_name" maxlength="40" required /></div>
               <div class="form-group"><label for="customer_phone">Phone</label><input type="tel" id="customer_phone" maxlength="15" value="+91 " required /></div>
@@ -250,30 +228,31 @@
       </div>
     </div>
 
-    <!-- ══ PRICING BOARD MODAL ═══════════════════════════════ -->
-    <div id="pricingBoardModal" class="modal-overlay hidden">
-      <div class="modal-content" style="max-width:600px;">
-        <button class="close-modal" id="pricingBoardModalClose">&times;</button>
-        <div class="modal-header-section"><h2>Advanced Pricing Board</h2></div>
+    <!-- ══ FIRST TIME SETUP MODAL ════════════════════════════ -->
+    <div id="firstTimeSetupModal" class="modal-overlay hidden">
+      <div class="modal-content" style="max-width:500px;">
+        <div class="modal-header-section">
+          <h2>Welcome to Smash. 🏸</h2>
+          <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.5rem;">Let's set up your Academy profile.</p>
+        </div>
         <div class="modal-body-section">
-          <div id="pricingBoardMessage" class="message hidden"></div>
-          <form id="pricingBoardForm">
-            <div class="section-label">Individual Membership (₹/month)</div>
-            <div class="form-row"><div class="form-group"><label>5-Day Male</label><input type="number" id="p_indiv_5d_male" min="1" /></div><div class="form-group"><label>5-Day Female</label><input type="number" id="p_indiv_5d_female" min="1" /></div></div>
-            <div class="form-row"><div class="form-group"><label>7-Day</label><input type="number" id="p_indiv_7d" min="1" /></div><div class="form-group"><label>Weekend</label><input type="number" id="p_indiv_weekend" min="1" /></div></div>
-            <div class="section-label" style="margin-top:1.5rem;">Group Membership (₹/month)</div>
-            <div class="form-row"><div class="form-group"><label>5-Day</label><input type="number" id="p_group_5d" min="1" /></div><div class="form-group"><label>7-Day</label><input type="number" id="p_group_7d" min="1" /></div></div>
-            <div class="form-group"><label>Weekend</label><input type="number" id="p_group_weekend" min="1" /></div>
-            <div class="section-label" style="margin-top:1.5rem;">Coaching (₹/month)</div>
-            <div class="form-row"><div class="form-group"><label>Kids 3-Day</label><input type="number" id="p_kids_3d" min="1" /></div><div class="form-group"><label>Kids 5-Day</label><input type="number" id="p_kids_5d" min="1" /></div></div>
-            <div class="form-row"><div class="form-group"><label>Kids Weekend</label><input type="number" id="p_kids_weekend" min="1" /></div><div class="form-group"><label>Women 5-Day</label><input type="number" id="p_women_5d" min="1" /></div></div>
-            <div class="form-row"><div class="form-group"><label>Women 3-Day</label><input type="number" id="p_women_3d" min="1" /></div><div class="form-group"><label>Adults 5d/Wknd</label><input type="number" id="p_adults_5d" min="1" /></div></div>
-            <div class="form-row"><div class="form-group"><label>Adults 3-Day</label><input type="number" id="p_adults_3d" min="1" /></div><div class="form-group"><label>Advance 6-Day</label><input type="number" id="p_advance_6d" min="1" /></div></div>
-            <div class="form-group"><label>PT Session (₹/hr)</label><input type="number" id="p_pt_session" min="1" /></div>
-            <div class="section-label" style="margin-top:1.5rem;">Guest Play (₹/hour)</div>
-            <div class="form-row"><div class="form-group"><label>Non-Peak</label><input type="number" id="p_guest_nonpeak" min="1" /></div><div class="form-group"><label>Peak</label><input type="number" id="p_guest_peak" min="1" /></div></div>
-            <div class="form-group"><label>Hourly Slot</label><input type="number" id="p_guest_hourly" min="1" /></div>
-            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1.5rem;" id="btnSavePricingBoard">Save Advanced Rates</button>
+          <div id="setupMessage" class="message hidden"></div>
+          <form id="setupForm">
+            <div class="form-group">
+              <label for="setupAcademyName">Academy Name</label>
+              <input type="text" id="setupAcademyName" placeholder="e.g., Elite Shuttlers Academy" required maxlength="60" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="setupContact">Contact Number</label>
+                <input type="tel" id="setupContact" placeholder="+91 9876543210" required maxlength="20" />
+              </div>
+              <div class="form-group">
+                <label for="setupCourts">Number of Courts</label>
+                <input type="number" id="setupCourts" placeholder="3" required min="1" max="50" value="3" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1.5rem;" id="btnCompleteSetup">Complete Setup & Launch Dashboard</button>
           </form>
         </div>
       </div>

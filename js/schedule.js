@@ -1,8 +1,8 @@
 // js/schedule.js — Daily Matrix Timeline
 import {
   db, currentUser, courtsList, courtsMap, escapeHTML, formatSelectedDate,
-  showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail, planLabels,
-  bulkCancelMonthlyBookings,
+  showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
+  bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
   query, where, serverTimestamp
 } from "./shared.js";
@@ -56,6 +56,8 @@ function setupScheduleListeners() {
     });
   }
   addSubmit("bulkCancelForm", handleBulkCancelSubmit);
+
+  populateBookingDropdowns("booking_type", "booking_category");
 }
 
 function openBulkCancelModal() {
@@ -361,21 +363,28 @@ async function handleQuickBookingSubmit(event) {
   const dateStr = formatSelectedDate(selectedDate);
   const name = document.getElementById("quickCustomerName").value.trim();
   const email = document.getElementById("quickCustomerEmail").value.trim();
-  const category = document.getElementById("quickBookingCategory").value;
+  const category = document.getElementById("booking_category").value;
+  const bookingType = document.getElementById("booking_type").value;
   if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); btn.disabled = false; return; }
   if (email.length > 80) { showMsg("modalMessage", "Email cannot exceed 80 characters.", "error"); btn.disabled = false; return; }
   if (startTime >= endTime) { showMsg("modalMessage", "End time must be after start time.", "error"); btn.disabled = false; return; }
   try {
     if (!currentUser) throw new Error("You must be signed in.");
-    if (await checkBookingConflicts(courtId, dateStr, startTime, endTime)) throw new Error("Slot already booked.");
-    await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+    const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, category);
+    if (conflictError) throw new Error(conflictError);
+    await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, booking_type: bookingType, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
     showMsg("modalMessage", "Quick reservation confirmed!", "success");
     setTimeout(() => { closeModal(); loadDailyGrid(); }, 1200);
   } catch (error) { showMsg("modalMessage", error.message, "error"); }
   finally { btn.disabled = false; }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function bootstrap() {
   setupScheduleListeners();
   initApp();
-});
+}
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", bootstrap);
+} else {
+  bootstrap();
+}

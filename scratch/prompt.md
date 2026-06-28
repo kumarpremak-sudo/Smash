@@ -15,6 +15,19 @@ Write a compact [LANGUAGE] function that [FUNCTION_GOAL].Maximize token efficien
 "Generate a minimal boilerplate configuration for [FRAMEWORK/TOOL] targeting [USE_CASE].Strip out all optional parameters, comments, and placeholders.Provide only the mandatory keys required to run." 
 
 
+
+Context: Frontend-only app hosted on GitHub Pages. Firebase config is currently hardcoded in a `config.json` file on the window object.
+Goal: Migrate these sensitive keys to GitHub Actions Secrets and Variables, and dynamically inject them into the build/deployment workflow so they aren't exposed in the source code repository.
+
+Requirements:
+1. GitHub Actions Workflow Code (`.github/workflows/deploy.yml`): Provide a YAML workflow for GitHub Pages deployment that reads GitHub Secrets and replaces placeholders in the codebase before deploying.
+2. Codebase Adjustment: Show how to modify the JavaScript/HTML file to read these environment variables or placeholders during the GitHub Actions build step (e.g., using a script, `sed` commands in the runner, or standard build tools env replacement).
+3. Step-by-Step Instructions: Provide a short, bulleted guide on exactly what keys to add inside the GitHub Repository settings (Settings > Secrets and variables > Actions).
+
+Provide only the updated workflow YAML, the updated config initialization snippet, and the brief setup steps. No fluff.
+
+
+
 Current setup: Admin can block a single slot or an entire month's slots for a member. Currently, cancellation only works manually, one slot at a time.
 Goal: Add a bulk-cancellation feature for an entire month's worth of slots for a specific member or coaching group.
 
@@ -88,7 +101,7 @@ Provide only the Firestore Security Rules file and a quick breakdown of how it s
 
 
 
-Feature: A single-click "Cancel Everything / Hard Reset" button for Tenant Admins. 
+Feature: A single-click "Cancel Everything / Hard Reset" button for Tenant . 
 
 Requirements:
 1. Scope: When clicked, it must securely delete ALL records (slots, member profiles, coaching data, bookings) belonging strictly to that specific Admin's `tenantId`, reverting their dashboard to a clean, fresh state.
@@ -98,3 +111,14 @@ Requirements:
    - The admin can ONLY delete documents where the `tenantId` matches their own assigned `tenantId`. They must be completely blocked from wiping any other tenant's data.
 
 Provide only the frontend batch-deletion code and the updated Firestore Security Rules. No fluff.
+
+Major modification need in the application..
+
+Newly registered court admin and should update their program, membership, schedule, and fee details. they can also update pricing schedule when ever they need. remove pricing setting from the dashoard and place it in the each program edit..
+
+All the reservation (Booking Type,Category,Court) should be based on the court admin program page.. please do uderstand the whole picture of the requirement and implement without fucntions bugs..
+
+Test the entire UI flow
+Create walkthrough documentation.. with this email id - "kumarprem029@gmail"
+no need to hardcode in the code, just use this id for all the functional case realated to mange program and reserve a cout..
+if you fond any issue/bug.. pls fix the issue

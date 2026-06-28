@@ -15,8 +15,8 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthenticated() && !isGuest() && (
-        getUserData().role == 'SUPER_ADMIN' || 
-        request.auth.token.email == 'kumarprem.ak@gmail.com'
+        (getUserData() != null && getUserData().role == 'SUPER_ADMIN') || 
+        (request.auth.token.email == 'kumarprem.ak@gmail.com')
       );
     }
     
@@ -27,21 +27,19 @@ service cloud.firestore {
     function hasAcademyAccess(targetAcademyId) {
       return isAuthenticated() && (
         (isGuest() && targetAcademyId == 'demo_' + request.auth.uid) ||
-        (!isGuest() && getUserData().academyId == targetAcademyId)
+        (!isGuest() && getUserData() != null && getUserData().academyId == targetAcademyId)
       );
     }
 
     function isTenantAdmin(targetAcademyId) {
-      return hasAcademyAccess(targetAcademyId) && !isGuest() && getUserData().role == 'TENANT_ADMIN';
+      return hasAcademyAccess(targetAcademyId) && (
+        isGuest() || (getUserData() != null && getUserData().role == 'TENANT_ADMIN')
+      );
     }
 
     // --- Rules ---
 
-    // 1. Academies (Tenants)
-    match /academies/{academyId} {
-      allow read: if isSuperAdmin() || hasAcademyAccess(academyId);
-      allow write: if isSuperAdmin(); // Only Super Admins can create/edit academies
-    }
+
 
     // 2. Users (RBAC)
     match /users/{userEmail} {
@@ -67,37 +65,47 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() || isTenantAdmin(resource.data.academyId);
     }
 
-    // 3. Tenant Data Collections (Bookings, Members, Configs, Courts, etc.)
+    // 3. Tenant Data Collections (Bookings, Members, Configs, Courts, Academies, etc.)
+    match /academies/{academyId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(academyId);
+      allow write: if isSuperAdmin() || isTenantAdmin(academyId);
+    }
+    
     match /bookings/{bookingId} {
-      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
-      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.academyId);
-      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.get('academyId', ''));
+      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
     }
     
     match /members/{memberId} {
-      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
-      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.academyId);
-      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.get('academyId', ''));
+      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
     }
 
     match /configs/{configId} {
-      allow read: if configId == 'auth' || isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
-      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.academyId) || isTenantAdmin(request.resource.data.academyId);
+      allow read: if configId == 'auth' || isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.get('academyId', '')) || isTenantAdmin(request.resource.data.get('academyId', ''));
     }
 
     match /courts/{courtId} {
-      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
-      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.academyId) || isTenantAdmin(request.resource.data.academyId);
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.get('academyId', '')) || isTenantAdmin(request.resource.data.get('academyId', ''));
     }
     
     match /programs/{programId} {
-      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
-      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.academyId) || isTenantAdmin(request.resource.data.academyId);
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.get('academyId', '')) || isTenantAdmin(request.resource.data.get('academyId', ''));
     }
     
     match /coaching/{coachingId} {
-      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId);
-      allow write: if isSuperAdmin() || hasAcademyAccess(resource.data.academyId) || hasAcademyAccess(request.resource.data.academyId);
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow write: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', '')) || hasAcademyAccess(request.resource.data.get('academyId', ''));
+    }
+
+    match /hourly_slots/{slotId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow write: if isSuperAdmin() || isTenantAdmin(resource.data.get('academyId', '')) || isTenantAdmin(request.resource.data.get('academyId', ''));
     }
   }
 }
