@@ -105,61 +105,159 @@ export function maskEmail(email) {
   return `${local.substring(0, 2)}***@${domain}`;
 }
 
+export let currentHierarchy = {};
+
+export function getBookingHierarchy() {
+  if (!tenantSettings) return {};
+  
+  const hierarchy = {};
+
+  const addNode = (type, category, period) => {
+    if (!hierarchy[type]) hierarchy[type] = {};
+    if (!hierarchy[type][category]) hierarchy[type][category] = [];
+    if (period && !hierarchy[type][category].includes(period)) {
+      hierarchy[type][category].push(period);
+    }
+  };
+
+  // 1. Hourly Slots -> Spot booking & Guest Play
+  if (tenantSettings.hourly_slots) {
+    tenantSettings.hourly_slots.forEach(s => {
+      if (s.type.includes("Hourly Slot")) addNode("Spot booking", "Hourly Slot", "No Need");
+      else addNode("Guest Play", s.type, "No Need");
+    });
+  }
+
+  // 2. Memberships -> Members & Group/Lease
+  if (tenantSettings.membership_programs) {
+    tenantSettings.membership_programs.forEach(m => {
+      const type = (m.type && m.type.toLowerCase() === 'group') ? "Group/Lease" : "Members";
+      const cat = (m.type && m.type.toLowerCase() === 'group') ? "Group Members" : "Individual";
+      addNode(type, cat, m.duration_days);
+    });
+  }
+
+  // 3. Coaching & Advance Training
+  if (tenantSettings.coaching_schedule) {
+    tenantSettings.coaching_schedule.forEach(c => {
+      let periods = [];
+      if (tenantSettings.fee_structure) {
+         const fee = tenantSettings.fee_structure.find(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
+         if (fee && fee.pricing_variants) {
+           fee.pricing_variants.forEach(p => periods.push(p.frequency));
+         }
+      }
+      
+      const type = c.category.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
+      const cat = type === "Advance Training" ? "3 Session" : c.category; // Mapping for Advance Batch to 3 Session
+      
+      if (periods.length > 0) {
+        periods.forEach(p => addNode(type, cat, p));
+      } else {
+        addNode(type, cat, c.days); // Fallback
+      }
+    });
+  }
+
+  // 4. Personal Training
+  if (tenantSettings.fee_structure) {
+    tenantSettings.fee_structure.forEach(f => {
+      if (f.program_name.toLowerCase().includes("personal training")) {
+         f.pricing_variants.forEach(p => {
+           addNode("Personal training", "Private Coaching", p.frequency);
+         });
+      }
+    });
+  }
+
+  return hierarchy;
+}
+
 export function populateBookingDropdowns(typeSelectId, categorySelectId) {
   const typeSelect = document.getElementById(typeSelectId);
-  const catSelect = document.getElementById(categorySelectId);
-  if (!typeSelect || !catSelect || !tenantSettings) return;
+  if (!typeSelect || !tenantSettings) return;
 
-  // Ensure we don't duplicate options if called multiple times
+  currentHierarchy = getBookingHierarchy();
+
+  // Populate Type Dropdown if empty
   if (typeSelect.options.length <= 1) {
     typeSelect.innerHTML = '<option value="" disabled selected>Select Booking Type</option>';
-    typeSelect.innerHTML += '<option value="single">Spot Booking</option>';
-    typeSelect.innerHTML += '<option value="month_weekdays">Entire Month (Weekdays)</option>';
-    typeSelect.innerHTML += '<option value="month_all">Entire Month (All Days)</option>';
+    Object.keys(currentHierarchy).forEach(type => {
+      typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
+    });
   }
+}
+
+export function resolvePlanKey(type, category, period, gender) {
+  if (!tenantSettings) return null;
+  
+  if (type === "Members" || type === "Group/Lease") {
+    if (tenantSettings.membership_programs) {
+      // Try to find exact match including gender notes
+      let match = tenantSettings.membership_programs.find(m => 
+        (m.type && m.type.toLowerCase() === (type === "Group/Lease" ? "group" : "individual")) &&
+        m.duration_days === period &&
+        m.special_notes === gender
+      );
+      // Fallback to match without gender strictness if not found
+      if (!match) {
+        match = tenantSettings.membership_programs.find(m => 
+          (m.type && m.type.toLowerCase() === (type === "Group/Lease" ? "group" : "individual")) &&
+          m.duration_days === period
+        );
+      }
+      if (match) return match.key;
+    }
+  }
+  
+  if (type === "Coaching" || type === "Advance Training" || type === "Personal training") {
+    if (tenantSettings.fee_structure) {
+      for (const prog of tenantSettings.fee_structure) {
+        if (prog.program_name.toLowerCase().includes(category.toLowerCase())) {
+          const v = (prog.pricing_variants || []).find(x => x.frequency === period);
+          if (v) return v.key;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+export function populateCategoryDropdown(typeSelectId, categorySelectId) {
+  const typeSelect = document.getElementById(typeSelectId);
+  const catSelect = document.getElementById(categorySelectId);
+  if (!typeSelect || !catSelect) return;
 
   const currentType = typeSelect.value;
   catSelect.innerHTML = '<option value="" disabled selected>Select Category</option>';
 
-  const categories = new Set();
-
-  if (currentType === "single") {
-    // Only show hourly/spot slots
-    if (tenantSettings.hourly_slots) {
-      tenantSettings.hourly_slots.forEach(s => categories.add(s.type));
-    }
-  } else if (currentType && currentType.startsWith("month")) {
-    // Only show Memberships and Coaching
-    if (tenantSettings.coaching_schedule) {
-      tenantSettings.coaching_schedule.forEach(c => categories.add(c.category));
-    }
-    if (tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes("personal training"))) {
-      categories.add("Personal Training");
-    }
-    if (tenantSettings.membership_programs) {
-      tenantSettings.membership_programs.forEach(m => categories.add(m.type + " Membership"));
-    }
-  } else {
-    // Show all if nothing selected yet
-    if (tenantSettings.hourly_slots) tenantSettings.hourly_slots.forEach(s => categories.add(s.type));
-    if (tenantSettings.coaching_schedule) tenantSettings.coaching_schedule.forEach(c => categories.add(c.category));
-    if (tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes("personal training"))) {
-      categories.add("Personal Training");
-    }
-    if (tenantSettings.membership_programs) tenantSettings.membership_programs.forEach(m => categories.add(m.type + " Membership"));
+  if (currentType && currentHierarchy[currentType]) {
+    Object.keys(currentHierarchy[currentType]).forEach(cat => {
+      catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+    });
   }
+}
 
-  if (categories.size === 0) {
-    categories.add("Court Rental");
-    categories.add("Coaching");
+export function populatePeriodDropdown(typeSelectId, categorySelectId, periodSelectId) {
+  const typeSelect = document.getElementById(typeSelectId);
+  const catSelect = document.getElementById(categorySelectId);
+  const perSelect = document.getElementById(periodSelectId);
+  if (!typeSelect || !catSelect || !perSelect) return;
+
+  const currentType = typeSelect.value;
+  const currentCat = catSelect.value;
+  perSelect.innerHTML = '<option value="" disabled selected>Select Period</option>';
+
+  if (currentType && currentCat && currentHierarchy[currentType] && currentHierarchy[currentType][currentCat]) {
+    const periods = currentHierarchy[currentType][currentCat];
+    if (periods.length > 0) {
+      periods.forEach(p => {
+        perSelect.innerHTML += `<option value="${p}">${p}</option>`;
+      });
+    } else {
+      perSelect.innerHTML += `<option value="No Need">No Need</option>`;
+    }
   }
-
-  categories.forEach(cat => {
-    const opt = document.createElement("option");
-    opt.value = cat.toLowerCase().replace(/\s+/g, '_');
-    opt.textContent = cat;
-    catSelect.appendChild(opt);
-  });
 }
 
 export function maskPhone(phone) {

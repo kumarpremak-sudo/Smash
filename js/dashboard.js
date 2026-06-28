@@ -2,7 +2,7 @@
 import {
   db, currentUser, courtsList, courtsMap, membersList, tenantSettings, defaultSettings,
   monthNames, escapeHTML, formatSelectedDate, showMsg, showInlineToast,
-  loadMembers, setOnAuthReady, initApp, populateBookingDropdowns,
+  loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone,
   signOut
@@ -100,13 +100,21 @@ function setupDashboardListeners() {
   addClick("btnEnrollSubmit", handleEnrollmentSubmit);
 
   const catSelect = document.getElementById("booking_category");
-  if (catSelect) catSelect.addEventListener("change", () => populateTimeDropdowns(catSelect.value));
-
   const typeSelect = document.getElementById("booking_type");
+  const periodSelect = document.getElementById("booking_period");
+  
   if (typeSelect) typeSelect.addEventListener("change", () => {
-    populateBookingDropdowns("booking_type", "booking_category");
+    populateCategoryDropdown("booking_type", "booking_category");
     catSelect.value = "";
+    populatePeriodDropdown("booking_type", "booking_category", "booking_period");
+    periodSelect.value = "";
     populateTimeDropdowns("");
+  });
+
+  if (catSelect) catSelect.addEventListener("change", () => {
+    populatePeriodDropdown("booking_type", "booking_category", "booking_period");
+    periodSelect.value = "";
+    populateTimeDropdowns(catSelect.value);
   });
 
   // Setup
@@ -435,6 +443,12 @@ function openBookingFormModal() {
   openModal("Reserve Court");
   document.getElementById("modalBookingFormView").classList.remove("hidden");
   document.getElementById("bookingForm").reset();
+  
+  // Initialize dropdowns based on hierarchy
+  populateBookingDropdowns("booking_type", "booking_category");
+  document.getElementById("booking_category").innerHTML = '<option value="" disabled selected>Select Category</option>';
+  document.getElementById("booking_period").innerHTML = '<option value="" disabled selected>Select Period</option>';
+  
   document.getElementById("start_time").value = "";
   document.getElementById("end_time").value = "";
   if (currentUser && !currentUser.isAnonymous) {
@@ -459,6 +473,8 @@ async function handleBookingSubmit(event) {
   const type = document.getElementById("booking_type").value;
   const courtId = parseInt(document.getElementById("court_id").value);
   const category = document.getElementById("booking_category").value;
+  const period = document.getElementById("booking_period").value;
+  const gender = document.getElementById("booking_gender").value;
   const startTime = document.getElementById("start_time").value + ":00";
   const endTime = document.getElementById("end_time").value + ":00";
   const name = document.getElementById("customer_name").value.trim();
@@ -469,15 +485,35 @@ async function handleBookingSubmit(event) {
   btn.disabled = true; btn.textContent = "Processing Reservation...";
   try {
     if (!currentUser) throw new Error("You must be signed in to reserve a court.");
-    if (type === "single") {
+    
+    const isSingleDay = ["Spot booking", "Guest Play", "Personal training"].includes(type);
+    
+    if (isSingleDay) {
       const dateStr = formatSelectedDate(selectedDate);
       const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, category);
       if (conflictError) throw new Error(conflictError);
-      await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_phone: phone, category, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+      const newBookingRef = await addDoc(collection(db, "bookings"), { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+      
+      // Auto-enroll member for Personal Training (which is a single day booking but still a program)
+      if (type === "Personal training") {
+         const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
+         const todayStr = formatSelectedDate(new Date());
+         await addDoc(collection(db, "members"), { 
+            name: name, 
+            type: planKey, 
+            joinDate: todayStr, 
+            lastPaidDate: todayStr, 
+            bookingId: newBookingRef.id, 
+            status: "active", 
+            createdTime: Date.now(), 
+            academyId: currentUser.academyId 
+         });
+      }
+      
       showMsg("modalMessage", "Reservation confirmed successfully!", "success");
       setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
     } else {
-      const daysMode = type === "month_weekdays" ? "weekdays" : "all";
+      const daysMode = (period === "5 Days" || period === "3 Days") ? "weekdays" : (period === "Weekend" ? "weekend" : "all");
       const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
       const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
       const endStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-31`;
@@ -486,10 +522,14 @@ async function handleBookingSubmit(event) {
       const existing = []; snap2.forEach(d => { if (d.data().court_id == courtId) existing.push(d.data()); });
       const batch = writeBatch(db);
       let created = 0, skipped = 0;
+      let firstBookingId = null;
       for (let day = 1; day <= lastDay; day++) {
         const curDate = new Date(currentYear, currentMonth, day);
         const dayOfWeek = curDate.getDay();
+        
         if (daysMode === "weekdays" && (dayOfWeek === 0 || dayOfWeek === 6)) continue;
+        if (daysMode === "weekend" && (dayOfWeek !== 0 && dayOfWeek !== 6)) continue;
+        
         const curDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         let overlaps = 0;
         const catLower = (category || "").toLowerCase();
@@ -500,10 +540,33 @@ async function handleBookingSubmit(event) {
           });
         }
         if (overlaps >= 2) { skipped++; continue; }
-        batch.set(doc(collection(db, "bookings")), { court_id: courtId, customer_name: name, customer_phone: phone, category, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+        const newBookingRef = doc(collection(db, "bookings"));
+        if (!firstBookingId) firstBookingId = newBookingRef.id;
+        
+        batch.set(newBookingRef, { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
         created++;
       }
-      if (created > 0) { await batch.commit(); showMsg("modalMessage", `Bulk complete. Processed ${created} slots, skipped ${skipped} conflicts.`, "success"); }
+      if (created > 0) { 
+        await batch.commit(); 
+        
+        // Auto-enroll member for recurring plans
+        if (type !== "Spot booking" && type !== "Guest Play") {
+           const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
+           const todayStr = formatSelectedDate(new Date());
+           await addDoc(collection(db, "members"), { 
+              name: name, 
+              type: planKey, 
+              joinDate: todayStr, 
+              lastPaidDate: todayStr, 
+              bookingId: firstBookingId, 
+              status: "active", 
+              createdTime: Date.now(), 
+              academyId: currentUser.academyId 
+           });
+        }
+        
+        showMsg("modalMessage", `Bulk complete. Processed ${created} slots, skipped ${skipped} conflicts.`, "success"); 
+      }
       else showMsg("modalMessage", "All dates conflicted or filtered out.", "error");
       setTimeout(() => { closeModal(); renderCalendar(); }, 2000);
     }

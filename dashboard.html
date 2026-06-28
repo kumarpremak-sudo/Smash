@@ -211,8 +211,22 @@
               <div class="form-group"><label for="booking_category">Category</label>
                 <select id="booking_category" required>
                   <option value="" disabled selected>Select Category</option>
-                  <!-- Populated by JS -->
                 </select>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label for="booking_period">Period</label>
+                  <select id="booking_period" required>
+                    <option value="" disabled selected>Select Period</option>
+                  </select>
+                </div>
+                <div class="form-group"><label for="booking_gender">Gender</label>
+                  <select id="booking_gender" required>
+                    <option value="" disabled selected>Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Any">Any</option>
+                  </select>
+                </div>
               </div>
               <div class="form-group"><label for="court_id">Court</label><select id="court_id" required><option value="" disabled selected>Select Court</option></select></div>
               <div class="form-row">
@@ -270,6 +284,7 @@
     </nav>
 
   </div>
-  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/shared.js?v=2"></script>
+  <script type="module" src="js/dashboard.js?v=2"></script>
 </body>
 </html>
