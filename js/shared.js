@@ -109,7 +109,7 @@ export let currentHierarchy = {};
 
 export function getBookingHierarchy() {
   if (!tenantSettings) return {};
-  
+
   const hierarchy = {};
 
   const addNode = (type, category, period) => {
@@ -142,15 +142,15 @@ export function getBookingHierarchy() {
     tenantSettings.coaching_schedule.forEach(c => {
       let periods = [];
       if (tenantSettings.fee_structure) {
-         const fee = tenantSettings.fee_structure.find(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
-         if (fee && fee.pricing_variants) {
-           fee.pricing_variants.forEach(p => periods.push(p.frequency));
-         }
+        const fee = tenantSettings.fee_structure.find(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
+        if (fee && fee.pricing_variants) {
+          fee.pricing_variants.forEach(p => periods.push(p.frequency));
+        }
       }
-      
+
       const type = c.category.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
       const cat = type === "Advance Training" ? "3 Session" : c.category; // Mapping for Advance Batch to 3 Session
-      
+
       if (periods.length > 0) {
         periods.forEach(p => addNode(type, cat, p));
       } else {
@@ -163,9 +163,9 @@ export function getBookingHierarchy() {
   if (tenantSettings.fee_structure) {
     tenantSettings.fee_structure.forEach(f => {
       if (f.program_name.toLowerCase().includes("personal training")) {
-         f.pricing_variants.forEach(p => {
-           addNode("Personal training", "Private Coaching", p.frequency);
-         });
+        f.pricing_variants.forEach(p => {
+          addNode("Personal training", "Private Coaching", p.frequency);
+        });
       }
     });
   }
@@ -190,18 +190,18 @@ export function populateBookingDropdowns(typeSelectId, categorySelectId) {
 
 export function resolvePlanKey(type, category, period, gender) {
   if (!tenantSettings) return null;
-  
+
   if (type === "Members" || type === "Group/Lease") {
     if (tenantSettings.membership_programs) {
       // Try to find exact match including gender notes
-      let match = tenantSettings.membership_programs.find(m => 
+      let match = tenantSettings.membership_programs.find(m =>
         (m.type && m.type.toLowerCase() === (type === "Group/Lease" ? "group" : "individual")) &&
         m.duration_days === period &&
         m.special_notes === gender
       );
       // Fallback to match without gender strictness if not found
       if (!match) {
-        match = tenantSettings.membership_programs.find(m => 
+        match = tenantSettings.membership_programs.find(m =>
           (m.type && m.type.toLowerCase() === (type === "Group/Lease" ? "group" : "individual")) &&
           m.duration_days === period
         );
@@ -209,7 +209,7 @@ export function resolvePlanKey(type, category, period, gender) {
       if (match) return match.key;
     }
   }
-  
+
   if (type === "Coaching" || type === "Advance Training" || type === "Personal training") {
     if (tenantSettings.fee_structure) {
       for (const prog of tenantSettings.fee_structure) {
@@ -330,14 +330,14 @@ export async function loadCourts() {
     courtsList.push(court);
     courtsMap[court.id] = court.name;
   });
-  
+
   if (courtsList.length === 0 && tenantSettings && tenantSettings.court_count) {
     for (let i = 1; i <= tenantSettings.court_count; i++) {
       courtsList.push({ id: i, name: `Court ${i}` });
       courtsMap[i] = `Court ${i}`;
     }
   }
-  
+
   courtsList.sort((a, b) => a.id - b.id);
 }
 
@@ -365,14 +365,14 @@ export async function loadTenantSettings() {
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       tenantSettings = snap.data();
-      
+
       // Inject missing template arrays for backward compatibility and UX
       if (!tenantSettings.membership_programs) tenantSettings.membership_programs = defaultSettings.membership_programs;
       if (!tenantSettings.hourly_slots) tenantSettings.hourly_slots = defaultSettings.hourly_slots;
       if (!tenantSettings.coaching_schedule) tenantSettings.coaching_schedule = defaultSettings.coaching_schedule;
       if (!tenantSettings.fee_structure) tenantSettings.fee_structure = defaultSettings.fee_structure;
       if (!tenantSettings.operating_hours) tenantSettings.operating_hours = defaultSettings.operating_hours;
-      
+
       // In-memory migration for existing users
       if (tenantSettings.hourly_slots) {
         tenantSettings.hourly_slots.forEach(s => {
@@ -385,7 +385,7 @@ export async function loadTenantSettings() {
           }
         });
       }
-      
+
       // Check for missing mandatory onboarding fields
       if (!tenantSettings.court_count) {
         if (!window.location.pathname.endsWith("dashboard.html")) {
@@ -394,7 +394,7 @@ export async function loadTenantSettings() {
         }
         document.dispatchEvent(new Event('setup_required'));
       }
-      
+
     } else {
       // First-time login: missing settings
       tenantSettings = null;
@@ -514,12 +514,12 @@ export async function checkBookingConflicts(courtId, dateStr, startTime, endTime
   try {
     const q = query(collection(db, "bookings"), where("court_id", "==", courtId), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
-    
+
     // Rule 1: Coaching Sessions (No Limit)
     const catLower = (category || "").toLowerCase();
     const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
     if (isCoaching) {
-      return false; 
+      return false;
     }
 
     // Rule 2: Individual / Guest Bookings (Max 2 Per Court)

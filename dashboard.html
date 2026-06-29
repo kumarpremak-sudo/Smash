@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smash. | Court Operations & Management Dashboard</title>
-  <meta name="description" content="Badminton Court Management Portal — Manage bookings, revenue, and court schedules." />
+  <meta name="description"
+    content="Badminton Court Management Portal — Manage bookings, revenue, and court schedules." />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/layout.css" />
   <link rel="stylesheet" href="css/components.css" />
@@ -12,6 +14,7 @@
   <script src="config.js?v=1.1"></script>
   <script src="config.local.js" onerror="this.remove()"></script>
 </head>
+
 <body>
   <div class="app-container">
 
@@ -142,7 +145,8 @@
           <div id="availability-grid" class="availability-grid">
             <p class="no-bookings-text">No bookings for this date.</p>
           </div>
-          <button class="btn btn-primary" id="btnOpenNewBooking" style="width:100%;margin-top:0.5rem;">➕ Reserve A Court</button>
+          <button class="btn btn-primary" id="btnOpenNewBooking" style="width:100%;margin-top:0.5rem;">➕ Reserve A
+            Court</button>
         </div>
 
       </div>
@@ -152,21 +156,29 @@
     <div id="bookingModal" class="modal-overlay hidden">
       <div class="modal-content">
         <button class="close-modal" id="modalClose">&times;</button>
-        <div class="modal-header-section"><h2 id="modalTitle">Booking</h2></div>
+        <div class="modal-header-section">
+          <h2 id="modalTitle">Booking</h2>
+        </div>
         <div class="modal-body-section">
           <div id="modalMessage" class="message hidden"></div>
 
           <!-- Details View -->
           <div id="modalDetailsView" class="hidden">
             <div class="booking-details-list">
-              <div class="booking-details-item"><span class="booking-details-label">Court</span><span class="booking-details-val" id="detCourt"></span></div>
-              <div class="booking-details-item"><span class="booking-details-label">Time</span><span class="booking-details-val" id="detTime"></span></div>
-              <div class="booking-details-item"><span class="booking-details-label">Name</span><span class="booking-details-val" id="detName"></span></div>
-              <div class="booking-details-item"><span class="booking-details-label">Phone</span><span class="booking-details-val" id="detPhone"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Court</span><span
+                  class="booking-details-val" id="detCourt"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Time</span><span
+                  class="booking-details-val" id="detTime"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Name</span><span
+                  class="booking-details-val" id="detName"></span></div>
+              <div class="booking-details-item"><span class="booking-details-label">Phone</span><span
+                  class="booking-details-val" id="detPhone"></span></div>
             </div>
             <div class="enrollees-container">
               <div class="enrollees-header">Enrolled Members / Trainees</div>
-              <ul class="enrollees-list" id="enrollees-list"><li class="text-muted" style="list-style:none;">No enrollees yet</li></ul>
+              <ul class="enrollees-list" id="enrollees-list">
+                <li class="text-muted" style="list-style:none;">No enrollees yet</li>
+              </ul>
               <div class="enroll-block">
                 <div class="enroll-input-row">
                   <input type="text" id="newEnrolleeInput" placeholder="Trainee name..." maxlength="40" />
@@ -190,8 +202,10 @@
           <!-- Edit Form View -->
           <div id="modalEditFormView" class="hidden">
             <form id="editBookingForm">
-              <div class="form-group"><label for="editCustomerName">Customer Name</label><input type="text" id="editCustomerName" maxlength="40" required /></div>
-              <div class="form-group"><label for="editCustomerPhone">Customer Phone</label><input type="tel" id="editCustomerPhone" maxlength="15" value="+91 " required /></div>
+              <div class="form-group"><label for="editCustomerName">Customer Name</label><input type="text"
+                  id="editCustomerName" maxlength="40" required /></div>
+              <div class="form-group"><label for="editCustomerPhone">Customer Phone</label><input type="tel"
+                  id="editCustomerPhone" maxlength="15" value="+91 " required /></div>
               <div style="display:flex;gap:0.8rem;margin-top:1.5rem;">
                 <button type="submit" class="btn btn-primary" style="flex:1;">💾 Save Changes</button>
                 <button type="button" class="btn btn-secondary" id="btnCancelEdit" style="flex:1;">Cancel</button>
@@ -228,14 +242,23 @@
                   </select>
                 </div>
               </div>
-              <div class="form-group"><label for="court_id">Court</label><select id="court_id" required><option value="" disabled selected>Select Court</option></select></div>
+              <div class="form-group"><label for="court_id">Court</label><select id="court_id" required>
+                  <option value="" disabled selected>Select Court</option>
+                </select></div>
               <div class="form-row">
-                <div class="form-group"><label for="start_time">Start Time</label><select id="start_time" required><option value="" disabled selected>Select Start Time</option></select></div>
-                <div class="form-group"><label for="end_time">End Time</label><select id="end_time" required><option value="" disabled selected>Select End Time</option></select></div>
+                <div class="form-group"><label for="start_time">Start Time</label><select id="start_time" required>
+                    <option value="" disabled selected>Select Start Time</option>
+                  </select></div>
+                <div class="form-group"><label for="end_time">End Time</label><select id="end_time" required>
+                    <option value="" disabled selected>Select End Time</option>
+                  </select></div>
               </div>
-              <div class="form-group"><label for="customer_name">Name</label><input type="text" id="customer_name" maxlength="40" required /></div>
-              <div class="form-group"><label for="customer_phone">Phone</label><input type="tel" id="customer_phone" maxlength="15" value="+91 " required /></div>
-              <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Confirm Reservation</button>
+              <div class="form-group"><label for="customer_name">Name</label><input type="text" id="customer_name"
+                  maxlength="40" required /></div>
+              <div class="form-group"><label for="customer_phone">Phone</label><input type="tel" id="customer_phone"
+                  maxlength="15" value="+91 " required /></div>
+              <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Confirm
+                Reservation</button>
             </form>
           </div>
         </div>
@@ -254,7 +277,8 @@
           <form id="setupForm">
             <div class="form-group">
               <label for="setupAcademyName">Academy Name</label>
-              <input type="text" id="setupAcademyName" placeholder="e.g., Elite Shuttlers Academy" required maxlength="60" />
+              <input type="text" id="setupAcademyName" placeholder="e.g., Elite Shuttlers Academy" required
+                maxlength="60" />
             </div>
             <div class="form-row">
               <div class="form-group">
@@ -266,7 +290,8 @@
                 <input type="number" id="setupCourts" placeholder="3" required min="1" max="50" value="3" />
               </div>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1.5rem;" id="btnCompleteSetup">Complete Setup & Launch Dashboard</button>
+            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1.5rem;"
+              id="btnCompleteSetup">Complete Setup & Launch Dashboard</button>
           </form>
         </div>
       </div>
@@ -279,7 +304,8 @@
         <a href="schedule.html" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
         <a href="members.html" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
         <a href="programs.html" class="bottom-nav-item"><span class="nav-icon">📋</span>Programs</a>
-        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span class="nav-icon">⚙️</span>Settings</a>
+        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span
+            class="nav-icon">⚙️</span>Settings</a>
       </div>
     </nav>
 
@@ -287,4 +313,5 @@
   <script type="module" src="js/shared.js?v=2"></script>
   <script type="module" src="js/dashboard.js?v=2"></script>
 </body>
+
 </html>
