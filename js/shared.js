@@ -137,35 +137,47 @@ export function getBookingHierarchy() {
     });
   }
 
-  // 3. Coaching & Advance Training
+  // 3. Coaching Schedules (Fallbacks for batches that have no fee structure yet)
   if (tenantSettings.coaching_schedule) {
     tenantSettings.coaching_schedule.forEach(c => {
-      let periods = [];
-      if (tenantSettings.fee_structure) {
-        const fee = tenantSettings.fee_structure.find(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
-        if (fee && fee.pricing_variants) {
-          fee.pricing_variants.forEach(p => periods.push(p.frequency));
-        }
-      }
-
       const type = c.category.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
-      const cat = type === "Advance Training" ? "3 Session" : c.category; // Mapping for Advance Batch to 3 Session
-
-      if (periods.length > 0) {
-        periods.forEach(p => addNode(type, cat, p));
-      } else {
-        addNode(type, cat, c.days); // Fallback
+      const cat = type === "Advance Training" ? "3 Session" : c.category; 
+      
+      // Only add periods from the schedule if this category has NO fee structure defined
+      const hasFee = tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
+      if (!hasFee) {
+        addNode(type, cat, c.days || "No Need");
       }
     });
   }
 
-  // 4. Personal Training
+  // 4. Coaching Fee Structure (Handles Kids, Women, Adults, Advance, PT, Tournaments, and any custom programs)
   if (tenantSettings.fee_structure) {
     tenantSettings.fee_structure.forEach(f => {
-      if (f.program_name.toLowerCase().includes("personal training")) {
+      const pName = f.program_name || "";
+      const pLower = pName.toLowerCase();
+      
+      let type, cat;
+      if (pLower.includes("personal training")) {
+        type = "Personal training";
+        cat = "Private Coaching";
+      } else if (pLower.includes("advance")) {
+        type = "Advance Training";
+        cat = "3 Session";
+      } else if (pLower.includes("tournament")) {
+        type = "Tournament";
+        cat = pName;
+      } else {
+        type = "Coaching";
+        cat = pName.replace(/coaching/i, "").trim() || pName;
+      }
+      
+      if (f.pricing_variants && f.pricing_variants.length > 0) {
         f.pricing_variants.forEach(p => {
-          addNode("Personal training", "Private Coaching", p.frequency);
+          addNode(type, cat, p.frequency);
         });
+      } else {
+        addNode(type, cat, "No Need");
       }
     });
   }
@@ -217,7 +229,7 @@ export function resolvePlanKey(type, category, period, gender) {
     }
   }
 
-  if (type === "Coaching" || type === "Advance Training" || type === "Personal training") {
+  if (type === "Coaching" || type === "Advance Training" || type === "Personal training" || type === "Tournament") {
     if (tenantSettings.fee_structure) {
       for (const prog of tenantSettings.fee_structure) {
         // Match program by category name (partial match, case-insensitive)
@@ -555,10 +567,10 @@ export async function checkBookingConflicts(courtId, dateStr, startTime, endTime
     const q = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
 
-    // Filter to overlapping bookings on the same court and date
     const overlapping = [];
     snap.forEach(d => {
       const b = d.data();
+      if (b.status === "cancelled") return;
       if (b.date === dateStr && b.court_id == courtId && startTime < b.end_time && endTime > b.start_time) {
         overlapping.push(b);
       }
@@ -569,9 +581,9 @@ export async function checkBookingConflicts(courtId, dateStr, startTime, endTime
       return false;
     }
 
-    // ── Rule: Exclusive types — Spot Booking, Advance Training, Personal Training ──
+    // ── Rule: Exclusive types — Spot Booking, Advance Training, Personal Training, Tournament ──
     // No other booking should exist on the same court+slot
-    if (bookingType === "Spot booking" || bookingType === "Advance Training" || bookingType === "Personal training") {
+    if (bookingType === "Spot booking" || bookingType === "Advance Training" || bookingType === "Personal training" || bookingType === "Tournament") {
       if (overlapping.length > 0) {
         return `Court is unavailable: This time slot is already booked. ${bookingType} requires exclusive court access.`;
       }

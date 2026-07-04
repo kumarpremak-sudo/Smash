@@ -20,6 +20,49 @@ document.addEventListener('setup_required', () => {
   if (modal) modal.classList.remove("hidden");
 });
 
+// ── Helper to parse days from text ────────────────────────
+function parseDays(text) {
+  if (!text) return [0, 1, 2, 3, 4, 5, 6];
+  const t = text.toLowerCase();
+  
+  if (t.includes("weekend")) return [0, 6];
+  if (t.includes("weekday")) return [1, 2, 3, 4, 5];
+
+  const days = [];
+  const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  
+  // Check for ranges like "monday - wednesday" or "mon to wed"
+  const rangeMatch = t.match(/(sun|mon|tue|wed|thu|fri|sat)[a-z]*\s*(?:-|to)\s*(sun|mon|tue|wed|thu|fri|sat)[a-z]*/);
+  if (rangeMatch) {
+    let startIdx = dayNames.findIndex(d => rangeMatch[1].startsWith(d));
+    let endIdx = dayNames.findIndex(d => rangeMatch[2].startsWith(d));
+    if (startIdx !== -1 && endIdx !== -1) {
+      if (endIdx < startIdx) endIdx += 7;
+      for (let i = startIdx; i <= endIdx; i++) {
+        days.push(i % 7);
+      }
+    }
+  } else {
+    // Check for individual days
+    dayNames.forEach((d, idx) => {
+      if (t.includes(d)) days.push(idx);
+    });
+  }
+  
+  if (days.length > 0) return [...new Set(days)];
+  
+  // Fallbacks for common generic period names (when specific days aren't named)
+  if (t.includes("7 day") || t.includes("7-day") || t.includes("seven day")) return [0, 1, 2, 3, 4, 5, 6];
+  if (t.includes("6 day") || t.includes("6-day") || t.includes("six day")) return [1, 2, 3, 4, 5, 6]; // Mon-Sat
+  if (t.includes("5 day") || t.includes("5-day") || t.includes("five day")) return [1, 2, 3, 4, 5]; // Mon-Fri
+  if (t.includes("4 day") || t.includes("4-day") || t.includes("four day")) return [1, 2, 3, 4]; // Mon-Thu
+  if (t.includes("3 day") || t.includes("3-day") || t.includes("three day")) return [1, 3, 5]; // Mon, Wed, Fri
+  if (t.includes("2 day") || t.includes("2-day") || t.includes("two day")) return [1, 2]; // Mon, Tue
+  if (t.includes("1 day") || t.includes("1-day") || t.includes("one day")) return [1]; // Mon
+  
+  return [0, 1, 2, 3, 4, 5, 6]; // default to all if nothing matched
+}
+
 // ── Auth Ready Handler ──────────────────────────────────────
 setOnAuthReady(async (user) => {
   // Fill court selector
@@ -191,6 +234,7 @@ async function renderCalendar() {
     currentMonthBookings = [];
     snap.forEach(docSnap => {
       const data = docSnap.data();
+      if (data.status === "cancelled") return;
       if (data.date >= startStr && data.date <= endStr) {
         currentMonthBookings.push({ id: docSnap.id, ...data });
       }
@@ -254,7 +298,8 @@ function updateSelectedDayBookingsView() {
     // Dynamic type-based labels derived from booking_type field
     const typeColorMap = {
       "Spot booking": "var(--accent)", "Members": "var(--accent4)", "Group/Lease": "var(--accent2)",
-      "Guest Play": "#f0ad4e", "Coaching": "var(--accent3)", "Advance Training": "#e056fd", "Personal training": "#ff6b6b"
+      "Guest Play": "#f0ad4e", "Coaching": "var(--accent3)", "Advance Training": "#e056fd", "Personal training": "#ff6b6b",
+      "Tournament": "#ff9f43"
     };
     const displayType = booking.booking_type || booking.category || "Booking";
     const catColor = typeColorMap[displayType] || "var(--accent)";
@@ -520,6 +565,60 @@ async function handleBookingSubmit(event) {
 
     const isSingleDay = ["Spot booking", "Guest Play", "Personal training"].includes(type);
 
+    if (type === "Tournament") {
+      let consecutiveDays = 1;
+      const match = period.match(/(\d+)/);
+      if (match) {
+        consecutiveDays = parseInt(match[1], 10);
+      }
+      
+      const batch = writeBatch(db);
+      let created = 0;
+      let firstBookingId = null;
+      
+      for (let i = 0; i < consecutiveDays; i++) {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() + i);
+        const dateStr = formatSelectedDate(d);
+        
+        const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, type, category);
+        if (conflictError) throw new Error(`Conflict on day ${i + 1} (${dateStr}): ` + conflictError);
+        
+        const newBookingRef = doc(collection(db, "bookings"));
+        if (!firstBookingId) firstBookingId = newBookingRef.id;
+        
+        batch.set(newBookingRef, { 
+          booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, 
+          category, period, gender, date: dateStr, start_time: startTime, end_time: endTime, 
+          enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, 
+          createdAt: serverTimestamp() 
+        });
+        created++;
+      }
+      
+      if (created > 0) {
+        await batch.commit();
+        
+        const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
+        const todayStr = formatSelectedDate(new Date());
+        await addDoc(collection(db, "members"), {
+            name: name,
+            phone: phone,
+            type: planKey,
+            joinDate: todayStr,
+            lastPaidDate: todayStr,
+            bookingId: firstBookingId,
+            status: "active",
+            createdTime: Date.now(),
+            academyId: currentUser.academyId
+        });
+        
+        showMsg("modalMessage", `Tournament booked successfully for ${created} consecutive days!`, "success");
+        setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
+      }
+      return;
+    }
+
     if (isSingleDay) {
       const dateStr = formatSelectedDate(selectedDate);
       const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, type, category);
@@ -532,6 +631,7 @@ async function handleBookingSubmit(event) {
         const todayStr = formatSelectedDate(new Date());
         await addDoc(collection(db, "members"), {
           name: name,
+          phone: phone,
           type: planKey,
           joinDate: todayStr,
           lastPaidDate: todayStr,
@@ -545,7 +645,13 @@ async function handleBookingSubmit(event) {
       showMsg("modalMessage", "Reservation confirmed successfully!", "success");
       setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
     } else {
-      const daysMode = (period === "5 Days" || period === "3 Days") ? "weekdays" : (period === "Weekend" ? "weekend" : "all");
+      let descText = period;
+      if ((type === "Members" || type === "Group/Lease") && tenantSettings.membership_programs) {
+        const prog = tenantSettings.membership_programs.find(p => p.duration_days === period);
+        if (prog && prog.days_description) descText += " " + prog.days_description;
+      }
+      const allowedDays = parseDays(descText);
+
       const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
       const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
       const endStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
@@ -555,6 +661,7 @@ async function handleBookingSubmit(event) {
       const existing = [];
       snap2.forEach(d => {
         const data = d.data();
+        if (data.status === "cancelled") return;
         if (data.court_id == courtId && data.date >= startStr && data.date <= endStr2) {
           existing.push(data);
         }
@@ -566,8 +673,7 @@ async function handleBookingSubmit(event) {
         const curDate = new Date(currentYear, currentMonth, day);
         const dayOfWeek = curDate.getDay();
 
-        if (daysMode === "weekdays" && (dayOfWeek === 0 || dayOfWeek === 6)) continue;
-        if (daysMode === "weekend" && (dayOfWeek !== 0 && dayOfWeek !== 6)) continue;
+        if (!allowedDays.includes(dayOfWeek)) continue;
 
         const curDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
         // Type-aware conflict check for bulk bookings
@@ -604,6 +710,7 @@ async function handleBookingSubmit(event) {
           const todayStr = formatSelectedDate(new Date());
           await addDoc(collection(db, "members"), {
             name: name,
+            phone: phone,
             type: planKey,
             joinDate: todayStr,
             lastPaidDate: todayStr,
@@ -674,7 +781,7 @@ async function handleEnrollmentSubmit() {
   const type = typeSelect.value;
   const joinDate = joinDateInput.value || formatSelectedDate(selectedDate);
   try {
-    await addDoc(collection(db, "members"), { name: newName, type, joinDate, lastPaidDate: joinDate, bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
+    await addDoc(collection(db, "members"), { name: newName, phone: selectedBooking.customer_phone || selectedBooking.customer_email || "+91 ", type, joinDate, lastPaidDate: joinDate, bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
     input.value = "";
     showMsg("modalMessage", "Trainee enrolled successfully!", "success");
     await renderModalEnrolleesList(selectedBooking.id);

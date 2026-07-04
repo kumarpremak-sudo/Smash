@@ -104,7 +104,7 @@ function renderMembersTable() {
   if (currentPlanFilter !== "all") filtered = filtered.filter(m => m.type === currentPlanFilter);
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="members-empty-state"><div class="empty-icon">👥</div><p>No members found matching your filters.</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="members-empty-state"><div class="empty-icon">👥</div><p>No members found matching your filters.</p></div></td></tr>`;
     return;
   }
 
@@ -159,6 +159,7 @@ function renderMembersTable() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="member-name-cell">${escapeHTML(member.name)}</td>
+      <td style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text-dim);">${escapeHTML(member.phone || "—")}</td>
       <td><span class="member-plan-badge" style="background:${plan.bg};color:${plan.color};border-color:${plan.color}35">${plan.name}</span></td>
       <td style="font-family:var(--font-mono);font-size:0.82rem;">${escapeHTML(lastPaid)}</td>
       <td style="font-family:var(--font-mono);font-size:0.82rem;">${nextDue}</td>
@@ -300,7 +301,7 @@ function renderFeeAlerts() {
     row.className = "fee-alert-row" + (member.alertKind === "upcoming" ? " fee-alert-upcoming" : "");
     row.innerHTML = `
       <div class="fee-alert-info">
-        <div class="fee-alert-title">${escapeHTML(member.name)} ${daysLabel} ${planBadge}</div>
+        <div class="fee-alert-title">${escapeHTML(member.name)} ${member.phone ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:5px;">📞 ${escapeHTML(member.phone)}</span>` : ""} ${daysLabel} ${planBadge}</div>
         <div class="fee-alert-meta">Last paid: <span>${escapeHTML(member.lastPaidDate || member.joinDate)}</span> → Next due: <span>${escapeHTML(member.nextDue)}</span></div>
       </div>
       <div class="fee-alert-actions">

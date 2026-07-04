@@ -146,6 +146,7 @@ async function loadDailyGrid() {
     dailyBookings = [];
     snap.forEach(d => {
       const data = d.data();
+      if (data.status === "cancelled") return;
       if (data.date === dateStr) {
         dailyBookings.push({ id: d.id, ...data });
       }
