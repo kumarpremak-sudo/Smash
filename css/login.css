@@ -278,3 +278,31 @@
   margin-top: 2rem;
   line-height: 1.4;
 }
+
+.login-contact {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed var(--border);
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.login-contact strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.login-contact a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.login-contact a:hover {
+  color: var(--accent4);
+  text-decoration: underline;
+}
