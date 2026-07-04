@@ -23,7 +23,7 @@ setOnAuthReady(async (user) => {
     await loadStaff();
   }
   
-  if (isSuperAdmin(user) || isTenantAdmin(user)) {
+  if (isTenantAdmin(user)) {
     document.getElementById("tenantSettingsPanel").classList.remove("hidden");
     initAcademyProfile();
   }
