@@ -4,8 +4,8 @@ import {
   monthNames, escapeHTML, formatSelectedDate, showMsg, showInlineToast,
   loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone,
-  signOut
+  query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour,
+  signOut, parseDays
 } from "./shared.js";
 
 let currentYear = new Date().getFullYear();
@@ -19,49 +19,6 @@ document.addEventListener('setup_required', () => {
   const modal = document.getElementById("firstTimeSetupModal");
   if (modal) modal.classList.remove("hidden");
 });
-
-// ── Helper to parse days from text ────────────────────────
-function parseDays(text) {
-  if (!text) return [0, 1, 2, 3, 4, 5, 6];
-  const t = text.toLowerCase();
-  
-  if (t.includes("weekend")) return [0, 6];
-  if (t.includes("weekday")) return [1, 2, 3, 4, 5];
-
-  const days = [];
-  const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-  
-  // Check for ranges like "monday - wednesday" or "mon to wed"
-  const rangeMatch = t.match(/(sun|mon|tue|wed|thu|fri|sat)[a-z]*\s*(?:-|to)\s*(sun|mon|tue|wed|thu|fri|sat)[a-z]*/);
-  if (rangeMatch) {
-    let startIdx = dayNames.findIndex(d => rangeMatch[1].startsWith(d));
-    let endIdx = dayNames.findIndex(d => rangeMatch[2].startsWith(d));
-    if (startIdx !== -1 && endIdx !== -1) {
-      if (endIdx < startIdx) endIdx += 7;
-      for (let i = startIdx; i <= endIdx; i++) {
-        days.push(i % 7);
-      }
-    }
-  } else {
-    // Check for individual days
-    dayNames.forEach((d, idx) => {
-      if (t.includes(d)) days.push(idx);
-    });
-  }
-  
-  if (days.length > 0) return [...new Set(days)];
-  
-  // Fallbacks for common generic period names (when specific days aren't named)
-  if (t.includes("7 day") || t.includes("7-day") || t.includes("seven day")) return [0, 1, 2, 3, 4, 5, 6];
-  if (t.includes("6 day") || t.includes("6-day") || t.includes("six day")) return [1, 2, 3, 4, 5, 6]; // Mon-Sat
-  if (t.includes("5 day") || t.includes("5-day") || t.includes("five day")) return [1, 2, 3, 4, 5]; // Mon-Fri
-  if (t.includes("4 day") || t.includes("4-day") || t.includes("four day")) return [1, 2, 3, 4]; // Mon-Thu
-  if (t.includes("3 day") || t.includes("3-day") || t.includes("three day")) return [1, 3, 5]; // Mon, Wed, Fri
-  if (t.includes("2 day") || t.includes("2-day") || t.includes("two day")) return [1, 2]; // Mon, Tue
-  if (t.includes("1 day") || t.includes("1-day") || t.includes("one day")) return [1]; // Mon
-  
-  return [0, 1, 2, 3, 4, 5, 6]; // default to all if nothing matched
-}
 
 // ── Auth Ready Handler ──────────────────────────────────────
 setOnAuthReady(async (user) => {
@@ -176,23 +133,41 @@ function populateTimeDropdowns(category) {
 
   if (!category || !tenantSettings) return;
   const catLower = category.toLowerCase();
-  const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
+  
+  const typeSelect = document.getElementById("booking_type");
+  const typeVal = typeSelect ? typeSelect.value : "";
+  const isCoaching = typeVal === "Coaching" || typeVal === "Advance Training" || typeVal === "Tournament" || 
+                     catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
 
   let times = [];
   if (isCoaching && tenantSettings.coaching_schedule) {
-    const schedule = tenantSettings.coaching_schedule.find(c => c.category.toLowerCase().replace(/\s+/g, '_') === catLower);
-    if (schedule && schedule.timing_slots) {
-      schedule.timing_slots.forEach(t => {
-        const parts = t.split("-");
-        if (parts.length === 2) {
-          const st = parts[0].trim();
-          const en = parts[1].trim();
-          if (!times.includes(st)) times.push(st);
-          if (!times.includes(en)) times.push(en);
-        }
-      });
-    }
-  } else {
+    const matchingSchedules = tenantSettings.coaching_schedule.filter(c => {
+      const cCat = c.category.toLowerCase().trim();
+      const scheduleCat = cCat.replace(/coaching/i, "").trim() || cCat;
+      
+      if (scheduleCat === catLower || cCat === catLower) return true;
+      if (cCat.includes("advance") && catLower.includes("session")) return true;
+      if (cCat.includes("personal") && catLower.includes("private")) return true;
+      
+      return false;
+    });
+    
+    matchingSchedules.forEach(schedule => {
+      if (schedule && schedule.timing_slots && schedule.timing_slots.length > 0) {
+        schedule.timing_slots.forEach(t => {
+          const parts = t.split("-");
+          if (parts.length === 2) {
+            const st = parts[0].trim();
+            const en = parts[1].trim();
+            if (!times.includes(st)) times.push(st);
+            if (!times.includes(en)) times.push(en);
+          }
+        });
+      }
+    });
+  } 
+  
+  if (times.length === 0) {
     const op = tenantSettings.operating_hours || { start: "05:00", end: "23:00" };
     const parseTime = (t) => { const p = t.split(":"); return parseInt(p[0]) * 60 + parseInt(p[1]); };
     const startMins = parseTime(op.start);
@@ -204,17 +179,10 @@ function populateTimeDropdowns(category) {
     }
   }
 
-  if (times.length === 0) {
-    for (let h = 5; h <= 23; h++) {
-      times.push(`${String(h).padStart(2, '0')}:00`);
-      times.push(`${String(h).padStart(2, '0')}:30`);
-    }
-  }
-
   times.sort();
   times.forEach(t => {
-    startSel.innerHTML += `<option value="${t}">${t}</option>`;
-    endSel.innerHTML += `<option value="${t}">${t}</option>`;
+    startSel.innerHTML += `<option value="${t}">${format12Hour(t)}</option>`;
+    endSel.innerHTML += `<option value="${t}">${format12Hour(t)}</option>`;
   });
 }
 
@@ -290,8 +258,8 @@ function updateSelectedDayBookingsView() {
   dayBookings.forEach(booking => {
     const card = document.createElement("div");
     card.className = "booking-card";
-    const start = booking.start_time.substring(0, 5);
-    const end = booking.end_time.substring(0, 5);
+    const start = format12Hour(booking.start_time);
+    const end = format12Hour(booking.end_time);
     const courtName = courtsMap[booking.court_id] || `Court ${booking.court_id}`;
     let enrolleesCount = booking.enrollees ? booking.enrollees.split(",").filter(n => n.trim()).length : 0;
     const badgeHtml = enrolleesCount > 0 ? `<span class="booking-badge-count">${enrolleesCount} Enrolled</span>` : "";
@@ -420,8 +388,8 @@ async function openBookingDetailsModal(booking) {
   openModal("Booking Details");
   document.getElementById("modalDetailsView").classList.remove("hidden");
   document.getElementById("detCourt").textContent = courtsMap[booking.court_id] || `Court ${booking.court_id}`;
-  document.getElementById("detTime").textContent = `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)} on ${booking.date}`;
-  document.getElementById("detName").textContent = booking.customer_name;
+  document.getElementById("detTime").textContent = `${format12Hour(booking.start_time)} - ${format12Hour(booking.end_time)} on ${booking.date}`;
+  document.getElementById("detName").textContent = escapeHTML(booking.customer_name);
   const joinDateInput = document.getElementById("newEnrolleeJoinDate");
   if (joinDateInput) { const today = new Date(); joinDateInput.value = formatSelectedDate(today); }
 
@@ -652,9 +620,14 @@ async function handleBookingSubmit(event) {
       }
       const allowedDays = parseDays(descText);
 
-      const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-      const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
-      const endStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const loopStart = new Date(selectedDate);
+      loopStart.setHours(0, 0, 0, 0);
+      const loopEnd = new Date(loopStart);
+      loopEnd.setDate(loopEnd.getDate() + 30);
+      
+      const startStr = formatSelectedDate(loopStart);
+      const endStr2 = formatSelectedDate(loopEnd);
+      
       // Query by academyId only (auto-indexed), filter date range client-side
       const q2 = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
       const snap2 = await getDocs(q2);
@@ -669,13 +642,13 @@ async function handleBookingSubmit(event) {
       const batch = writeBatch(db);
       let created = 0, skipped = 0;
       let firstBookingId = null;
-      for (let day = 1; day <= lastDay; day++) {
-        const curDate = new Date(currentYear, currentMonth, day);
-        const dayOfWeek = curDate.getDay();
+      
+      for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
+        const dayOfWeek = d.getDay();
 
         if (!allowedDays.includes(dayOfWeek)) continue;
 
-        const curDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const curDateStr = formatSelectedDate(d);
         // Type-aware conflict check for bulk bookings
         const dayOverlapping = existing.filter(b => b.date === curDateStr && startTime < b.end_time && endTime > b.start_time);
         let skipDay = false;
@@ -707,13 +680,13 @@ async function handleBookingSubmit(event) {
         // Auto-enroll member for recurring plans
         if (type !== "Spot booking" && type !== "Guest Play") {
           const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
-          const todayStr = formatSelectedDate(new Date());
+          const startDateStr = formatSelectedDate(selectedDate);
           await addDoc(collection(db, "members"), {
             name: name,
             phone: phone,
             type: planKey,
-            joinDate: todayStr,
-            lastPaidDate: todayStr,
+            joinDate: startDateStr,
+            lastPaidDate: startDateStr,
             bookingId: firstBookingId,
             status: "active",
             createdTime: Date.now(),

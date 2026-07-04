@@ -2,8 +2,8 @@
 import {
   db, currentUser, membersList, tenantSettings, defaultSettings, escapeHTML,
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
-  setOnAuthReady, initApp,
-  collection, doc, getDocs, updateDoc, query, where
+  setOnAuthReady, initApp, parseDays, checkBookingConflicts,
+  collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp
 } from "./shared.js";
 
 let currentFeeFilter = "all";
@@ -199,9 +199,95 @@ async function handleMarkPaid(member, btnEl) {
     row.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Saving...</span>';
     try {
       const newPaidDate = formatSelectedDate(new Date());
-      await updateDoc(doc(db, "members", member.id), { lastPaidDate: newPaidDate });
+      let rebookMsg = "";
+      let newBookingId = null;
+
+      // Auto-rebook logic for Coaching and Members
+      if (member.bookingId) {
+        const bookingRef = doc(db, "bookings", member.bookingId);
+        const bookingSnap = await getDoc(bookingRef);
+        if (bookingSnap.exists()) {
+          const tpl = bookingSnap.data();
+          if (tpl.booking_type === "Coaching" || tpl.booking_type === "Members") {
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + 30);
+            
+            let descText = tpl.period;
+            if (tpl.booking_type === "Members" && tenantSettings.membership_programs) {
+              const prog = tenantSettings.membership_programs.find(p => p.duration_days === tpl.period);
+              if (prog && prog.days_description) descText += " " + prog.days_description;
+            }
+            const allowedDays = parseDays(descText);
+
+            const q2 = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
+            const snap2 = await getDocs(q2);
+            const existing = [];
+            snap2.forEach(d => {
+              const data = d.data();
+              if (data.status === "cancelled") return;
+              if (data.court_id == tpl.court_id && data.date >= formatSelectedDate(startDate) && data.date <= formatSelectedDate(endDate)) {
+                existing.push(data);
+              }
+            });
+
+            const batch = writeBatch(db);
+            let created = 0;
+            
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+              if (!allowedDays.includes(d.getDay())) continue;
+              
+              const curDateStr = formatSelectedDate(d);
+              const dayOverlapping = existing.filter(b => b.date === curDateStr && tpl.start_time < b.end_time && tpl.end_time > b.start_time);
+              
+              let skipDay = false;
+              if (tpl.booking_type === "Members") {
+                const memberOverlaps = dayOverlapping.filter(b => b.booking_type === "Members");
+                if (memberOverlaps.length >= 6) skipDay = true;
+                if (dayOverlapping.some(b => b.booking_type !== "Members")) skipDay = true;
+              }
+
+              if (skipDay) continue;
+
+              const newBookingRef = doc(collection(db, "bookings"));
+              if (!newBookingId) newBookingId = newBookingRef.id;
+              
+              batch.set(newBookingRef, {
+                booking_type: tpl.booking_type,
+                court_id: tpl.court_id,
+                customer_name: tpl.customer_name,
+                customer_phone: tpl.customer_phone,
+                category: tpl.category,
+                period: tpl.period,
+                gender: tpl.gender || "",
+                date: curDateStr,
+                start_time: tpl.start_time,
+                end_time: tpl.end_time,
+                enrollees: tpl.enrollees || "",
+                userId: tpl.userId || currentUser.uid,
+                academyId: tpl.academyId || currentUser.academyId,
+                createdAt: serverTimestamp()
+              });
+              created++;
+            }
+            if (created > 0) {
+              await batch.commit();
+              rebookMsg = ` (+ rebooked ${created} slots)`;
+            }
+          }
+        }
+      }
+
+      const updateData = { lastPaidDate: newPaidDate };
+      if (newBookingId) {
+        updateData.bookingId = newBookingId;
+        member.bookingId = newBookingId;
+      }
+      await updateDoc(doc(db, "members", member.id), updateData);
+      
       member.lastPaidDate = newPaidDate;
-      showInlineToast(`✅ ${member.name} marked as paid!`, "success");
+      showInlineToast(`✅ ${member.name} marked as paid!${rebookMsg}`, "success");
+      
       await loadMembers();
       renderMembersTable();
       renderFeeAlerts();

@@ -1,7 +1,7 @@
 // js/programs.js — Programs & Settings Dashboard
 import {
   db, currentUser, tenantSettings, defaultSettings, showMsg,
-  setOnAuthReady, initApp, doc, setDoc, escapeHTML
+  setOnAuthReady, initApp, doc, setDoc, escapeHTML, format12Hour, parse12HourTo24Hour
 } from "./shared.js";
 
 // Local state for editing
@@ -27,6 +27,22 @@ setOnAuthReady(() => {
 
   const opStart = document.getElementById("opStart");
   const opEnd = document.getElementById("opEnd");
+  
+  function populateTimeSelect(select) {
+    if (!select) return;
+    select.innerHTML = "";
+    for (let h = 0; h < 24; h++) {
+      const hh = String(h).padStart(2, "0");
+      const val = `${hh}:00`;
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = format12Hour(val);
+      select.appendChild(opt);
+    }
+  }
+  populateTimeSelect(opStart);
+  populateTimeSelect(opEnd);
+
   if (opStart) opStart.value = localConfig.operating_hours.start;
   if (opEnd) opEnd.value = localConfig.operating_hours.end;
 
@@ -229,7 +245,11 @@ function renderCoaching() {
     card.style.padding = "1.5rem";
     card.style.borderRadius = "var(--radius-md)";
     card.style.position = "relative";
-    let slotsHtml = (c.timing_slots || []).map(t => `<div style="background:rgba(0,255,170,0.1); color:var(--accent); border:1px solid rgba(0,255,170,0.2); padding:0.3rem 0.6rem; border-radius:4px; font-size:0.8rem; font-family:var(--font-mono); display:inline-block; margin:0.25rem;">${escapeHTML(t)}</div>`).join('');
+    let slotsHtml = (c.timing_slots || []).map(t => {
+      const parts = t.split("-");
+      const displayStr = parts.length === 2 ? `${format12Hour(parts[0].trim())} - ${format12Hour(parts[1].trim())}` : t;
+      return `<div style="background:rgba(0,255,170,0.1); color:var(--accent); border:1px solid rgba(0,255,170,0.2); padding:0.3rem 0.6rem; border-radius:4px; font-size:0.8rem; font-family:var(--font-mono); display:inline-block; margin:0.25rem;">${escapeHTML(displayStr)}</div>`;
+    }).join('');
     
     card.innerHTML = `
       <div style="position:absolute; top:1rem; right:1rem; display:flex; gap:0.5rem;">
@@ -270,11 +290,13 @@ function openCoachingModal(idx = null) {
 }
 
 function addTimingSlotInput(val = "") {
+  const parts = val.split("-");
+  const displayVal = parts.length === 2 ? `${format12Hour(parts[0].trim())} - ${format12Hour(parts[1].trim())}` : val;
   const div = document.createElement("div");
   div.style.display = "flex";
   div.style.gap = "0.5rem";
   div.innerHTML = `
-    <input type="text" class="t-slot-input" placeholder="e.g. 05:30 AM - 06:30 AM" value="${escapeHTML(val)}" style="flex:1" required />
+    <input type="text" class="t-slot-input" placeholder="e.g. 05:30 AM - 06:30 AM" value="${escapeHTML(displayVal)}" style="flex:1" required />
     <button type="button" class="btn btn-sm btn-outline text-danger" onclick="this.parentElement.remove()">X</button>
   `;
   document.getElementById("timingSlotsContainer").appendChild(div);
@@ -283,7 +305,14 @@ function addTimingSlotInput(val = "") {
 function saveCoaching(e) {
   e.preventDefault();
   const idx = document.getElementById("coachIndex").value;
-  const slots = Array.from(document.querySelectorAll(".t-slot-input")).map(i => i.value.trim()).filter(v => v);
+  const slots = Array.from(document.querySelectorAll(".t-slot-input")).map(i => {
+    const raw = i.value.trim();
+    const parts = raw.split("-");
+    if (parts.length === 2) {
+      return `${parse12HourTo24Hour(parts[0])} - ${parse12HourTo24Hour(parts[1])}`;
+    }
+    return raw;
+  }).filter(v => v);
   const c = {
     category: document.getElementById("coachCat").value,
     days: document.getElementById("coachDays").value,

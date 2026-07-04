@@ -81,6 +81,30 @@ export function formatSelectedDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+export function format12Hour(timeStr) {
+  if (!timeStr) return "";
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return timeStr;
+  let hour = parseInt(parts[0], 10);
+  const min = parts[1];
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  hour = hour ? hour : 12;
+  return `${String(hour).padStart(2, '0')}:${min} ${ampm}`;
+}
+
+export function parse12HourTo24Hour(timeStr) {
+  if (!timeStr) return "";
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match) return timeStr;
+  let hour = parseInt(match[1], 10);
+  const min = match[2];
+  const ampm = (match[3] || "").toUpperCase();
+  if (ampm === "PM" && hour < 12) hour += 12;
+  if (ampm === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, '0')}:${min}`;
+}
+
 export function addOneMonth(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -561,6 +585,49 @@ export function isStaff(user) {
 
 // ── Booking Conflict Check ──────────────────────────────────
 // Returns false if no conflict, or an error string if there is a conflict.
+// ── Helper to parse days from text ────────────────────────
+export function parseDays(text) {
+  if (!text) return [0, 1, 2, 3, 4, 5, 6];
+  const t = text.toLowerCase();
+  
+  if (t.includes("weekend")) return [0, 6];
+  if (t.includes("weekday")) return [1, 2, 3, 4, 5];
+
+  const days = [];
+  const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  
+  // Check for ranges like "monday - wednesday" or "mon to wed"
+  const rangeMatch = t.match(/(sun|mon|tue|wed|thu|fri|sat)[a-z]*\s*(?:-|to)\s*(sun|mon|tue|wed|thu|fri|sat)[a-z]*/);
+  if (rangeMatch) {
+    let startIdx = dayNames.findIndex(d => rangeMatch[1].startsWith(d));
+    let endIdx = dayNames.findIndex(d => rangeMatch[2].startsWith(d));
+    if (startIdx !== -1 && endIdx !== -1) {
+      if (endIdx < startIdx) endIdx += 7;
+      for (let i = startIdx; i <= endIdx; i++) {
+        days.push(i % 7);
+      }
+    }
+  } else {
+    // Check for individual days
+    dayNames.forEach((d, idx) => {
+      if (t.includes(d)) days.push(idx);
+    });
+  }
+  
+  if (days.length > 0) return [...new Set(days)];
+  
+  // Fallbacks for common generic period names (when specific days aren't named)
+  if (t.includes("7 day") || t.includes("7-day") || t.includes("seven day")) return [0, 1, 2, 3, 4, 5, 6];
+  if (t.includes("6 day") || t.includes("6-day") || t.includes("six day")) return [1, 2, 3, 4, 5, 6]; // Mon-Sat
+  if (t.includes("5 day") || t.includes("5-day") || t.includes("five day")) return [1, 2, 3, 4, 5]; // Mon-Fri
+  if (t.includes("4 day") || t.includes("4-day") || t.includes("four day")) return [1, 2, 3, 4]; // Mon-Thu
+  if (t.includes("3 day") || t.includes("3-day") || t.includes("three day")) return [1, 3, 5]; // Mon, Wed, Fri
+  if (t.includes("2 day") || t.includes("2-day") || t.includes("two day")) return [1, 2]; // Mon, Tue
+  if (t.includes("1 day") || t.includes("1-day") || t.includes("one day")) return [0]; // Sunday default
+  
+  return [0, 1, 2, 3, 4, 5, 6];
+}
+
 export async function checkBookingConflicts(courtId, dateStr, startTime, endTime, bookingType, category) {
   try {
     // Query by academyId only (auto-indexed), filter date+court client-side

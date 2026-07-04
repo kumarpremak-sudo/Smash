@@ -4,7 +4,7 @@ import {
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
   bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
-  query, where, serverTimestamp
+  query, where, serverTimestamp, format12Hour
 } from "./shared.js";
 
 let selectedDate = new Date();
@@ -19,7 +19,11 @@ setOnAuthReady(async () => {
   setupScheduleListeners();
 });
 
+let listenersAttached = false;
 function setupScheduleListeners() {
+  if (listenersAttached) return;
+  listenersAttached = true;
+
   const addClick = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", fn); };
   const addSubmit = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("submit", fn); };
 
@@ -68,6 +72,24 @@ function openBulkCancelModal() {
   const yearMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const ymInput = document.getElementById("bulkYearMonth");
   if (ymInput && !ymInput.value) ymInput.value = yearMonthStr;
+
+  const catSelect = document.getElementById("bulkCategory");
+  if (catSelect && tenantSettings && tenantSettings.fee_structure) {
+    catSelect.innerHTML = '<option value="" disabled selected>Select Coaching Program</option>';
+    tenantSettings.fee_structure.forEach(prog => {
+      let pName = prog.program_name || "";
+      let pLower = pName.toLowerCase();
+      let cat = pName;
+      if (pLower.includes("personal training")) {
+        cat = "Private Coaching";
+      } else if (pLower.includes("advance")) {
+        cat = "3 Session";
+      } else if (!pLower.includes("tournament")) {
+        cat = pName.replace(/coaching/i, "").trim() || pName;
+      }
+      catSelect.innerHTML += `<option value="${cat}">${pName}</option>`;
+    });
+  }
 }
 
 function closeBulkCancelModal() {
@@ -86,6 +108,11 @@ async function handleBulkCancelSubmit(e) {
 
   if (targetType === "member" && !memberPhone) {
     showMsg("bulkCancelMsg", "Please enter member phone.", "error");
+    return;
+  }
+  
+  if (targetType === "group" && !groupId) {
+    showMsg("bulkCancelMsg", "Please select a Coaching Group/Program.", "error");
     return;
   }
 
@@ -155,13 +182,17 @@ async function loadDailyGrid() {
 
   const tbody = document.getElementById("matrix-body");
   if (tbody.children.length === 0) {
-    for (let hour = 6; hour <= 22; hour++) {
+    const op = (tenantSettings && tenantSettings.operating_hours) ? tenantSettings.operating_hours : { start: "05:00", end: "23:00" };
+    const startHour = parseInt(op.start.split(":")[0], 10);
+    const endHour = parseInt(op.end.split(":")[0], 10);
+
+    for (let hour = startHour; hour < endHour; hour++) {
       const tr = document.createElement("tr");
       const startStr = `${String(hour).padStart(2, "0")}:00`;
       const endStr = `${String(hour + 1).padStart(2, "0")}:00`;
       const tdTime = document.createElement("td");
       tdTime.className = "matrix-time-col";
-      tdTime.textContent = `${startStr} - ${endStr}`;
+      tdTime.textContent = `${format12Hour(startStr)} - ${format12Hour(endStr)}`;
       tr.appendChild(tdTime);
       courtsList.forEach(court => {
         const td = document.createElement("td");
@@ -220,7 +251,7 @@ function openQuickBookingModal(courtId, start, end) {
   document.getElementById("quickStartTime").value = start;
   document.getElementById("quickEndTime").value = end;
   const dateStr = formatSelectedDate(selectedDate);
-  document.getElementById("quickSlotDesc").textContent = `${courtsMap[courtId] || `Court ${courtId}`} on ${dateStr} (${start} - ${end})`;
+  document.getElementById("quickSlotDesc").textContent = `${courtsMap[courtId] || `Court ${courtId}`} on ${dateStr} (${format12Hour(start)} - ${format12Hour(end)})`;
   document.getElementById("quickBookingForm").reset();
   if (currentUser && !currentUser.isAnonymous) {
     document.getElementById("quickCustomerName").value = currentUser.displayName || "";
@@ -233,7 +264,7 @@ async function openBookingDetailsModal(booking) {
   openModal("Booking Details");
   document.getElementById("modalDetailsView").classList.remove("hidden");
   document.getElementById("detCourt").textContent = courtsMap[booking.court_id] || `Court ${booking.court_id}`;
-  document.getElementById("detTime").textContent = `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)} on ${booking.date}`;
+  document.getElementById("detTime").textContent = `${format12Hour(booking.start_time)} - ${format12Hour(booking.end_time)} on ${booking.date}`;
   document.getElementById("detName").textContent = booking.customer_name;
   const joinDateInput = document.getElementById("newEnrolleeJoinDate");
   if (joinDateInput) joinDateInput.value = formatSelectedDate(new Date());
