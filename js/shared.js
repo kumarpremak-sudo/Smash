@@ -664,8 +664,8 @@ async function handleAuthStateChange(user) {
       bottomNavSettings.classList.toggle("hidden", !showSettings);
     }
     // Load core data, then call page-specific ready handler
-    await loadCourts();
     await loadTenantSettings();
+    await loadCourts();
 
     // Reveal page content after data is loaded
     const pageContent = document.querySelector(".page-content");
