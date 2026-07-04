@@ -444,8 +444,8 @@ export async function loadTenantSettings() {
         });
       }
 
-      // Check for missing mandatory onboarding fields
-      if (!tenantSettings.court_count) {
+      // Check for missing mandatory onboarding fields (contact numbers are required)
+      if (!tenantSettings.contact_numbers || tenantSettings.contact_numbers.length === 0) {
         if (!window.location.pathname.endsWith("dashboard.html")) {
           window.location.href = "dashboard.html";
           return;

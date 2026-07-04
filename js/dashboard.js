@@ -17,7 +17,19 @@ let selectedBooking = null;
 // ── First Time Setup ────────────────────────────────────────
 document.addEventListener('setup_required', () => {
   const modal = document.getElementById("firstTimeSetupModal");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) {
+    if (typeof tenantSettings !== 'undefined' && tenantSettings) {
+      if (tenantSettings.name || tenantSettings.academy_name) {
+        const nameEl = document.getElementById("setupAcademyName");
+        if (nameEl) nameEl.value = tenantSettings.name || tenantSettings.academy_name;
+      }
+      if (tenantSettings.court_count) {
+        const courtEl = document.getElementById("setupCourts");
+        if (courtEl) courtEl.value = tenantSettings.court_count;
+      }
+    }
+    modal.classList.remove("hidden");
+  }
 });
 
 // ── Auth Ready Handler ──────────────────────────────────────
@@ -780,8 +792,9 @@ async function handleSetupSubmit(event) {
     return;
   }
 
+  const existingSettings = (typeof tenantSettings !== 'undefined' && tenantSettings) ? tenantSettings : defaultSettings;
   const settingsPayload = {
-    ...defaultSettings,
+    ...existingSettings,
     academy_name: name,
     contact_numbers: [contact],
     court_count: courts
@@ -793,12 +806,16 @@ async function handleSetupSubmit(event) {
     // Save Academy Settings
     await setDoc(doc(db, "academies", currentUser.academyId), settingsPayload);
 
-    // Seed Courts dynamically
-    const batch = writeBatch(db);
-    for (let i = 1; i <= courts; i++) {
-      batch.set(doc(collection(db, "courts")), { id: i, name: `Court ${i}`, academyId: currentUser.academyId });
+    // Only seed Courts dynamically if they don't already exist
+    const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
+    const courtsSnap = await getDocs(q);
+    if (courtsSnap.empty) {
+      const batch = writeBatch(db);
+      for (let i = 1; i <= courts; i++) {
+        batch.set(doc(collection(db, "courts")), { id: i, name: `Court ${i}`, academyId: currentUser.academyId });
+      }
+      await batch.commit();
     }
-    await batch.commit();
 
     document.getElementById("firstTimeSetupModal").classList.add("hidden");
     window.location.reload();

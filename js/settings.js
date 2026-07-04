@@ -2,8 +2,8 @@
 import {
   db, currentUser, authConfig, escapeHTML, showMsg, showInlineToast,
   setOnAuthReady, initApp, isSuperAdmin, isTenantAdmin, isStaff,
-  collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, addDoc, writeBatch,
-  defaultSettings
+  collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, addDoc, writeBatch,
+  defaultSettings, tenantSettings
 } from "./shared.js";
 
 setOnAuthReady(async (user) => {
@@ -22,7 +22,78 @@ setOnAuthReady(async (user) => {
     document.getElementById("tenantAdminPanel").classList.remove("hidden");
     await loadStaff();
   }
+  
+  if (isSuperAdmin(user) || isTenantAdmin(user)) {
+    document.getElementById("tenantSettingsPanel").classList.remove("hidden");
+    initAcademyProfile();
+  }
 });
+
+// --- Academy Profile ---
+function initAcademyProfile() {
+  const pName = document.getElementById("progAcademyName");
+  const pContact = document.getElementById("progContactNumber");
+  const btnEdit = document.getElementById("btnEditProfile");
+  const btnSave = document.getElementById("btnSaveProfile");
+  
+  if (pName && tenantSettings) {
+    pName.value = tenantSettings.academy_name || tenantSettings.name || "";
+  }
+  if (pContact && tenantSettings && tenantSettings.contact_numbers && tenantSettings.contact_numbers.length > 0) {
+    pContact.value = tenantSettings.contact_numbers[0];
+  }
+  
+  if (btnEdit) {
+    btnEdit.addEventListener("click", () => {
+      if (pName.hasAttribute("readonly")) {
+        pName.removeAttribute("readonly");
+        pContact.removeAttribute("readonly");
+        pName.focus();
+        btnEdit.innerHTML = "✕ Cancel";
+        btnSave.disabled = false;
+      } else {
+        pName.setAttribute("readonly", true);
+        pContact.setAttribute("readonly", true);
+        btnEdit.innerHTML = "✎ Edit";
+        btnSave.disabled = true;
+        // reset to original
+        pName.value = tenantSettings.academy_name || tenantSettings.name || "";
+        pContact.value = (tenantSettings.contact_numbers && tenantSettings.contact_numbers.length > 0) ? tenantSettings.contact_numbers[0] : "";
+      }
+    });
+  }
+  
+  if (btnSave) {
+    btnSave.addEventListener("click", async () => {
+      btnSave.disabled = true;
+      btnSave.textContent = "Saving...";
+      try {
+        const newName = pName.value.trim();
+        const newContact = pContact.value.trim();
+        await updateDoc(doc(db, "academies", currentUser.academyId), {
+          academy_name: newName,
+          name: newName,
+          contact_numbers: newContact ? [newContact] : []
+        });
+        
+        // Update local object
+        tenantSettings.academy_name = newName;
+        tenantSettings.name = newName;
+        tenantSettings.contact_numbers = newContact ? [newContact] : [];
+        
+        pName.setAttribute("readonly", true);
+        pContact.setAttribute("readonly", true);
+        btnEdit.innerHTML = "✎ Edit";
+        btnSave.textContent = "💾 Save Profile";
+        showInlineToast("Academy profile updated successfully!", "success");
+      } catch (err) {
+        btnSave.textContent = "💾 Save Profile";
+        btnSave.disabled = false;
+        showMsg("settingsMessage", "Failed to update academy profile: " + err.message, "error");
+      }
+    });
+  }
+}
 
 // --- Super Admin: Academies ---
 async function loadAcademies() {

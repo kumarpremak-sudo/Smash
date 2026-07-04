@@ -71,6 +71,29 @@
           </ul>
         </div>
 
+        <!-- Tenant Profile Panel (Visible to Tenant Admin and Super Admin) -->
+        <div class="glass-panel settings-card hidden" id="tenantSettingsPanel">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <div>
+              <h3>🏢 Academy Profile</h3>
+              <div class="settings-card-desc">Update your academy name and primary contact number.</div>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btnEditProfile" style="height: 32px;">✎ Edit</button>
+          </div>
+          
+          <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;">
+            <div class="form-group" style="margin:0; flex: 2;">
+              <label>Academy Name</label>
+              <input type="text" id="progAcademyName" class="form-control" placeholder="Academy Name" readonly>
+            </div>
+            <div class="form-group" style="margin:0; flex: 1;">
+              <label>Contact Number</label>
+              <input type="tel" id="progContactNumber" class="form-control" placeholder="+91 " readonly>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="btnSaveProfile" style="width: 100%;" disabled>💾 Save Profile</button>
+        </div>
+
         <!-- Tenant Admin Panel: Manage Staff -->
         <div class="glass-panel settings-card hidden" id="tenantAdminPanel">
           <h3>👥 Manage Staff Users</h3>
@@ -117,6 +140,6 @@
     </nav>
 
   </div>
-  <script type="module" src="js/settings.js"></script>
+  <script type="module" src="js/settings.js?v=1.1"></script>
 </body>
 </html>
