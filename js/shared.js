@@ -193,17 +193,24 @@ export function resolvePlanKey(type, category, period, gender) {
 
   if (type === "Members" || type === "Group/Lease") {
     if (tenantSettings.membership_programs) {
+      const targetType = (type === "Group/Lease") ? "group" : "individual";
       // Try to find exact match including gender notes
       let match = tenantSettings.membership_programs.find(m =>
-        (m.type && m.type.toLowerCase() === (type === "Group/Lease" ? "group" : "individual")) &&
+        (m.type && m.type.toLowerCase() === targetType) &&
         m.duration_days === period &&
         m.special_notes === gender
       );
-      // Fallback to match without gender strictness if not found
+      // Fallback to match without gender
       if (!match) {
         match = tenantSettings.membership_programs.find(m =>
-          (m.type && m.type.toLowerCase() === (type === "Group/Lease" ? "group" : "individual")) &&
+          (m.type && m.type.toLowerCase() === targetType) &&
           m.duration_days === period
+        );
+      }
+      // Fallback to any match of same type
+      if (!match) {
+        match = tenantSettings.membership_programs.find(m =>
+          m.type && m.type.toLowerCase() === targetType
         );
       }
       if (match) return match.key;
@@ -213,8 +220,23 @@ export function resolvePlanKey(type, category, period, gender) {
   if (type === "Coaching" || type === "Advance Training" || type === "Personal training") {
     if (tenantSettings.fee_structure) {
       for (const prog of tenantSettings.fee_structure) {
-        if (prog.program_name.toLowerCase().includes(category.toLowerCase())) {
-          const v = (prog.pricing_variants || []).find(x => x.frequency === period);
+        // Match program by category name (partial match, case-insensitive)
+        const progLower = prog.program_name.toLowerCase();
+        const catLower = (category || "").toLowerCase();
+        if (progLower.includes(catLower) || catLower.includes(progLower.split(" ")[0])) {
+          // Try exact period match first
+          let v = (prog.pricing_variants || []).find(x => x.frequency === period);
+          // Fallback to first variant if period doesn't match
+          if (!v && prog.pricing_variants && prog.pricing_variants.length > 0) {
+            v = prog.pricing_variants[0];
+          }
+          if (v) return v.key;
+        }
+      }
+      // Broader search: try matching category against any program name
+      for (const prog of tenantSettings.fee_structure) {
+        if (prog.pricing_variants) {
+          const v = prog.pricing_variants.find(x => x.frequency === period);
           if (v) return v.key;
         }
       }
@@ -457,7 +479,20 @@ async function checkUserAccess(user) {
         user.academyId = null;
         return true;
       }
-      return false;
+
+      // Auto-provision new Google users as TENANT_ADMIN with a generated academyId
+      // This allows the onboarding modal to appear on the dashboard
+      const generatedAcademyId = "academy_" + userEmail.replace(/[^a-z0-9]/gi, '_') + "_" + Date.now();
+      const newUserData = {
+        email: userEmail,
+        role: "TENANT_ADMIN",
+        academyId: generatedAcademyId,
+        createdAt: Date.now()
+      };
+      await setDoc(userDocRef, newUserData);
+      user.role = "TENANT_ADMIN";
+      user.academyId = generatedAcademyId;
+      return true;
     }
 
     // User found via email document ID
@@ -474,11 +509,15 @@ async function checkUserAccess(user) {
       try {
         const acadDoc = await getDocFromServer(doc(db, "academies", userData.academyId));
         if (!acadDoc.exists()) {
+          // For TENANT_ADMIN: allow through — academy will be created via onboarding setup modal
+          if (userData.role === "TENANT_ADMIN") {
+            user.role = userData.role;
+            user.academyId = userData.academyId;
+            return true;
+          }
+          // For STAFF: orphaned user, clean up
           console.warn("Academy has been deleted. Access denied for orphaned user.");
-
-          // Auto-cleanup the orphaned user
           await deleteDoc(userDocRef);
-
           return false;
         }
       } catch (err) {
@@ -510,31 +549,67 @@ export function isStaff(user) {
 
 // ── Booking Conflict Check ──────────────────────────────────
 // Returns false if no conflict, or an error string if there is a conflict.
-export async function checkBookingConflicts(courtId, dateStr, startTime, endTime, category) {
+export async function checkBookingConflicts(courtId, dateStr, startTime, endTime, bookingType, category) {
   try {
-    const q = query(collection(db, "bookings"), where("court_id", "==", courtId), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
+    // Query by academyId only (auto-indexed), filter date+court client-side
+    const q = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
 
-    // Rule 1: Coaching Sessions (No Limit)
-    const catLower = (category || "").toLowerCase();
-    const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
-    if (isCoaching) {
-      return false;
-    }
-
-    // Rule 2: Individual / Guest Bookings (Max 2 Per Court)
-    let overlapCount = 0;
+    // Filter to overlapping bookings on the same court and date
+    const overlapping = [];
     snap.forEach(d => {
       const b = d.data();
-      if (startTime < b.end_time && endTime > b.start_time) {
-        overlapCount++;
+      if (b.date === dateStr && b.court_id == courtId && startTime < b.end_time && endTime > b.start_time) {
+        overlapping.push(b);
       }
     });
 
-    if (overlapCount >= 2) {
-      return "Court is unavailable: Maximum capacity of 2 players reached for this slot.";
+    // ── Rule: Coaching — Unlimited students, no conflict ──
+    if (bookingType === "Coaching") {
+      return false;
     }
 
+    // ── Rule: Exclusive types — Spot Booking, Advance Training, Personal Training ──
+    // No other booking should exist on the same court+slot
+    if (bookingType === "Spot booking" || bookingType === "Advance Training" || bookingType === "Personal training") {
+      if (overlapping.length > 0) {
+        return `Court is unavailable: This time slot is already booked. ${bookingType} requires exclusive court access.`;
+      }
+      return false;
+    }
+
+    // Check if any exclusive booking already holds this slot
+    const hasExclusive = overlapping.some(b => 
+      b.booking_type === "Spot booking" || b.booking_type === "Advance Training" || b.booking_type === "Personal training"
+    );
+    if (hasExclusive) {
+      return "Court is unavailable: An exclusive booking (Spot/Advance Training/Personal Training) already holds this slot.";
+    }
+
+    // ── Rule: Members — Max 6 per court per slot, no other booking types allowed ──
+    if (bookingType === "Members") {
+      const memberOverlaps = overlapping.filter(b => b.booking_type === "Members");
+      if (memberOverlaps.length >= 6) {
+        return "Court is unavailable: Maximum capacity of 6 members reached for this slot.";
+      }
+      return false;
+    }
+
+    // ── Rule: Guest Play — Must join an existing Member booking on same court+slot ──
+    if (bookingType === "Guest Play") {
+      const hasMemberSlot = overlapping.some(b => b.booking_type === "Members");
+      if (!hasMemberSlot) {
+        return "Guest Play requires an existing Member booking on this court and time slot. The guest must join alongside a member.";
+      }
+      return false;
+    }
+
+    // ── Rule: Group/Lease — No member count restriction ──
+    if (bookingType === "Group/Lease") {
+      return false;
+    }
+
+    // Default: allow
     return false;
   } catch (err) {
     console.error("Conflict checking query error:", err);
@@ -689,21 +764,9 @@ export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMont
   let snapshot;
 
   try {
-    let constraints = [
-      where("date", ">=", startDate),
-      where("date", "<=", endDate)
-    ];
-    if (memberPhone) {
-      constraints.push(where("customer_phone", "==", memberPhone));
-    } else if (groupId) {
-      constraints.push(where("category", "==", groupId));
-    }
-
-    const q = query(bookingsRef, ...constraints);
-    snapshot = await getDocs(q);
-  } catch (err) {
-    // Fallback in-memory scan if composite index or custom queries hit constraints locally
-    const allSnap = await getDocs(bookingsRef);
+    // Query by academyId only (auto-indexed), filter all other fields client-side
+    const q = query(bookingsRef, where("academyId", "==", currentUser.academyId));
+    const allSnap = await getDocs(q);
     const filteredDocs = [];
     allSnap.forEach(d => {
       const data = d.data();
@@ -716,6 +779,9 @@ export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMont
       }
     });
     snapshot = { docs: filteredDocs, empty: filteredDocs.length === 0 };
+  } catch (err) {
+    console.error("Bulk cancel query failed:", err);
+    throw new Error("Failed to query bookings for cancellation.");
   }
 
   if (snapshot.empty) {

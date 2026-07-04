@@ -1,0 +1,158 @@
+# Fix 6 High-Priority Defects — Updated with Business Rules
+
+## Business Rules (from Programs Tab)
+
+| Booking Type | Category (from Programs) | Conflict Rule | Recurrence |
+|---|---|---|---|
+| **Spot Booking** | Hourly Slot | **Exclusive** — 1 player per court per slot. No other booking allowed at same time | Single Day |
+| **Members** | Individual | **Max 6** members per court per 1-hour slot. No other booking type allowed at same time | Monthly (weekday/weekend) |
+| **Group/Lease** | Group Members | **No restriction** on member count. No other booking type allowed at same time | Monthly |
+| **Guest Play** | Peak hour / Non peak hour | Guest **joins an existing Member slot** — player wants to play along with a member. So a Member booking must exist first | Single Day |
+| **Coaching** | Kids, Women, Adults (from coaching_schedule) | **Unlimited students** per court per slot | Monthly |
+| **Advance Training** | 3 Session | **Exclusive** — court blocked for 3 sessions/3 hours a week for 6 days. No other booking allowed | Monthly (6 days) |
+| **Personal Training** | Private Coaching | **Exclusive** — court blocked for 1 hour. No other booking allowed at same time | Single Day |
+
+> [!IMPORTANT]
+> All categories and their pricing are populated **dynamically from the Programs tab** (`tenantSettings`). The admin configures schedules and pricing on Programs → these automatically appear in the Reserve a Court dropdown hierarchy.
+
+---
+
+## Issue-by-Issue Root Cause & Fix
+
+### Issue 1: Onboarding UI not opening for new users
+
+**Root Cause**: In [checkUserAccess()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L413-L497), when a new Google user (non-super-admin) is not found in the `users` collection (line 460), the function returns `false` → the user is signed out and never reaches `loadTenantSettings()` → the `setup_required` event never fires → the onboarding modal never appears.
+
+**Fix**: Auto-provision any new Google user as `TENANT_ADMIN` with a generated `academyId` (based on their email hash), and create their `users` document. This lets them proceed to the dashboard where `loadTenantSettings()` will detect the missing academy doc and fire `setup_required`.
+
+---
+
+### Issue 2: Spot Booking conflict — second user overrides first
+
+**Root Cause**: [checkBookingConflicts()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L511-L543) uses a flat `overlapCount >= 2` threshold for all non-coaching bookings. This doesn't enforce the correct per-type limits.
+
+**Fix**: Rewrite `checkBookingConflicts()` to accept `bookingType` and enforce per-type rules:
+
+```
+if bookingType is "Spot booking" or "Advance Training" or "Personal training":
+  → Max capacity = 0 existing overlaps (EXCLUSIVE — no other booking allowed)
+  
+if bookingType is "Members":
+  → Max capacity = 6 overlapping members on same court+slot
+  → Also reject if an exclusive booking (Spot/Advance/PT) already exists on that slot
+
+if bookingType is "Guest Play":
+  → Must have an existing Member booking on same court+slot (guest joins member)
+  → Reject if no member booking found
+
+if bookingType is "Coaching":
+  → No limit (unlimited students)
+  
+if bookingType is "Group/Lease":
+  → No member count restriction, but reject if exclusive booking exists
+```
+
+Also update the **bulk booking path** (line 537-542) to use the same type-aware conflict logic instead of a separate inline check.
+
+---
+
+### Issue 3: Firestore composite index error
+
+**Root Cause**: Queries like `where("date", ">=", ...) + where("date", "<=", ...) + where("academyId", "==", ...)` and `where("court_id", "==", ...) + where("date", "==", ...) + where("academyId", "==", ...")` require composite indexes that don't exist.
+
+**Fix**: Create [firestore.indexes.json](file:///c:/Users/Admin/Documents/POC/Badminton/firestore.indexes.json) with the required indexes. The user must also click the Firestore link in the error message to deploy the indexes in their Firebase console (indexes can't be created from client-side code).
+
+> [!IMPORTANT]
+> **User Action Required**: After I create the `firestore.indexes.json` file, you need to either:
+> 1. Click the link in the Firebase error message to auto-create the index, OR
+> 2. Run `firebase deploy --only firestore:indexes` if you have Firebase CLI installed
+
+Additionally, I will **refactor the queries to reduce the number of composite indexes needed** — e.g., by fetching by `academyId` + `date` range and filtering `court_id` client-side.
+
+---
+
+### Issue 4: Bookings not showing in dashboard Reservations section
+
+**Root Cause**: [updateSelectedDayBookingsView()](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js#L247-L251) uses hardcoded category labels:
+```js
+const catLabels = { court_rental: "Rental", coaching: "Coaching", ... };
+```
+But actual saved categories are `"Hourly Slot"`, `"Individual"`, `"Kids"`, `"3 Session"`, `"Private Coaching"` — none of which match the hardcoded keys. So `catName` becomes `undefined`.
+
+Also, if Issue 3's index error causes the `renderCalendar()` query to fail, `currentMonthBookings` stays empty.
+
+**Fix**: 
+1. Fix the composite index issue first (Issue 3)
+2. Replace hardcoded labels with dynamic derivation — use `booking.booking_type` as the display label and assign colors based on type
+
+---
+
+### Issue 5: Members not showing in Members tab
+
+**Root Cause**: The auto-enrollment in [handleBookingSubmit()](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js#L549-L566) calls `resolvePlanKey()`, which may fail to match and fall back to a generic string like `"Individual - 5 Days"`. The Members page's [getPlanDetails()](file:///c:/Users/Admin/Documents/POC/Badminton/js/members.js#L111-L124) looks up by exact `key` match against `membership_programs[].key` and `fee_structure[].pricing_variants[].key` — so the generic fallback string won't match.
+
+However, **the actual root issue is likely that the members are never created at all** because the Firestore query at line 520 fails due to the missing composite index (Issue 3), which throws an error caught at line 573, preventing `addDoc` from ever executing.
+
+**Fix**: 
+1. Fix Issue 3 first (composite indexes)
+2. Make `resolvePlanKey()` more robust with fallback key generation matching the Programs page key format (`Type_Duration` e.g. `Individual_5Days`)
+3. Improve `getPlanDetails()` to display a human-readable name even when no exact key match is found
+
+---
+
+### Issue 6: Revenue Projection all ₹0
+
+**Root Cause**: [calculateMonthlyRevenue()](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js#L280-L342) has multiple bugs:
+
+1. **Wrong rate names** (line 283-288): Searches for `"Guest"`, `"Guest Peak"`, `"Guest Non-Peak"` but they were renamed to `"Hourly Slot"`, `"Guest play (Peak hours)"`, `"Guest play (Non Peak hours)"`.
+
+2. **Wrong booking filter** (line 320): Only counts bookings where `category.includes("rental")`. New categories like `"Hourly Slot"`, `"Individual"`, `"Kids"` don't include "rental", so 0 hours counted.
+
+3. **Depends on membersList** (line 303-312): If Issue 5 means no members exist, all member/coaching/PT revenue = ₹0.
+
+**Fix**: Rewrite `calculateMonthlyRevenue()` to:
+- Look up rates using the **correct type names** from `tenantSettings.hourly_slots`
+- Categorize bookings by `booking.booking_type` (not `booking.category`) to properly count Spot booking/Guest Play hours
+- Still use `membersList` for recurring revenue (Memberships, Coaching, PT), which will work once Issue 5 is fixed
+
+---
+
+## Proposed Changes
+
+### Core Conflict Logic & Auth
+#### [MODIFY] [shared.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js)
+- **Issue 1**: Auto-provision new Google users as TENANT_ADMIN in `checkUserAccess()`
+- **Issue 2**: Rewrite `checkBookingConflicts(courtId, dateStr, startTime, endTime, bookingType, category)` with per-type conflict rules
+- **Issue 5**: Fix `resolvePlanKey()` to match key format used by Programs tab
+
+---
+
+### Firestore Indexes
+#### [NEW] [firestore.indexes.json](file:///c:/Users/Admin/Documents/POC/Badminton/firestore.indexes.json)
+- **Issue 3**: Define composite indexes for `bookings` collection queries
+
+---
+
+### Dashboard
+#### [MODIFY] [dashboard.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js)
+- **Issue 2**: Pass `type` to `checkBookingConflicts()` in both single-day and bulk paths
+- **Issue 4**: Replace hardcoded `catLabels`/`catColors` with dynamic derivation from `booking_type`
+- **Issue 6**: Rewrite `calculateMonthlyRevenue()` with correct rate lookups and booking categorization
+
+---
+
+### Members Page
+#### [MODIFY] [members.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/members.js)
+- **Issue 5**: Improve `getPlanDetails()` fallback for display and price lookup
+
+---
+
+## Verification Plan
+
+### Manual Verification (all 6 issues)
+1. **Issue 1**: Sign in with a new Google account → onboarding modal should appear
+2. **Issue 2**: Spot Booking on Court 1 at 7-8 AM → second user trying same slot → REJECTED. Member booking on Court 1 → Guest Play can join. Coaching → unlimited students.
+3. **Issue 3**: No Firestore index errors in browser console
+4. **Issue 4**: After booking, the reservation card appears in the Reservations section below the calendar
+5. **Issue 5**: After Members/Coaching booking → Members tab shows the enrolled member with correct plan name and fee
+6. **Issue 6**: Financial Console shows non-zero revenue reflecting actual bookings

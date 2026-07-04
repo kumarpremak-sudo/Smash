@@ -110,17 +110,36 @@ function renderMembersTable() {
 
   function getPlanDetails(key) {
     if (!tenantSettings) return { name: key, price: 0 };
+    // Exact match against membership programs
     if (tenantSettings.membership_programs) {
       const p = tenantSettings.membership_programs.find(x => x.key === key);
-      if (p) return { name: p.type + " - " + p.duration_days, price: p.fee_per_month };
+      if (p) return { name: p.type + " - " + p.duration_days + (p.special_notes ? ` (${p.special_notes})` : ""), price: p.fee_per_month };
     }
+    // Exact match against fee structure
     if (tenantSettings.fee_structure) {
       for (const prog of tenantSettings.fee_structure) {
         const v = (prog.pricing_variants || []).find(x => x.key === key);
         if (v) return { name: prog.program_name + " - " + v.frequency, price: v.cost };
       }
     }
-    return { name: key, price: 0 };
+    // Partial match: key contains program type or category name
+    if (key && tenantSettings.membership_programs) {
+      const keyLower = key.toLowerCase();
+      const p = tenantSettings.membership_programs.find(x => keyLower.includes(x.type.toLowerCase()));
+      if (p) return { name: p.type + " - " + p.duration_days, price: p.fee_per_month };
+    }
+    if (key && tenantSettings.fee_structure) {
+      const keyLower = key.toLowerCase();
+      for (const prog of tenantSettings.fee_structure) {
+        if (keyLower.includes(prog.program_name.toLowerCase().split(" ")[0].toLowerCase())) {
+          const price = prog.pricing_variants && prog.pricing_variants.length > 0 ? prog.pricing_variants[0].cost : 0;
+          return { name: prog.program_name, price };
+        }
+      }
+    }
+    // Fallback: format the raw key into a human-readable name
+    const readableName = key ? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "Unknown Plan";
+    return { name: readableName, price: 0 };
   }
 
   filtered.forEach(member => {

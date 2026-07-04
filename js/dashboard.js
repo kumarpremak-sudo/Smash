@@ -184,11 +184,18 @@ async function renderCalendar() {
   const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
   const endStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-31`;
   try {
-    const q = query(collection(db, "bookings"), where("date", ">=", startStr), where("date", "<=", endStr), where("academyId", "==", currentUser.academyId));
+    // Query by academyId only (auto-indexed), filter date range client-side
+    // This avoids needing a composite Firestore index
+    const q = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     currentMonthBookings = [];
-    snap.forEach(docSnap => { currentMonthBookings.push({ id: docSnap.id, ...docSnap.data() }); });
-  } catch (e) { currentMonthBookings = []; }
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.date >= startStr && data.date <= endStr) {
+        currentMonthBookings.push({ id: docSnap.id, ...data });
+      }
+    });
+  } catch (e) { console.error("Calendar query failed:", e); currentMonthBookings = []; }
 
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -244,11 +251,15 @@ function updateSelectedDayBookingsView() {
     const courtName = courtsMap[booking.court_id] || `Court ${booking.court_id}`;
     let enrolleesCount = booking.enrollees ? booking.enrollees.split(",").filter(n => n.trim()).length : 0;
     const badgeHtml = enrolleesCount > 0 ? `<span class="booking-badge-count">${enrolleesCount} Enrolled</span>` : "";
-    const catLabels = { court_rental: "Rental", coaching: "Coaching", personal_training: "PT Session", advance_batch: "Advance Batch" };
-    const catColors = { court_rental: "var(--accent)", coaching: "var(--accent4)", personal_training: "var(--accent3)", advance_batch: "var(--accent2)" };
-    const catName = catLabels[booking.category || "court_rental"];
-    const catColor = catColors[booking.category || "court_rental"];
-    const categoryBadgeHtml = `<span style="font-size:0.65rem; background:rgba(255,255,255,0.05); color:${catColor}; border:1px solid ${catColor}40; padding:1px 6px; border-radius:4px; font-weight:600; text-transform:uppercase;">${catName}</span>`;
+    // Dynamic type-based labels derived from booking_type field
+    const typeColorMap = {
+      "Spot booking": "var(--accent)", "Members": "var(--accent4)", "Group/Lease": "var(--accent2)",
+      "Guest Play": "#f0ad4e", "Coaching": "var(--accent3)", "Advance Training": "#e056fd", "Personal training": "#ff6b6b"
+    };
+    const displayType = booking.booking_type || booking.category || "Booking";
+    const catColor = typeColorMap[displayType] || "var(--accent)";
+    const catLabel = booking.category ? `${displayType} · ${booking.category}` : displayType;
+    const categoryBadgeHtml = `<span style="font-size:0.65rem; background:rgba(255,255,255,0.05); color:${catColor}; border:1px solid ${catColor}40; padding:1px 6px; border-radius:4px; font-weight:600; text-transform:uppercase;">${catLabel}</span>`;
     card.innerHTML = `
       <div class="booking-card-left">
         <div class="booking-time">${start} - ${end}</div>
@@ -278,20 +289,21 @@ async function updateStats() {
 
 // ── Revenue ─────────────────────────────────────────────────
 function calculateMonthlyRevenue() {
+  // ── Build rate lookups from tenantSettings ──
   let hourlySlotRate = 300, peakRate = 200, nonPeakRate = 150;
   if (tenantSettings && tenantSettings.hourly_slots) {
-    const defaultHourly = tenantSettings.hourly_slots.find(s => s.type === "Guest")?.rate;
-    if (defaultHourly) hourlySlotRate = defaultHourly;
-    const peak = tenantSettings.hourly_slots.find(s => s.type === "Guest Peak")?.rate;
-    if (peak) peakRate = peak;
-    const nonPeak = tenantSettings.hourly_slots.find(s => s.type === "Guest Non-Peak")?.rate;
-    if (nonPeak) nonPeakRate = nonPeak;
+    const hourlySlot = tenantSettings.hourly_slots.find(s => s.type === "Hourly Slot");
+    if (hourlySlot) hourlySlotRate = hourlySlot.rate;
+    const peak = tenantSettings.hourly_slots.find(s => s.type.includes("Peak") && !s.type.includes("Non"));
+    if (peak) peakRate = peak.rate;
+    const nonPeak = tenantSettings.hourly_slots.find(s => s.type.includes("Non Peak"));
+    if (nonPeak) nonPeakRate = nonPeak.rate;
   }
 
   let totalMembersRevenue = 0, totalCoachingRevenue = 0, totalPTRevenue = 0, totalGuestRevenue = 0;
   let membersCount = 0, coachingCount = 0, ptHours = 0, guestHours = 0;
 
-  // Build a lookup map of all keys -> cost
+  // Build a lookup map of all pricing keys -> cost
   const rateMap = {};
   if (tenantSettings) {
     (tenantSettings.membership_programs || []).forEach(p => rateMap[p.key] = p.fee_per_month);
@@ -300,31 +312,33 @@ function calculateMonthlyRevenue() {
     });
   }
 
+  // ── Revenue from Members (active subscriptions) ──
   membersList.forEach(member => {
     if (member.status !== "active") return;
     const planKey = member.type;
     if (planKey && rateMap[planKey] !== undefined) {
       const rate = rateMap[planKey];
       if (planKey.startsWith("Individual_") || planKey.startsWith("Group_")) { totalMembersRevenue += rate; membersCount++; }
-      else if (planKey === "PT_session") { totalPTRevenue += rate; ptHours++; }
+      else if (planKey.startsWith("PT_") || planKey.toLowerCase().includes("personal")) { totalPTRevenue += rate; ptHours++; }
       else { totalCoachingRevenue += rate; coachingCount++; }
     }
   });
 
+  // ── Revenue from Bookings (Spot booking & Guest Play are hourly) ──
   currentMonthBookings.forEach(booking => {
-    const category = booking.category || "Court Rental";
+    const bType = booking.booking_type || "";
     const startHour = parseInt(booking.start_time.substring(0, 2));
     const endHour = parseInt(booking.end_time.substring(0, 2));
     const hours = endHour - startHour;
     if (hours <= 0) return;
-    if (category.toLowerCase().includes("rental") || category === "court_rental") {
+
+    if (bType === "Spot booking") {
       guestHours += hours;
-      const bookingMembers = membersList.filter(m => m.bookingId === booking.id && m.status === "active");
-      if (bookingMembers.length === 0) { totalGuestRevenue += hours * hourlySlotRate; }
-      else {
-        const isPeak = (startHour >= 5 && startHour < 9) || (startHour >= 16 && startHour < 21);
-        totalGuestRevenue += isPeak ? hours * bookingMembers.length * peakRate : hours * bookingMembers.length * nonPeakRate;
-      }
+      totalGuestRevenue += hours * hourlySlotRate;
+    } else if (bType === "Guest Play") {
+      guestHours += hours;
+      const isPeak = (startHour >= 5 && startHour < 9) || (startHour >= 16 && startHour < 21);
+      totalGuestRevenue += isPeak ? hours * peakRate : hours * nonPeakRate;
     }
   });
 
@@ -386,21 +400,39 @@ async function renderModalEnrolleesList(bookingId) {
   ul.innerHTML = '<li class="text-muted" style="list-style:none;">Loading members...</li>';
   if (!db) return;
   try {
-    const q = query(collection(db, "members"), where("bookingId", "==", bookingId), where("academyId", "==", currentUser.academyId));
+    // Query by academyId only (auto-indexed), filter bookingId client-side
+    const q = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     ul.innerHTML = "";
     let activeCount = 0;
     if (!snap.empty) {
       snap.forEach(d => {
         const data = d.data();
+        if (data.bookingId !== bookingId) return; // Client-side filter
         if (data.status !== "active") return;
         activeCount++;
         const member = { id: d.id, ...data };
         const li = document.createElement("li");
         li.className = "enrollee-list-item";
         li.style.marginBottom = "0.5rem";
-        const plan = planLabels[member.type] || { name: member.type, color: "var(--accent4)", bg: "rgba(77, 171, 247, 0.12)" };
-        const badgeHtml = `<span style="font-size:0.65rem; background:${plan.bg}; color:${plan.color}; border:1px solid ${plan.color}35; padding:1px 8px; border-radius:99px; font-weight:600;">${plan.name}</span>`;
+        // Resolve plan display name from tenantSettings
+        let planName = member.type || "Unknown";
+        let planColor = "var(--accent4)";
+        let planBg = "rgba(77, 171, 247, 0.12)";
+        if (tenantSettings) {
+          if (tenantSettings.membership_programs) {
+            const mp = tenantSettings.membership_programs.find(x => x.key === member.type);
+            if (mp) { planName = mp.type + " - " + mp.duration_days; planColor = "var(--accent)"; planBg = "rgba(0,212,169,0.12)"; }
+          }
+          if (planName === member.type && tenantSettings.fee_structure) {
+            for (const prog of tenantSettings.fee_structure) {
+              const v = (prog.pricing_variants || []).find(x => x.key === member.type);
+              if (v) { planName = prog.program_name + " - " + v.frequency; planColor = "var(--accent3)"; planBg = "rgba(255,107,107,0.12)"; break; }
+            }
+          }
+        }
+        if (planName === member.type && member.type) { planName = member.type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
+        const badgeHtml = `<span style="font-size:0.65rem; background:${planBg}; color:${planColor}; border:1px solid ${planColor}35; padding:1px 8px; border-radius:99px; font-weight:600;">${planName}</span>`;
         const infoDiv = document.createElement("div");
         infoDiv.className = "enrollee-list-item-info";
         infoDiv.innerHTML = `<span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${escapeHTML(member.lastPaidDate)}</span></span>`;
@@ -490,7 +522,7 @@ async function handleBookingSubmit(event) {
 
     if (isSingleDay) {
       const dateStr = formatSelectedDate(selectedDate);
-      const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, category);
+      const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, type, category);
       if (conflictError) throw new Error(conflictError);
       const newBookingRef = await addDoc(collection(db, "bookings"), { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
 
@@ -516,10 +548,17 @@ async function handleBookingSubmit(event) {
       const daysMode = (period === "5 Days" || period === "3 Days") ? "weekdays" : (period === "Weekend" ? "weekend" : "all");
       const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
       const startStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-01`;
-      const endStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-31`;
-      const q2 = query(collection(db, "bookings"), where("date", ">=", startStr), where("date", "<=", endStr2), where("academyId", "==", currentUser.academyId));
+      const endStr2 = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      // Query by academyId only (auto-indexed), filter date range client-side
+      const q2 = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
       const snap2 = await getDocs(q2);
-      const existing = []; snap2.forEach(d => { if (d.data().court_id == courtId) existing.push(d.data()); });
+      const existing = [];
+      snap2.forEach(d => {
+        const data = d.data();
+        if (data.court_id == courtId && data.date >= startStr && data.date <= endStr2) {
+          existing.push(data);
+        }
+      });
       const batch = writeBatch(db);
       let created = 0, skipped = 0;
       let firstBookingId = null;
@@ -531,15 +570,25 @@ async function handleBookingSubmit(event) {
         if (daysMode === "weekend" && (dayOfWeek !== 0 && dayOfWeek !== 6)) continue;
 
         const curDateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        let overlaps = 0;
-        const catLower = (category || "").toLowerCase();
-        const isCoaching = catLower.includes("coaching") || catLower.includes("training") || catLower.includes("advance") || catLower.includes("batch");
-        if (!isCoaching) {
-          existing.forEach(b => {
-            if (curDateStr === b.date && startTime < b.end_time && endTime > b.start_time) overlaps++;
-          });
+        // Type-aware conflict check for bulk bookings
+        const dayOverlapping = existing.filter(b => b.date === curDateStr && startTime < b.end_time && endTime > b.start_time);
+        let skipDay = false;
+        if (type === "Coaching") {
+          // Coaching: no limit
+        } else if (type === "Advance Training" || type === "Spot booking" || type === "Personal training") {
+          // Exclusive: skip if any overlap
+          if (dayOverlapping.length > 0) skipDay = true;
+        } else if (type === "Members") {
+          // Max 6 members per slot
+          const memberOverlaps = dayOverlapping.filter(b => b.booking_type === "Members");
+          if (memberOverlaps.length >= 6) skipDay = true;
+          // Also skip if exclusive booking exists
+          if (dayOverlapping.some(b => b.booking_type === "Spot booking" || b.booking_type === "Advance Training" || b.booking_type === "Personal training")) skipDay = true;
+        } else if (type === "Group/Lease") {
+          // No member count restriction, but skip if exclusive booking exists
+          if (dayOverlapping.some(b => b.booking_type === "Spot booking" || b.booking_type === "Advance Training" || b.booking_type === "Personal training")) skipDay = true;
         }
-        if (overlaps >= 2) { skipped++; continue; }
+        if (skipDay) { skipped++; continue; }
         const newBookingRef = doc(collection(db, "bookings"));
         if (!firstBookingId) firstBookingId = newBookingRef.id;
 

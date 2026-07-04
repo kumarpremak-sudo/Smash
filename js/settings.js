@@ -41,10 +41,11 @@ async function loadAcademies() {
       
       let adminEmail = "No Admin Associated";
       try {
-        const uq = query(collection(db, "users"), where("academyId", "==", d.id), where("role", "==", "TENANT_ADMIN"));
+        const uq = query(collection(db, "users"), where("academyId", "==", d.id));
         const usnap = await getDocs(uq);
         if (!usnap.empty) {
-          adminEmail = usnap.docs[0].data().email;
+          const adminDoc = usnap.docs.find(ud => ud.data().role === "TENANT_ADMIN");
+          if (adminDoc) adminEmail = adminDoc.data().email;
         }
       } catch (e) {
         console.warn("Could not fetch admin email for", d.id);
@@ -181,14 +182,17 @@ async function loadStaff() {
   const list = document.getElementById("staffList");
   list.innerHTML = '<div class="empty-list-msg">Loading staff...</div>';
   try {
-    const q = query(collection(db, "users"), where("academyId", "==", currentUser.academyId), where("role", "==", "STAFF"));
+    const q = query(collection(db, "users"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     list.innerHTML = "";
-    if (snap.empty) {
+    // Filter for STAFF role client-side
+    const staffDocs = [];
+    snap.forEach(d => { if (d.data().role === "STAFF") staffDocs.push(d); });
+    if (staffDocs.length === 0) {
       list.innerHTML = '<div class="empty-list-msg">No staff users configured yet.</div>';
       return;
     }
-    snap.forEach(d => {
+    staffDocs.forEach(d => {
       const staff = d.data();
       const li = document.createElement("li");
       li.className = "whitelist-item";

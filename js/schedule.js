@@ -140,11 +140,17 @@ async function loadDailyGrid() {
     delete cell.dataset.bookingId;
   });
   try {
-    const q = query(collection(db, "bookings"), where("date", "==", dateStr), where("academyId", "==", currentUser.academyId));
+    // Query by academyId only (auto-indexed), filter date client-side
+    const q = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     dailyBookings = [];
-    snap.forEach(d => dailyBookings.push({ id: d.id, ...d.data() }));
-  } catch (error) { dailyBookings = []; }
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.date === dateStr) {
+        dailyBookings.push({ id: d.id, ...data });
+      }
+    });
+  } catch (error) { console.error("Schedule query failed:", error); dailyBookings = []; }
 
   const tbody = document.getElementById("matrix-body");
   if (tbody.children.length === 0) {
@@ -249,23 +255,41 @@ async function renderModalEnrolleesList(bookingId) {
   if (!ul || !db) return;
   ul.innerHTML = '<li class="text-muted" style="list-style:none;">Loading...</li>';
   try {
-    const q = query(collection(db, "members"), where("bookingId", "==", bookingId), where("academyId", "==", currentUser.academyId));
+    // Query by academyId only (auto-indexed), filter bookingId client-side
+    const q = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     ul.innerHTML = "";
     let activeCount = 0;
     const isGuest = currentUser && currentUser.isAnonymous;
     snap.forEach(d => {
       const data = d.data();
+      if (data.bookingId !== bookingId) return; // Client-side filter
       if (data.status !== "active") return;
       activeCount++;
       const member = { id: d.id, ...data };
-      const plan = planLabels[member.type] || { name: member.type, color: "var(--accent4)", bg: "rgba(77,171,247,0.12)" };
+      // Resolve plan display name from tenantSettings
+      let planName = member.type || "Unknown";
+      let planColor = "var(--accent4)";
+      let planBg = "rgba(77,171,247,0.12)";
+      if (tenantSettings) {
+        if (tenantSettings.membership_programs) {
+          const mp = tenantSettings.membership_programs.find(x => x.key === member.type);
+          if (mp) { planName = mp.type + " - " + mp.duration_days; planColor = "var(--accent)"; planBg = "rgba(0,212,169,0.12)"; }
+        }
+        if (planName === member.type && tenantSettings.fee_structure) {
+          for (const prog of tenantSettings.fee_structure) {
+            const v = (prog.pricing_variants || []).find(x => x.key === member.type);
+            if (v) { planName = prog.program_name + " - " + v.frequency; planColor = "var(--accent3)"; planBg = "rgba(255,107,107,0.12)"; break; }
+          }
+        }
+      }
+      if (planName === member.type && member.type) { planName = member.type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
       const li = document.createElement("li");
       li.className = "enrollee-list-item"; li.style.marginBottom = "0.5rem";
       
       const removeBtnHtml = isGuest ? '' : `<button class="btn-remove-enrollee" title="Remove ${escapeHTML(member.name)}">&times;</button>`;
       
-      li.innerHTML = `<div class="enrollee-list-item-info"><span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${escapeHTML(member.lastPaidDate)}</span></span></div><div style="display:flex;align-items:center;gap:0.8rem;"><span style="font-size:0.65rem;background:${plan.bg};color:${plan.color};border:1px solid ${plan.color}35;padding:1px 8px;border-radius:99px;font-weight:600;">${plan.name}</span>${removeBtnHtml}</div>`;
+      li.innerHTML = `<div class="enrollee-list-item-info"><span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${escapeHTML(member.lastPaidDate)}</span></span></div><div style="display:flex;align-items:center;gap:0.8rem;"><span style="font-size:0.65rem;background:${planBg};color:${planColor};border:1px solid ${planColor}35;padding:1px 8px;border-radius:99px;font-weight:600;">${planName}</span>${removeBtnHtml}</div>`;
       
       if (!isGuest) {
         li.querySelector(".btn-remove-enrollee").addEventListener("click", async () => {
@@ -370,7 +394,7 @@ async function handleQuickBookingSubmit(event) {
   if (startTime >= endTime) { showMsg("modalMessage", "End time must be after start time.", "error"); btn.disabled = false; return; }
   try {
     if (!currentUser) throw new Error("You must be signed in.");
-    const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, category);
+    const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, bookingType, category);
     if (conflictError) throw new Error(conflictError);
     await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, booking_type: bookingType, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
     showMsg("modalMessage", "Quick reservation confirmed!", "success");

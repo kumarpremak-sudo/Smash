@@ -1,0 +1,156 @@
+# Architecture Audit: Dynamic Forms, Data Flow & Multi-Tenancy
+
+## 1. ✅ Dynamic Form Population from Programs Tab
+
+**Yes, the "Reserve a Court" form is fully dynamic.** Here's the exact flow:
+
+```mermaid
+graph LR
+    A["Programs Tab<br/>(programs.js)"] -->|"Saves to Firestore"| B["academies/{academyId}<br/>(tenantSettings)"]
+    B -->|"loadTenantSettings()"| C["shared.js<br/>(in-memory tenantSettings)"]
+    C -->|"getBookingHierarchy()"| D["Booking Type → Category → Period<br/>dropdown hierarchy"]
+    D -->|"populateBookingDropdowns()"| E["Reserve a Court Form<br/>(dashboard.html)"]
+```
+
+### How each program type maps to the form:
+
+| Programs Tab Section | tenantSettings key | Reserve a Court → Booking Type | Category Dropdown |
+|---|---|---|---|
+| Membership Programs (Individual) | `membership_programs` (type=Individual) | **Members** | Individual |
+| Membership Programs (Group) | `membership_programs` (type=Group) | **Group/Lease** | Group Members |
+| Spot Booking & Hourly Slots | `hourly_slots` | **Spot booking** / **Guest Play** | Hourly Slot / Peak/Non-Peak |
+| Coaching Schedule (Kids/Women/Adults) | `coaching_schedule` | **Coaching** | Kids / Women / Adults |
+| Coaching Schedule (Advance Batch) | `coaching_schedule` (category includes "advance") | **Advance Training** | 3 Session |
+| Fee Structure (Personal Training) | `fee_structure` (name includes "personal training") | **Personal training** | Private Coaching |
+
+### Code Evidence:
+- [getBookingHierarchy()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L110-L174) — reads from `tenantSettings` and builds the hierarchy
+- [populateBookingDropdowns()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L176-L189) — populates the Type dropdown from hierarchy
+- [populateCategoryDropdown()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L248-L261) — cascading Category dropdown
+- [populatePeriodDropdown()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L263) — cascading Period dropdown
+
+**When a tenant modifies their programs**, they click "Save All" on the Programs page → it writes to `academies/{academyId}` in Firestore → next time they open the Dashboard, `loadTenantSettings()` fetches the updated data → `getBookingHierarchy()` rebuilds the dropdown options → the Reserve a Court form reflects the changes.
+
+---
+
+## 2. ✅ Reserve a Court → Members UI Page Data Flow
+
+**Yes, data flows from Reserve a Court to the Members page.** Here's the flow:
+
+```mermaid
+graph TD
+    A["Reserve a Court Form<br/>(handleBookingSubmit)"] --> B{"Booking Type?"}
+    B -->|"Spot booking / Guest Play"| C["Creates booking only<br/>(no member record)"]
+    B -->|"Members / Group/Lease /<br/>Coaching / Advance Training"| D["Creates booking docs<br/>for each day of month"]
+    D --> E["Auto-creates member doc<br/>in 'members' collection"]
+    B -->|"Personal training"| F["Creates single booking<br/>+ member doc"]
+    E --> G["Members UI Page<br/>(members.js)"]
+    F --> G
+    G --> H["getPlanDetails(planKey)<br/>resolves name + fee"]
+```
+
+### What gets stored in the `members` collection:
+
+| Field | Value | Source |
+|---|---|---|
+| `name` | Customer name | Form input |
+| `type` | Plan key (e.g. `Individual_5Days`) | `resolvePlanKey()` matches against `tenantSettings` |
+| `joinDate` | Today's date | Auto-generated |
+| `lastPaidDate` | Today's date | Auto-generated |
+| `bookingId` | First booking document ID | From the batch write |
+| `status` | "active" | Default |
+| `academyId` | Current user's academy ID | From `currentUser.academyId` |
+
+### Members Page reads this data:
+- [loadMembers()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L369-L381) — queries `members` collection filtered by `academyId`
+- [getPlanDetails()](file:///c:/Users/Admin/Documents/POC/Badminton/js/members.js#L111-L144) — resolves `planKey` back to a human-readable name + monthly fee by looking up against `tenantSettings`
+- [renderMembersTable()](file:///c:/Users/Admin/Documents/POC/Badminton/js/members.js#L87-L109) — displays member data with plan name, fee due status, and payment tracking
+
+### Code Evidence:
+- [Auto-enrollment for recurring plans](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js#L601-L615) — `addDoc(collection(db, "members"), {...})`
+- [Auto-enrollment for Personal Training](file:///c:/Users/Admin/Documents/POC/Badminton/js/dashboard.js#L520-L534)
+
+---
+
+## 3. ✅ Multi-Tenancy Isolation
+
+**Yes, tenant data is isolated.** The isolation happens at **three layers**:
+
+### Layer 1: User → Academy Binding
+Each user document in `users/{email}` contains:
+```json
+{ "email": "user@example.com", "role": "TENANT_ADMIN", "academyId": "academy_xyz_123" }
+```
+At login, [checkUserAccess()](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js#L445-L536) sets `currentUser.academyId` from the user document.
+
+### Layer 2: Data Scoping (Every Query Uses academyId)
+**Every single Firestore query** filters by `academyId`:
+
+| Collection | Query Pattern |
+|---|---|
+| `bookings` | `where("academyId", "==", currentUser.academyId)` |
+| `members` | `where("academyId", "==", currentUser.academyId)` |
+| `courts` | `where("academyId", "==", currentUser.academyId)` |
+| `academies` | Direct doc read: `doc(db, "academies", currentUser.academyId)` |
+
+**Every write** stamps the document with `academyId: currentUser.academyId`:
+```js
+// Example from handleBookingSubmit:
+{ booking_type: type, court_id: courtId, ..., academyId: currentUser.academyId }
+```
+
+### Layer 3: Firestore Security Rules (Server-Side Enforcement)
+The [firestore.rules](file:///c:/Users/Admin/Documents/POC/Badminton/firestore.rules) enforce isolation at the database level:
+
+```
+function hasAcademyAccess(targetAcademyId) {
+  return isAuthenticated() && (
+    (isGuest() && targetAcademyId == 'demo_' + request.auth.uid) ||
+    (!isGuest() && getUserData().academyId == targetAcademyId)
+  );
+}
+```
+
+Every collection rule uses this function:
+```
+match /bookings/{bookingId} {
+  allow read:   if hasAcademyAccess(resource.data.get('academyId', ''));
+  allow create: if hasAcademyAccess(request.resource.data.get('academyId', ''));
+  allow update, delete: if hasAcademyAccess(resource.data.get('academyId', ''));
+}
+```
+
+> [!IMPORTANT]
+> This means even if someone tries to bypass the UI and directly query Firestore, **they can only read/write documents that belong to their own academy**. Tenant A cannot see Tenant B's bookings, members, or settings.
+
+### Isolation Diagram:
+
+```mermaid
+graph TB
+    subgraph "Tenant A (academy_abc)"
+        A1["Settings/Programs"]
+        A2["Bookings"]
+        A3["Members"]
+        A4["Courts"]
+    end
+    subgraph "Tenant B (academy_xyz)"
+        B1["Settings/Programs"]
+        B2["Bookings"]
+        B3["Members"]
+        B4["Courts"]
+    end
+    C["Firestore Security Rules"] -->|"academyId == user.academyId"| A1
+    C -->|"academyId == user.academyId"| B1
+    A1 -.->|"❌ Cannot access"| B2
+    B1 -.->|"❌ Cannot access"| A2
+```
+
+---
+
+## Summary
+
+| Question | Answer | How |
+|---|---|---|
+| Dynamic form from Programs? | ✅ **Yes** | `getBookingHierarchy()` reads `tenantSettings` → populates all 3 cascading dropdowns |
+| Reserve a Court → Members page? | ✅ **Yes** | Auto-enrolls member doc on booking → Members page reads via `getPlanDetails()` |
+| Multi-tenant isolation? | ✅ **Yes, 3 layers** | User binding + query scoping + Firestore security rules |
