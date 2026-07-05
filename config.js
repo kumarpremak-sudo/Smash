@@ -1,10 +1,10 @@
 // Firebase Configuration placeholders
 // Replaced dynamically during GitHub Actions deployment
 window.FIREBASE_CONFIG = {
-  apiKey: "__FIREBASE_API_KEY__",
-  authDomain: "__FIREBASE_AUTH_DOMAIN__",
-  projectId: "__FIREBASE_PROJECT_ID__",
-  storageBucket: "__FIREBASE_STORAGE_BUCKET__",
-  messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
-  appId: "__FIREBASE_APP_ID__"
+  apiKey: "AIzaSyCC9WBVMU172J_YGKxtpIhL2z726b_OKwY",
+  authDomain: "yesmash-2303e.firebaseapp.com",
+  projectId: "yesmash-2303e",
+  storageBucket: "yesmash-2303e.firebasestorage.app",
+  messagingSenderId: "268447651551",
+  appId: "1:268447651551:web:dfc38830979dfacad33b6a"
 };
