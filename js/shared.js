@@ -446,8 +446,8 @@ export async function loadTenantSettings() {
 
       // Check for missing mandatory onboarding fields (contact numbers are required)
       if (!tenantSettings.contact_numbers || tenantSettings.contact_numbers.length === 0) {
-        if (!window.location.pathname.endsWith("dashboard.html")) {
-          window.location.href = "dashboard.html";
+        if (!window.location.pathname.includes("dashboard")) {
+          window.location.href = "/dashboard";
           return;
         }
         document.dispatchEvent(new Event('setup_required'));
@@ -456,8 +456,8 @@ export async function loadTenantSettings() {
     } else {
       // First-time login: missing settings
       tenantSettings = null;
-      if (!window.location.pathname.endsWith("dashboard.html")) {
-        window.location.href = "dashboard.html";
+      if (!window.location.pathname.includes("dashboard")) {
+        window.location.href = "/dashboard";
         return;
       }
       document.dispatchEvent(new Event('setup_required'));
