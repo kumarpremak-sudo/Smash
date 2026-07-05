@@ -165,8 +165,8 @@ export function getBookingHierarchy() {
   if (tenantSettings.coaching_schedule) {
     tenantSettings.coaching_schedule.forEach(c => {
       const type = c.category.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
-      const cat = type === "Advance Training" ? "3 Session" : c.category; 
-      
+      const cat = type === "Advance Training" ? "3 Session" : c.category;
+
       // Only add periods from the schedule if this category has NO fee structure defined
       const hasFee = tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
       if (!hasFee) {
@@ -180,7 +180,7 @@ export function getBookingHierarchy() {
     tenantSettings.fee_structure.forEach(f => {
       const pName = f.program_name || "";
       const pLower = pName.toLowerCase();
-      
+
       let type, cat;
       if (pLower.includes("personal training")) {
         type = "Personal training";
@@ -195,7 +195,7 @@ export function getBookingHierarchy() {
         type = "Coaching";
         cat = pName.replace(/coaching/i, "").trim() || pName;
       }
-      
+
       if (f.pricing_variants && f.pricing_variants.length > 0) {
         f.pricing_variants.forEach(p => {
           addNode(type, cat, p.frequency);
@@ -589,13 +589,13 @@ export function isStaff(user) {
 export function parseDays(text) {
   if (!text) return [0, 1, 2, 3, 4, 5, 6];
   const t = text.toLowerCase();
-  
+
   if (t.includes("weekend")) return [0, 6];
   if (t.includes("weekday")) return [1, 2, 3, 4, 5];
 
   const days = [];
   const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-  
+
   // Check for ranges like "monday - wednesday" or "mon to wed"
   const rangeMatch = t.match(/(sun|mon|tue|wed|thu|fri|sat)[a-z]*\s*(?:-|to)\s*(sun|mon|tue|wed|thu|fri|sat)[a-z]*/);
   if (rangeMatch) {
@@ -613,9 +613,9 @@ export function parseDays(text) {
       if (t.includes(d)) days.push(idx);
     });
   }
-  
+
   if (days.length > 0) return [...new Set(days)];
-  
+
   // Fallbacks for common generic period names (when specific days aren't named)
   if (t.includes("7 day") || t.includes("7-day") || t.includes("seven day")) return [0, 1, 2, 3, 4, 5, 6];
   if (t.includes("6 day") || t.includes("6-day") || t.includes("six day")) return [1, 2, 3, 4, 5, 6]; // Mon-Sat
@@ -624,7 +624,7 @@ export function parseDays(text) {
   if (t.includes("3 day") || t.includes("3-day") || t.includes("three day")) return [1, 3, 5]; // Mon, Wed, Fri
   if (t.includes("2 day") || t.includes("2-day") || t.includes("two day")) return [1, 2]; // Mon, Tue
   if (t.includes("1 day") || t.includes("1-day") || t.includes("one day")) return [0]; // Sunday default
-  
+
   return [0, 1, 2, 3, 4, 5, 6];
 }
 
@@ -658,7 +658,7 @@ export async function checkBookingConflicts(courtId, dateStr, startTime, endTime
     }
 
     // Check if any exclusive booking already holds this slot
-    const hasExclusive = overlapping.some(b => 
+    const hasExclusive = overlapping.some(b =>
       b.booking_type === "Spot booking" || b.booking_type === "Advance Training" || b.booking_type === "Personal training"
     );
     if (hasExclusive) {
