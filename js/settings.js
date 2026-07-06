@@ -149,7 +149,15 @@ async function handleCreateAcademy(e) {
   const academyName = nameInput.value.trim();
   const adminEmail = emailInput.value.trim().toLowerCase();
   
-  if (!academyName || !adminEmail.includes("@")) return;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!academyName) {
+    showMsg("settingsMessage", "Please enter an academy name.", "error");
+    return;
+  }
+  if (!emailRegex.test(adminEmail)) {
+    showMsg("settingsMessage", "Please enter a valid admin email address.", "error");
+    return;
+  }
 
   try {
     // 1. Create Academy
@@ -338,7 +346,12 @@ async function handleEditStaff(oldEmail, liEl) {
   
   liEl.querySelector(".btn-save-edit").addEventListener("click", async () => {
     const newEmail = inputEl.value.trim().toLowerCase();
-    if (!newEmail || !newEmail.includes("@") || newEmail === oldEmail) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      showInlineToast("Please enter a valid email address.", "error");
+      return;
+    }
+    if (newEmail === oldEmail) {
       liEl.innerHTML = originalHtml;
       liEl.querySelector(".btn-edit-staff").addEventListener("click", () => handleEditStaff(oldEmail, liEl));
       liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(oldEmail, liEl));
@@ -380,7 +393,11 @@ async function handleAddStaff(e) {
   const emailInput = document.getElementById("newStaffEmail");
   const staffEmail = emailInput.value.trim().toLowerCase();
   
-  if (!staffEmail || !staffEmail.includes("@")) return;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(staffEmail)) {
+    showMsg("settingsMessage", "Please enter a valid staff email address.", "error");
+    return;
+  }
 
   try {
     await setDoc(doc(db, "users", staffEmail), {

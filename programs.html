@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SMash | Programs & Coaching</title>
-  <meta name="description" content="Explore badminton membership programs, coaching schedules, and compute fee estimations." />
+  <meta name="description"
+    content="Explore badminton membership programs, coaching schedules, and compute fee estimations." />
   <link rel="stylesheet" href="css/base.css" />
   <link rel="stylesheet" href="css/layout.css" />
   <link rel="stylesheet" href="css/components.css" />
@@ -12,6 +14,7 @@
   <script src="config.js?v=1.2"></script>
   <script src="config.local.js" onerror="this.remove()"></script>
 </head>
+
 <body>
   <div class="app-container">
 
@@ -46,26 +49,33 @@
     <!-- ══ PROGRAMS & FEES ═══════════════════════════════════ -->
     <div class="page-content hidden">
 
-      <div class="programs-header-row" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1rem;">
+      <div class="programs-header-row"
+        style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1rem;">
         <div class="page-header" style="margin-bottom:0">
           <h2>Manage <span>Programs & Fees</span></h2>
-          <div class="page-header-sub">Configure your academy's membership programs, coaching schedules, and pricing.</div>
+          <div class="page-header-sub">Configure your academy's membership programs, coaching schedules, and pricing.
+          </div>
         </div>
         <div style="display:flex; gap:1rem; align-items:center;">
-          <div class="prog-card-badge" style="padding: 0.6rem 1.2rem; font-size: 0.8rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text);">
-            Court Count: <span id="courtCountValue" style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--accent); margin-left:0.4rem;">0</span>
+          <div class="prog-card-badge"
+            style="padding: 0.6rem 1.2rem; font-size: 0.8rem; background: var(--surface2); border: 1px solid var(--border); color: var(--text);">
+            Court Count: <span id="courtCountValue"
+              style="font-family:var(--font-mono); font-size:1.1rem; font-weight:800; color:var(--accent); margin-left:0.4rem;">0</span>
           </div>
-          <button class="btn btn-primary" id="btnSavePrograms" style="padding:0.75rem 1.5rem; font-weight:600;">💾 Save All Changes</button>
+          <button class="btn btn-primary" id="btnSavePrograms" style="padding:0.75rem 1.5rem; font-weight:600;">💾 Save
+            All Changes</button>
         </div>
       </div>
-      
+
       <div id="programsSaveMsg" class="message hidden" style="margin-top:1rem;"></div>
-      
+
       <!-- Operating Hours Config -->
-      <div class="programs-section" style="background: var(--surface2); padding: 1.5rem; border-radius: var(--radius-md); margin-top: 1rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
+      <div class="programs-section"
+        style="background: var(--surface2); padding: 1.5rem; border-radius: var(--radius-md); margin-top: 1rem; display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
         <div>
           <h3 class="prog-section-title" style="margin-bottom:0.25rem;">Academy Operating Hours</h3>
-          <p style="color:var(--muted); font-size:0.85rem; margin:0;">Define the standard opening and closing times. (Used for booking dropdowns)</p>
+          <p style="color:var(--muted); font-size:0.85rem; margin:0;">Define the standard opening and closing times.
+            (Used for booking dropdowns)</p>
         </div>
         <div style="display: flex; gap: 1rem; align-items: center;">
           <div class="form-group" style="margin:0;">
@@ -91,22 +101,26 @@
       <div id="tab-memberships" class="prog-view active">
         <!-- Membership Programs -->
         <div class="programs-section">
-          <div class="section-header-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+          <div class="section-header-flex"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
             <h3 class="prog-section-title" style="margin-bottom:0;">Membership Programs</h3>
             <button class="btn btn-primary btn-sm" id="btnAddMembership">+ Add</button>
           </div>
-          <div id="membershipsGrid" class="cards-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem;">
+          <div id="membershipsGrid" class="cards-grid"
+            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem;">
             <!-- Rendered by JS -->
           </div>
         </div>
 
         <!-- Hourly Slots -->
         <div class="programs-section" style="margin-top: 3rem;">
-          <div class="section-header-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+          <div class="section-header-flex"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
             <h3 class="prog-section-title" style="margin-bottom:0;">Spot Booking & Hourly Slots</h3>
             <button class="btn btn-primary btn-sm" id="btnAddHourly">+ Add</button>
           </div>
-          <div id="hourlyGrid" class="cards-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem;">
+          <div id="hourlyGrid" class="cards-grid"
+            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem;">
             <!-- Rendered by JS -->
           </div>
         </div>
@@ -115,11 +129,13 @@
       <!-- Tab Content: Coaching Schedule -->
       <div id="tab-coaching" class="prog-view">
         <div class="programs-section">
-          <div class="section-header-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+          <div class="section-header-flex"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
             <h3 class="prog-section-title" style="margin-bottom:0;">Training Schedules & Batches</h3>
             <button class="btn btn-primary btn-sm" id="btnAddCoaching">+ Add Batch</button>
           </div>
-          <div id="coachingGrid" class="cards-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
+          <div id="coachingGrid" class="cards-grid"
+            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem;">
             <!-- Rendered by JS -->
           </div>
         </div>
@@ -128,7 +144,8 @@
       <!-- Tab Content: Fee Structure -->
       <div id="tab-fees" class="prog-view">
         <div class="programs-section">
-          <div class="section-header-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+          <div class="section-header-flex"
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
             <h3 class="prog-section-title" style="margin-bottom:0;">Coaching Fee Structure</h3>
             <button class="btn btn-primary btn-sm" id="btnAddFeePlan">+ Add Plan</button>
           </div>
@@ -163,12 +180,18 @@
         <div class="modal-body-section">
           <form id="membershipForm">
             <input type="hidden" id="memKey" />
-            <div class="form-group"><label>Type</label><select id="memType" required><option value="Individual">Individual</option><option value="Group">Group</option></select></div>
+            <div class="form-group"><label>Type</label><select id="memType" required>
+                <option value="Individual">Individual</option>
+                <option value="Group">Group</option>
+              </select></div>
             <div class="form-row">
-              <div class="form-group"><label>Duration Name (e.g. 5 Days)</label><input type="text" id="memDuration" required /></div>
-              <div class="form-group"><label>Days (e.g. Mon - Fri)</label><input type="text" id="memDays" required /></div>
+              <div class="form-group"><label>Duration Name (e.g. 5 Days)</label><input type="text" id="memDuration"
+                  required /></div>
+              <div class="form-group"><label>Days (e.g. Mon - Fri)</label><input type="text" id="memDays" required />
+              </div>
             </div>
-            <div class="form-group"><label>Monthly Fee (₹)</label><input type="number" id="memFee" min="0" required /></div>
+            <div class="form-group"><label>Monthly Fee (₹)</label><input type="number" id="memFee" min="0" required />
+            </div>
             <div class="form-group"><label>Notes (Optional)</label><input type="text" id="memNotes" /></div>
             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Save Membership</button>
           </form>
@@ -186,10 +209,13 @@
         <div class="modal-body-section">
           <form id="hourlyForm">
             <input type="hidden" id="hourIndex" />
-            <div class="form-group"><label>Type (e.g. Peak Hours)</label><input type="text" id="hourType" required /></div>
+            <div class="form-group"><label>Type (e.g. Peak Hours)</label><input type="text" id="hourType" required />
+            </div>
             <div class="form-row">
-              <div class="form-group"><label>Rate (₹)</label><input type="number" id="hourRate" min="0" required /></div>
-              <div class="form-group"><label>Unit (e.g. per hour)</label><input type="text" id="hourUnit" required /></div>
+              <div class="form-group"><label>Rate (₹)</label><input type="number" id="hourRate" min="0" required />
+              </div>
+              <div class="form-group"><label>Unit (e.g. per hour)</label><input type="text" id="hourUnit" required />
+              </div>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Save Slot</button>
           </form>
@@ -208,12 +234,15 @@
           <form id="coachingForm">
             <input type="hidden" id="coachIndex" />
             <div class="form-row">
-              <div class="form-group"><label>Category (e.g. Kids)</label><input type="text" id="coachCat" required /></div>
-              <div class="form-group"><label>Days/Wk (e.g. 5 Days/wk)</label><input type="text" id="coachDays" required /></div>
+              <div class="form-group"><label>Category (e.g. Kids)</label><input type="text" id="coachCat" required />
+              </div>
+              <div class="form-group"><label>Days/Wk (e.g. 5 Days/wk)</label><input type="text" id="coachDays"
+                  required /></div>
             </div>
             <div class="form-group">
               <label>Timing Slots</label>
-              <div id="timingSlotsContainer" style="margin-bottom:0.5rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
+              <div id="timingSlotsContainer"
+                style="margin-bottom:0.5rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
               <button type="button" class="btn btn-sm btn-outline" id="btnAddTimingSlot">+ Add Time Slot</button>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Save Batch</button>
@@ -232,11 +261,14 @@
         <div class="modal-body-section">
           <form id="feeForm">
             <input type="hidden" id="feeIndex" />
-            <div class="form-group"><label>Program Name (e.g. Kids Coaching)</label><input type="text" id="feeProgram" required /></div>
+            <div class="form-group"><label>Program Name (e.g. Kids Coaching)</label><input type="text" id="feeProgram"
+                required /></div>
             <div class="form-group">
               <label>Pricing Variants</label>
-              <div id="pricingVariantsContainer" style="margin-bottom:0.5rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
-              <button type="button" class="btn btn-sm btn-outline" id="btnAddPricingVariant">+ Add Pricing Variant</button>
+              <div id="pricingVariantsContainer"
+                style="margin-bottom:0.5rem; display:flex; flex-direction:column; gap:0.5rem;"></div>
+              <button type="button" class="btn btn-sm btn-outline" id="btnAddPricingVariant">+ Add Pricing
+                Variant</button>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:1rem;">Save Fee Plan</button>
           </form>
@@ -251,11 +283,13 @@
         <a href="schedule.html" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
         <a href="members.html" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
         <a href="programs.html" class="bottom-nav-item active"><span class="nav-icon">📋</span>Programs</a>
-        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span class="nav-icon">⚙️</span>Settings</a>
+        <a href="settings.html" class="bottom-nav-item" id="bottomNavSettings"><span
+            class="nav-icon">⚙️</span>Settings</a>
       </div>
     </nav>
 
   </div>
   <script type="module" src="js/programs.js"></script>
 </body>
+
 </html>
