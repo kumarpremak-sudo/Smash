@@ -267,7 +267,15 @@ async function loadStaff() {
       const staff = d.data();
       const li = document.createElement("li");
       li.className = "whitelist-item";
-      li.innerHTML = `<span class="whitelist-item-email">${escapeHTML(staff.email)}</span>`;
+      li.innerHTML = `
+        <span class="whitelist-item-email">${escapeHTML(staff.email)}</span>
+        <div class="whitelist-actions" style="display:flex; gap:0.5rem; margin-left:auto;">
+          <button class="btn-edit-staff" style="background:none; border:none; cursor:pointer; color:var(--text); font-size:1rem;" title="Edit Staff">✎</button>
+          <button class="btn-remove-whitelist" title="Delete Staff">&times;</button>
+        </div>
+      `;
+      li.querySelector(".btn-edit-staff").addEventListener("click", () => handleEditStaff(staff.email, li));
+      li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(staff.email, li));
       list.appendChild(li);
     });
   } catch (error) {
@@ -275,6 +283,95 @@ async function loadStaff() {
     list.innerHTML = `<div class="empty-list-msg" style="color:var(--accent2)">Error loading staff.</div>`;
   }
 }
+
+async function handleDeleteStaff(staffEmail, liEl) {
+  if (!isTenantAdmin(currentUser)) return;
+  
+  const originalHtml = liEl.innerHTML;
+  liEl.innerHTML = `
+    <div class="fee-confirm-wrap" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+      <span class="fee-confirm-text" style="font-size: 0.8rem; font-weight: 600; color: var(--accent2);">Delete ${escapeHTML(staffEmail)}?</span>
+      <div class="fee-confirm-btns" style="display: flex; gap: 0.4rem;">
+        <button class="btn-confirm-yes" style="padding: 2px 8px; font-size: 0.75rem; background: var(--accent2); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer;">✓ Yes</button>
+        <button class="btn-confirm-no" style="padding: 2px 8px; font-size: 0.75rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">✕ No</button>
+      </div>
+    </div>
+  `;
+  liEl.querySelector(".btn-confirm-no").addEventListener("click", () => {
+    liEl.innerHTML = originalHtml;
+    liEl.querySelector(".btn-edit-staff").addEventListener("click", () => handleEditStaff(staffEmail, liEl));
+    liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(staffEmail, liEl));
+  });
+  liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
+    liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Deleting...</span>';
+    try {
+      await deleteDoc(doc(db, "users", staffEmail));
+      showInlineToast(`Deleted staff ${staffEmail}.`, "success");
+      await loadStaff();
+    } catch (error) {
+      showInlineToast(`Failed to delete: ${error.message}`, "error");
+      await loadStaff();
+    }
+  });
+}
+
+async function handleEditStaff(oldEmail, liEl) {
+  if (!isTenantAdmin(currentUser)) return;
+  
+  const originalHtml = liEl.innerHTML;
+  liEl.innerHTML = `
+    <div style="display:flex; gap:0.5rem; width:100%; align-items:center;">
+      <input type="email" class="edit-staff-input" value="${escapeHTML(oldEmail)}" style="flex:1; padding:0.25rem 0.5rem; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2); color:var(--text);" />
+      <button class="btn-save-edit" style="padding: 2px 8px; font-size: 0.75rem; background: var(--primary); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer;">Save</button>
+      <button class="btn-cancel-edit" style="padding: 2px 8px; font-size: 0.75rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">Cancel</button>
+    </div>
+  `;
+  
+  const inputEl = liEl.querySelector(".edit-staff-input");
+  inputEl.focus();
+  
+  liEl.querySelector(".btn-cancel-edit").addEventListener("click", () => {
+    liEl.innerHTML = originalHtml;
+    liEl.querySelector(".btn-edit-staff").addEventListener("click", () => handleEditStaff(oldEmail, liEl));
+    liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(oldEmail, liEl));
+  });
+  
+  liEl.querySelector(".btn-save-edit").addEventListener("click", async () => {
+    const newEmail = inputEl.value.trim().toLowerCase();
+    if (!newEmail || !newEmail.includes("@") || newEmail === oldEmail) {
+      liEl.innerHTML = originalHtml;
+      liEl.querySelector(".btn-edit-staff").addEventListener("click", () => handleEditStaff(oldEmail, liEl));
+      liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(oldEmail, liEl));
+      return;
+    }
+    
+    liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Saving...</span>';
+    try {
+      // 1. Get old staff doc
+      const oldDocRef = doc(db, "users", oldEmail);
+      const oldDocSnap = await getDoc(oldDocRef);
+      if (!oldDocSnap.exists()) throw new Error("Staff user not found.");
+      
+      const staffData = oldDocSnap.data();
+      staffData.email = newEmail;
+      
+      const batch = writeBatch(db);
+      // 2. Create new doc
+      batch.set(doc(db, "users", newEmail), staffData);
+      // 3. Delete old doc
+      batch.delete(oldDocRef);
+      
+      await batch.commit();
+      
+      showInlineToast(`Updated staff email.`, "success");
+      await loadStaff();
+    } catch (error) {
+      showInlineToast(`Failed to update: ${error.message}`, "error");
+      await loadStaff();
+    }
+  });
+}
+
 
 async function handleAddStaff(e) {
   e.preventDefault();
