@@ -165,7 +165,7 @@ export function getBookingHierarchy() {
   if (tenantSettings.coaching_schedule) {
     tenantSettings.coaching_schedule.forEach(c => {
       const type = c.category.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
-      const cat = type === "Advance Training" ? "3 Session" : c.category;
+      const cat = c.category;
 
       // Only add periods from the schedule if this category has NO fee structure defined
       const hasFee = tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
@@ -184,16 +184,16 @@ export function getBookingHierarchy() {
       let type, cat;
       if (pLower.includes("personal training")) {
         type = "Personal training";
-        cat = "Private Coaching";
+        cat = pName;
       } else if (pLower.includes("advance")) {
         type = "Advance Training";
-        cat = "3 Session";
+        cat = pName;
       } else if (pLower.includes("tournament")) {
         type = "Tournament";
         cat = pName;
       } else {
         type = "Coaching";
-        cat = pName.replace(/coaching/i, "").trim() || pName;
+        cat = pName;
       }
 
       if (f.pricing_variants && f.pricing_variants.length > 0) {
