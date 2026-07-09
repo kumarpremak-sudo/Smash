@@ -47,9 +47,19 @@
     <div class="page-content hidden">
 
       <div class="page-header">
-        <h2>Members & <span>Fee Management</span></h2>
-        <div class="page-header-sub">Track all enrolled members, monitor fee payments, and manage overdue alerts.</div>
+        <h2>Members & <span>CRM</span></h2>
+        <div class="page-header-sub">Manage active members, track fee payments, and handle prospective leads (enquiries).</div>
       </div>
+
+      <!-- Tabs Navigation -->
+      <div class="members-tabs-bar">
+        <button class="mem-tab-btn active" data-tab="directory">Directory</button>
+        <button class="mem-tab-btn" data-tab="alerts">Payments & Alerts</button>
+        <button class="mem-tab-btn" data-tab="enquiries">Enquiries (Leads)</button>
+      </div>
+
+      <div id="tab-directory" class="mem-view active">
+
 
       <!-- Stats Summary -->
       <div class="stats-grid">
@@ -70,28 +80,8 @@
         </div>
       </div>
 
-      <!-- Fee Alerts Panel -->
-      <div class="section-label">Fee Collection Alerts</div>
-      <div class="fee-alerts-panel">
-        <div class="fee-alerts-header">
-          <h3>🔔 Payment Alerts</h3>
-          <div class="fee-alerts-badges">
-            <span class="fee-badge fee-badge-overdue" id="feeOverdueCount">🔴 <span id="feeOverdueNum">0</span> Overdue</span>
-            <span class="fee-badge fee-badge-upcoming" id="feeUpcomingCount">🟡 <span id="feeUpcomingNum">0</span> Due Soon</span>
-          </div>
-        </div>
-        <div class="fee-filter-tabs">
-          <button class="fee-filter-btn active" data-filter="all">All</button>
-          <button class="fee-filter-btn" data-filter="overdue">Overdue</button>
-          <button class="fee-filter-btn" data-filter="upcoming">Due Soon</button>
-        </div>
-        <div id="feeAlertsList" class="fee-alerts-list">
-          <div class="fee-alerts-empty">🎉 All member fees are fully up to date!</div>
-        </div>
-      </div>
-
-      <!-- Members Table -->
-      <div class="section-label">All Members Directory</div>
+      <!-- Members Table (Moved inside Directory Tab) -->
+      <div class="section-label" style="margin-top: 2rem;">All Members Directory</div>
       <div class="members-toolbar">
         <div class="members-search-wrap">
           <input type="text" id="membersSearchInput" class="members-search-input" placeholder="Search members by name..." />
@@ -122,6 +112,103 @@
         </div>
       </div>
 
+      </div> <!-- End tab-directory -->
+
+      <div id="tab-alerts" class="mem-view">
+
+      <!-- Fee Alerts Panel -->
+      <div class="section-label">Fee Collection Alerts</div>
+      <div class="fee-alerts-panel">
+        <div class="fee-alerts-header">
+          <h3>🔔 Payment Alerts</h3>
+          <div class="fee-alerts-badges">
+            <span class="fee-badge fee-badge-overdue" id="feeOverdueCount">🔴 <span id="feeOverdueNum">0</span> Overdue</span>
+            <span class="fee-badge fee-badge-upcoming" id="feeUpcomingCount">🟡 <span id="feeUpcomingNum">0</span> Due Soon</span>
+          </div>
+        </div>
+        <div class="fee-filter-tabs">
+          <button class="fee-filter-btn active" data-filter="all">All</button>
+          <button class="fee-filter-btn" data-filter="overdue">Overdue</button>
+          <button class="fee-filter-btn" data-filter="upcoming">Due Soon</button>
+        </div>
+        <div id="feeAlertsList" class="fee-alerts-list">
+          <div class="fee-alerts-empty">🎉 All member fees are fully up to date!</div>
+        </div>
+      </div>
+
+      </div> <!-- End tab-alerts -->
+
+
+      <!-- Enquiries Tab -->
+      <div id="tab-enquiries" class="mem-view">
+        <div class="section-header-flex" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+          <h3 style="margin:0;">Active Enquiries</h3>
+          <button class="btn btn-primary btn-sm" id="btnAddEnquiry">+ Add Enquiry</button>
+        </div>
+        <div class="members-table-container">
+          <div class="members-table-scroll">
+            <table class="members-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Enquiry Type</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="enquiriesTableBody">
+                <tr><td colspan="6"><div class="members-empty-state"><p>Loading enquiries...</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Enquiry Modal -->
+    <div id="enquiryModal" class="modal-overlay hidden">
+      <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+        <button class="close-modal" id="closeEnquiryModal" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; font-size: 1.5rem; color: var(--muted); cursor: pointer;">&times;</button>
+        <div class="modal-header-section">
+          <h2>Add New <span>Enquiry</span></h2>
+        </div>
+        <div class="modal-body-section">
+          <form id="enquiryForm">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" id="enqName" required placeholder="Prospect Name" />
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" id="enqPhone" required placeholder="e.g. +91 9876543210" />
+            </div>
+            <div class="form-group">
+              <label>Enquiry Type</label>
+              <select id="enqBookingType" required>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select id="enqBookingCategory" required>
+                <option value="" disabled selected>Select Category</option>
+                <!-- Populated dynamically based on type -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea id="enqNotes" rows="3" placeholder="Any additional context for follow up" style="width: 100%; padding: 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text);"></textarea>
+            </div>
+            <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem;">
+              <button type="button" class="btn btn-outline" id="btnCancelEnquiry">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btnSaveEnquiry">Save Enquiry</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 
     <!-- ══ BOTTOM NAV ════════════════════════════════════════ -->

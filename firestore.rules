@@ -83,6 +83,12 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
     }
 
+    match /enquiries/{enquiryId} {
+      allow read: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.get('academyId', ''));
+      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
+    }
+
     match /configs/{configId} {
       allow read: if configId == 'auth' || isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
       allow write: if isSuperAdmin() || isTenantAdmin(resource.data.get('academyId', '')) || isTenantAdmin(request.resource.data.get('academyId', ''));

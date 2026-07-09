@@ -3,8 +3,10 @@ import {
   db, currentUser, membersList, tenantSettings, defaultSettings, escapeHTML,
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
-  collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp
+  collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp,
+  populateBookingDropdowns, populateCategoryDropdown
 } from "./shared.js";
+import { addDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 let currentFeeFilter = "all";
 let currentSearchTerm = "";
@@ -39,6 +41,10 @@ setOnAuthReady(async () => {
   renderMembersTable();
   renderFeeAlerts();
   renderMemberStats();
+
+  setupTabs();
+  setupEnquiries();
+  loadEnquiries();
 });
 
 function setupMembersListeners() {
@@ -433,4 +439,161 @@ if (document.readyState === 'loading') {
   document.addEventListener("DOMContentLoaded", bootstrap);
 } else {
   bootstrap();
+}
+
+// ── Tabs Navigation ───────────────────────────────────────────
+function setupTabs() {
+  const tabs = document.querySelectorAll('.mem-tab-btn');
+  const views = document.querySelectorAll('.mem-view');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+
+      tab.classList.add('active');
+      const targetView = document.getElementById(`tab-${tab.dataset.tab}`);
+      if (targetView) targetView.classList.add('active');
+    });
+  });
+}
+
+// ── Enquiries Logic ───────────────────────────────────────────
+let enquiriesUnsubscribe = null;
+
+function setupEnquiries() {
+  const btnAdd = document.getElementById('btnAddEnquiry');
+  const modal = document.getElementById('enquiryModal');
+  const btnClose = document.getElementById('closeEnquiryModal');
+  const btnCancel = document.getElementById('btnCancelEnquiry');
+  const form = document.getElementById('enquiryForm');
+  const typeSelect = document.getElementById('enqBookingType');
+
+  if (btnAdd) btnAdd.addEventListener('click', () => {
+    populateBookingDropdowns("enqBookingType", "enqBookingCategory");
+    modal.classList.remove('hidden');
+  });
+
+  const closeModal = () => {
+    modal.classList.add('hidden');
+    form.reset();
+  };
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+  if (typeSelect) {
+    typeSelect.addEventListener("change", () => {
+      populateCategoryDropdown("enqBookingType", "enqBookingCategory");
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSave = document.getElementById('btnSaveEnquiry');
+      btnSave.disabled = true;
+      btnSave.textContent = "Saving...";
+
+      try {
+        const enqData = {
+          academyId: currentUser.academyId,
+          name: document.getElementById('enqName').value.trim(),
+          phone: document.getElementById('enqPhone').value.trim(),
+          booking_type: document.getElementById('enqBookingType').value,
+          booking_category: document.getElementById('enqBookingCategory').value,
+          notes: document.getElementById('enqNotes').value.trim(),
+          status: 'New',
+          createdAt: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "enquiries"), enqData);
+        showInlineToast("Enquiry added successfully", "success");
+        closeModal();
+      } catch (err) {
+        console.error("Error adding enquiry:", err);
+        showInlineToast("Failed to add enquiry", "error");
+      } finally {
+        btnSave.disabled = false;
+        btnSave.textContent = "Save Enquiry";
+      }
+    });
+  }
+}
+
+function loadEnquiries() {
+  if (!currentUser || !currentUser.academyId) return;
+
+  const q = query(collection(db, "enquiries"), where("academyId", "==", currentUser.academyId));
+  enquiriesUnsubscribe = onSnapshot(q, (snapshot) => {
+    const tbody = document.getElementById('enquiriesTableBody');
+    if (!tbody) return;
+    
+    if (snapshot.empty) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="members-empty-state"><p>No active enquiries found.</p></div></td></tr>`;
+      return;
+    }
+
+    const enquiries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+                                   .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+    tbody.innerHTML = "";
+    enquiries.forEach(enq => {
+      const dateStr = enq.createdAt ? new Date(enq.createdAt.toMillis()).toLocaleDateString() : "Just now";
+      
+      let statusColor = "var(--muted)";
+      if (enq.status === "New") statusColor = "var(--accent)";
+      else if (enq.status === "Converted") statusColor = "var(--success)";
+      else if (enq.status === "Lost") statusColor = "var(--danger)";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${escapeHTML(enq.name)}</strong></td>
+        <td>${escapeHTML(enq.phone)}</td>
+        <td>${escapeHTML(enq.booking_type)} - ${escapeHTML(enq.booking_category)}</td>
+        <td>${dateStr}</td>
+        <td><span class="status-badge" style="background:${statusColor}; color:#fff; padding:0.2rem 0.5rem; border-radius:4px; font-size:0.75rem;">${enq.status}</span></td>
+        <td class="actions-cell">
+          <select class="form-control status-select" style="padding:0.2rem; font-size:0.8rem; width:110px;" data-id="${enq.id}">
+            <option value="New" ${enq.status === 'New' ? 'selected' : ''}>New</option>
+            <option value="In Progress" ${enq.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+            <option value="Converted" ${enq.status === 'Converted' ? 'selected' : ''}>Converted</option>
+            <option value="Lost" ${enq.status === 'Lost' ? 'selected' : ''}>Lost</option>
+          </select>
+          <button class="btn-icon btn-del-enq" data-id="${enq.id}" title="Delete" style="margin-left:0.5rem; color:var(--danger); background:transparent; border:none; cursor:pointer;">🗑️</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.querySelectorAll('.status-select').forEach(sel => {
+      sel.addEventListener('change', async (e) => {
+        const id = e.target.dataset.id;
+        const newStatus = e.target.value;
+        try {
+          await updateDoc(doc(db, "enquiries", id), { status: newStatus });
+          showInlineToast("Status updated", "success");
+        } catch (err) {
+          console.error("Failed to update status", err);
+          showInlineToast("Error updating status", "error");
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-del-enq').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        if (!confirm("Are you sure you want to delete this enquiry?")) return;
+        const id = e.currentTarget.dataset.id;
+        try {
+          await deleteDoc(doc(db, "enquiries", id));
+          showInlineToast("Enquiry deleted", "success");
+        } catch (err) {
+          console.error("Failed to delete", err);
+          showInlineToast("Error deleting enquiry", "error");
+        }
+      });
+    });
+  }, (err) => {
+    console.error("Listen error:", err);
+  });
 }

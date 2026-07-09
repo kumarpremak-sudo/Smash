@@ -354,3 +354,54 @@
     justify-content: space-between;
   }
 }
+
+/* Members Segmented Tabs */
+.members-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 2.5rem;
+  gap: 0.25rem;
+  max-width: 600px;
+}
+
+@media (max-width: 480px) {
+  .members-tabs-bar { max-width: 100%; }
+}
+
+.mem-tab-btn {
+  flex: 1 1 auto;
+  background: transparent;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.mem-tab-btn:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.mem-tab-btn.active {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+:root.light-theme .mem-tab-btn.active { color: #fff; }
+
+.mem-view {
+  display: none;
+  animation: fadeUp 0.4s ease forwards;
+}
+
+.mem-view.active {
+  display: block;
+}
