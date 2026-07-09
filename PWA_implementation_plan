@@ -1,0 +1,54 @@
+# PWA Conversion Implementation Plan (Final)
+
+This plan details the steps required to convert the existing SMash Badminton application into a Progressive Web App (PWA). This plan includes the implementation of seamless update prompts, offline database persistence, and strict security measures.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Security & HTTPS:** Service Workers (the engine behind PWAs) have a strict security requirement: they will **only** run on secure `HTTPS` connections (or `localhost` for testing). Because Service Workers can intercept network requests, this prevents "Man-in-the-Middle" (MITM) attacks and ensures nobody can hijack your app's code. Since we are hosting on Firebase, HTTPS is automatically enforced, fulfilling this critical security standard.
+
+> [!WARNING]
+> **Cache Security:** We will implement strict cache versioning. The Service Worker will only cache standard UI files (HTML, CSS, JS, Images). We will **never** cache sensitive user data or authentication tokens in the Service Worker cache. All sensitive data will be handled securely by Firebase's encrypted IndexedDB offline persistence.
+
+## Proposed Changes
+
+### 1. PWA Configuration
+#### [NEW] [manifest.json](file:///c:/Users/Admin/Documents/POC/Badminton/manifest.json)
+Create the Web App Manifest defining the app's identity, colors, and behavior.
+- **App Name & Short Name:** `SMash`
+- **Start URL:** `/index.html`
+- **Display Mode:** `standalone` (removes the browser URL bar for a native app feel).
+- **Theme Color:** `#0f172a` (matches your dark theme).
+- **Icons:** We will configure the manifest to use your existing `logo.png`. Modern browsers will automatically scale this existing logo for use on the Android Home Screen and App Launcher.
+
+### 2. Service Worker & Caching (Secure & Stale-While-Revalidate)
+#### [NEW] [service-worker.js](file:///c:/Users/Admin/Documents/POC/Badminton/service-worker.js)
+Create a highly secure Service Worker script:
+- **Cache Versioning:** Define a cache name (e.g., `smash-cache-v1`) to easily clear out old files when updates are pushed.
+- **Install Event:** Pre-cache the "App Shell" (the HTML, CSS, and JS files).
+- **Fetch Strategy:** Implement a "Stale-While-Revalidate" strategy. It serves the cached UI instantly for speed, but secretly checks the network for updates in the background.
+- **Update Activation:** Add logic to listen for the `skipWaiting` message. This allows the new Service Worker to take over instantly when the user clicks the "Update Available" prompt.
+
+### 3. Core App Integrations & Features
+#### [MODIFY] [shared.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/shared.js)
+Update the core shared script:
+- **Service Worker Registration:** Register the Service Worker securely.
+- **New Version Detection:** Add event listeners to detect when a new Service Worker is waiting to install.
+- **Update UI Prompt:** Add a toast notification that pops up saying *"A new version is available. Click to refresh."* When clicked, it sends the `skipWaiting` signal to the Service Worker and reloads the page.
+- **Enable Firestore Offline Persistence:** Add `enableIndexedDbPersistence(db)` to the Firebase initialization. This ensures all database queries (Members, Programs, Enquiries) are securely cached locally, enabling full offline read/write capabilities (with auto-sync when internet is restored).
+
+#### [MODIFY] HTML Files
+For every HTML file (`index.html`, `dashboard.html`, `members.html`, `programs.html`, `schedule.html`, `settings.html`), inject the necessary PWA metadata in the `<head>`:
+- `<link rel="manifest" href="/manifest.json">`
+- `<meta name="theme-color" content="#0f172a">`
+- `<link rel="apple-touch-icon" href="/logo.png">`
+
+## Verification Plan
+
+### Automated Tests
+- The Service Worker must not throw any syntax or registration errors in the console.
+
+### Manual Verification
+1. **PWA Installability:** Open Chrome Developer Tools -> Application -> Manifest to verify it detects the PWA configuration and icons without errors.
+2. **Offline Mode:** Disconnect the internet, refresh the page, and verify the app still loads instantly and displays Firestore data from the local cache.
+3. **Update Flow:** Simulate an update by manually bumping the cache version in `service-worker.js`, reload the page, and verify the "New version available" toast prompt appears and works when clicked.

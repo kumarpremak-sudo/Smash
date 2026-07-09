@@ -4,7 +4,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import {
   getFirestore, collection, doc, addDoc, getDocs, getDoc, getDocFromServer, setDoc,
-  updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp
+  updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import {
   getAuth, signInWithPopup, GoogleAuthProvider,
@@ -822,6 +822,13 @@ export function initApp() {
   }
   const app = initializeApp(window.FIREBASE_CONFIG);
   db = getFirestore(app);
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+      console.warn("Multiple tabs open, offline persistence can only be enabled in one tab at a time.");
+    } else if (err.code == 'unimplemented') {
+      console.warn("The current browser does not support all of the features required to enable persistence");
+    }
+  });
   auth = getAuth(app);
   onAuthStateChanged(auth, handleAuthStateChange);
   setupSharedListeners();
@@ -909,4 +916,63 @@ export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMont
     failures
   };
 }
+
+// ── PWA Service Worker Registration ─────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').then((registration) => {
+      console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      
+      // Check for waiting updates (Stale-While-Revalidate pattern)
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New update available, show prompt
+            showUpdatePrompt(newWorker);
+          }
+        });
+      });
+    }).catch((err) => {
+      console.log('ServiceWorker registration failed: ', err);
+    });
+  });
+
+  // Handle reload when new SW activates
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      window.location.reload();
+      refreshing = true;
+    }
+  });
+}
+
+function showUpdatePrompt(newWorker) {
+  // Create a minimal toast for the update prompt
+  const toast = document.createElement('div');
+  toast.style.position = 'fixed';
+  toast.style.bottom = '20px';
+  toast.style.left = '50%';
+  toast.style.transform = 'translateX(-50%)';
+  toast.style.backgroundColor = 'var(--accent, #3b82f6)';
+  toast.style.color = '#fff';
+  toast.style.padding = '12px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
+  toast.style.zIndex = '9999';
+  toast.style.cursor = 'pointer';
+  toast.style.fontFamily = 'var(--font-family, sans-serif)';
+  toast.style.fontSize = '14px';
+  toast.style.fontWeight = 'bold';
+  toast.style.textAlign = 'center';
+  toast.innerHTML = `A new version is available!<br><span style="font-size: 12px; font-weight: normal; opacity: 0.8;">Click to refresh and update.</span>`;
+  
+  toast.addEventListener('click', () => {
+    newWorker.postMessage({ type: 'SKIP_WAITING' });
+  });
+
+  document.body.appendChild(toast);
+}
+
 
