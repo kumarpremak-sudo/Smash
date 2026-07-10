@@ -10,6 +10,10 @@
   <link rel="stylesheet" href="css/login.css" />
   <script src="config.js?v=1.2"></script>
   <script src="config.local.js" onerror="this.remove()"></script>
+  <!-- PWA Metadata -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/logo.png">
 </head>
 <body>
 
@@ -22,7 +26,7 @@
       <div class="login-brand">
         <div class="login-brand-inner">
           <div class="login-brand-logo">
-            <img src="SMash.png" alt="SMash Logo" class="logo-icon" />
+            <img src="logo.png" alt="SMash Logo" class="logo-icon" />
             <div class="logo-smash">SMash</div>
           </div>
           <div class="login-brand-headline">
@@ -64,7 +68,7 @@
           <div class="login-card">
             
             <div class="login-logo">
-              <img src="SMash.png" alt="SMash Logo" class="logo-icon" />
+              <img src="logo.png" alt="SMash Logo" class="logo-icon" />
               <div class="logo-smash">SMash</div>
             </div>
             <div class="login-form-heading">Operations Login</div>
@@ -92,6 +96,12 @@
             <!-- Guest Mode Button -->
             <button id="btnGuestLogin" class="login-action-btn btn-guest">
               👤 Continue as Guest Administrator
+            </button>
+            
+            <!-- Explicit PWA Install Button (Hidden by default, shown by shared.js) -->
+            <button id="btnExplicitInstall" class="hidden" style="margin-top: 20px; background: transparent; color: var(--text-muted, #94a3b8); border: 1px solid var(--border, #334155); padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; width: max-content; margin-left: auto; margin-right: auto; transition: all 0.2s ease;">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              Install App
             </button>
             
             <div class="login-note">
