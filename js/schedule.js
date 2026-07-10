@@ -276,8 +276,8 @@ async function openBookingDetailsModal(booking) {
   }
 
   const ownerActions = document.getElementById("ownerActions");
-  const isOwner = currentUser && booking.userId === currentUser.uid;
-  if (isOwner) { document.getElementById("detEmail").textContent = booking.customer_email; ownerActions.classList.remove("hidden"); }
+  const isAuthorized = currentUser && (!currentUser.isAnonymous || booking.userId === currentUser.uid);
+  if (isAuthorized) { document.getElementById("detEmail").textContent = booking.customer_email; ownerActions.classList.remove("hidden"); }
   else { document.getElementById("detEmail").textContent = maskEmail(booking.customer_email); ownerActions.classList.add("hidden"); }
   await renderModalEnrolleesList(booking.id);
 }

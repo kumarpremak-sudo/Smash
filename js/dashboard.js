@@ -155,9 +155,12 @@ function populateTimeDropdowns(category) {
   if (isCoaching && tenantSettings.coaching_schedule) {
     const matchingSchedules = tenantSettings.coaching_schedule.filter(c => {
       const cCat = c.category.toLowerCase().trim();
-      const scheduleCat = cCat.replace(/coaching/i, "").trim() || cCat;
+      const scheduleCat = cCat.replace(/coaching|program|batch|training/gi, "").trim() || cCat;
       
-      if (scheduleCat === catLower || cCat === catLower) return true;
+      const catLowerClean = catLower.replace(/coaching|program|batch|training/gi, "").trim() || catLower;
+      
+      if (scheduleCat === catLowerClean || cCat === catLowerClean) return true;
+      if (scheduleCat.includes(catLowerClean) || catLowerClean.includes(scheduleCat)) return true;
       if (cCat.includes("advance") && catLower.includes("session")) return true;
       if (cCat.includes("personal") && catLower.includes("private")) return true;
       
@@ -412,9 +415,9 @@ async function openBookingDetailsModal(booking) {
   }
 
   const ownerActions = document.getElementById("ownerActions");
-  const isOwner = currentUser && booking.userId === currentUser.uid;
+  const isAuthorized = currentUser && (!currentUser.isAnonymous || booking.userId === currentUser.uid);
   const contactInfo = booking.customer_phone || booking.customer_email || "N/A";
-  if (isOwner) { document.getElementById("detPhone").textContent = contactInfo; ownerActions.classList.remove("hidden"); }
+  if (isAuthorized) { document.getElementById("detPhone").textContent = contactInfo; ownerActions.classList.remove("hidden"); }
   else { document.getElementById("detPhone").textContent = maskPhone(contactInfo); ownerActions.classList.add("hidden"); }
   await renderModalEnrolleesList(booking.id);
 }
