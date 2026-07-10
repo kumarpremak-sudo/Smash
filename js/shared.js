@@ -975,3 +975,26 @@ function showUpdatePrompt(newWorker) {
   document.body.appendChild(toast);
 }
 
+// ── PWA Explicit Install Button Logic ────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  // We do NOT prevent default, so Chrome can still show the native prompt
+  deferredPrompt = e;
+  
+  // Also reveal our explicit install button if we are on the login screen
+  const installBtn = document.getElementById('btnExplicitInstall');
+  if (installBtn) {
+    installBtn.classList.remove('hidden');
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response: ${outcome}`);
+        deferredPrompt = null;
+        installBtn.classList.add('hidden');
+      }
+    });
+  }
+});
+
+
