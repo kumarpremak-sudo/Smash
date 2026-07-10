@@ -975,4 +975,76 @@ function showUpdatePrompt(newWorker) {
   document.body.appendChild(toast);
 }
 
+// ── PWA Install Prompt (Custom UI) ────────────────────────
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent Chrome from showing its default mini-infobar
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  deferredPrompt = e;
+  
+  // Show our custom install UI
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  // Check if banner already exists
+  if (document.getElementById('pwaInstallBanner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'pwaInstallBanner';
+  banner.style.position = 'fixed';
+  banner.style.bottom = '80px'; // above potential bottom navigation
+  banner.style.left = '50%';
+  banner.style.transform = 'translateX(-50%)';
+  banner.style.backgroundColor = 'var(--surface, #1e293b)';
+  banner.style.border = '1px solid var(--border, #334155)';
+  banner.style.color = 'var(--text, #f8fafc)';
+  banner.style.padding = '12px 16px';
+  banner.style.borderRadius = '12px';
+  banner.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+  banner.style.zIndex = '9998';
+  banner.style.display = 'flex';
+  banner.style.alignItems = 'center';
+  banner.style.gap = '12px';
+  banner.style.width = 'max-content';
+  banner.style.maxWidth = '90vw';
+  banner.style.animation = 'fadeUp 0.5s ease forwards';
+
+  banner.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:2px;">
+      <span style="font-weight:600; font-size:0.95rem;">Install SMash App</span>
+      <span style="font-size:0.8rem; color:var(--muted, #94a3b8);">Add to home screen for fast, offline access.</span>
+    </div>
+    <div style="display:flex; gap:8px; margin-left:auto;">
+      <button id="pwaCancelBtn" style="background:transparent; border:none; color:var(--muted); font-size:0.85rem; padding:6px 10px; cursor:pointer; font-weight:600;">Not Now</button>
+      <button id="pwaInstallBtn" style="background:var(--accent, #3b82f6); border:none; color:#fff; font-size:0.85rem; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600;">Install</button>
+    </div>
+  `;
+
+  document.body.appendChild(banner);
+
+  document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
+    // Hide the banner
+    banner.remove();
+    // Show the install prompt
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      // We've used the prompt, and can't use it again, throw it away
+      deferredPrompt = null;
+    }
+  });
+
+  document.getElementById('pwaCancelBtn').addEventListener('click', () => {
+    banner.remove();
+    // Optionally save to localStorage that user declined, so we don't nag them repeatedly
+    localStorage.setItem('pwaPromptDeclined', Date.now());
+  });
+}
+
+
 
