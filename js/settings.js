@@ -35,6 +35,24 @@ function initAcademyProfile() {
   const pContact = document.getElementById("progContactNumber");
   const btnEdit = document.getElementById("btnEditProfile");
   const btnSave = document.getElementById("btnSaveProfile");
+  const staffProgramEditToggle = document.getElementById("staffProgramEditToggle");
+  
+  if (staffProgramEditToggle && tenantSettings) {
+    staffProgramEditToggle.checked = tenantSettings.allow_staff_program_edit === true;
+    staffProgramEditToggle.addEventListener("change", async (e) => {
+      try {
+        const newVal = e.target.checked;
+        await updateDoc(doc(db, "academies", currentUser.academyId), {
+          allow_staff_program_edit: newVal
+        });
+        tenantSettings.allow_staff_program_edit = newVal;
+        showInlineToast(`Staff program editing ${newVal ? 'enabled' : 'disabled'}!`, "success");
+      } catch (err) {
+        e.target.checked = !e.target.checked; // Revert
+        showMsg("settingsMessage", "Failed to update toggle: " + err.message, "error");
+      }
+    });
+  }
   
   if (pName && tenantSettings) {
     pName.value = tenantSettings.academy_name || tenantSettings.name || "";

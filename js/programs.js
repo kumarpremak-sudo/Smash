@@ -1,7 +1,8 @@
 // js/programs.js — Programs & Settings Dashboard
 import {
   db, currentUser, tenantSettings, defaultSettings, showMsg,
-  setOnAuthReady, initApp, doc, setDoc, escapeHTML, format12Hour, parse12HourTo24Hour
+  setOnAuthReady, initApp, doc, setDoc, escapeHTML, format12Hour, parse12HourTo24Hour,
+  isSuperAdmin, isTenantAdmin
 } from "./shared.js";
 
 // Local state for editing
@@ -56,7 +57,24 @@ setOnAuthReady(() => {
   renderAll();
 
   const btnSave = document.getElementById("btnSavePrograms");
-  if (btnSave) btnSave.addEventListener("click", handleSave);
+  if (btnSave) {
+    const isAllowed = isSuperAdmin(currentUser) || isTenantAdmin(currentUser) || tenantSettings.allow_staff_program_edit;
+    if (!isAllowed) {
+      btnSave.style.display = "none";
+      const container = btnSave.parentElement;
+      const banner = document.createElement("div");
+      banner.style = "background: rgba(255,107,107,0.1); color: var(--accent3); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--accent3); text-align: center; margin-bottom: 1rem; width: 100%;";
+      banner.innerHTML = "🔒 <strong>View Only:</strong> Only Tenant Admins can edit programs. Ask your admin to enable staff editing in Settings.";
+      container.insertBefore(banner, btnSave);
+
+      ['btnAddMembership', 'btnAddHourly', 'btnAddCoaching', 'btnAddFeePlan'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.display = "none";
+      });
+    } else {
+      btnSave.addEventListener("click", handleSave);
+    }
+  }
 });
 
 // ── Tabs ──────────────────────────────────────────────────

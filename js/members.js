@@ -471,6 +471,8 @@ function setupEnquiries() {
 
   if (btnAdd) btnAdd.addEventListener('click', () => {
     populateBookingDropdowns("enqBookingType", "enqBookingCategory");
+    const dateInput = document.getElementById('enqDate');
+    if (dateInput) dateInput.value = formatSelectedDate(new Date());
     modal.classList.remove('hidden');
   });
 
@@ -502,6 +504,7 @@ function setupEnquiries() {
           phone: document.getElementById('enqPhone').value.trim(),
           booking_type: document.getElementById('enqBookingType').value,
           booking_category: document.getElementById('enqBookingCategory').value,
+          enquiryDate: document.getElementById('enqDate') ? document.getElementById('enqDate').value : formatSelectedDate(new Date()),
           notes: document.getElementById('enqNotes').value.trim(),
           status: 'New',
           createdAt: serverTimestamp()
@@ -535,11 +538,17 @@ function loadEnquiries() {
     }
 
     const enquiries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-                                   .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+                                   .sort((a, b) => {
+                                      const dateA = a.enquiryDate ? new Date(a.enquiryDate).getTime() : (a.createdAt?.toMillis() || 0);
+                                      const dateB = b.enquiryDate ? new Date(b.enquiryDate).getTime() : (b.createdAt?.toMillis() || 0);
+                                      return dateB - dateA;
+                                   });
 
     tbody.innerHTML = "";
     enquiries.forEach(enq => {
-      const dateStr = enq.createdAt ? new Date(enq.createdAt.toMillis()).toLocaleDateString() : "Just now";
+      const dateStr = enq.enquiryDate 
+          ? new Date(enq.enquiryDate).toLocaleDateString() 
+          : (enq.createdAt ? new Date(enq.createdAt.toMillis()).toLocaleDateString() : "Just now");
       
       let statusColor = "var(--muted)";
       if (enq.status === "New") statusColor = "var(--accent)";
