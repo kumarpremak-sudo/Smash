@@ -1,4 +1,4 @@
-const CACHE_NAME = 'smash-cache-v4';
+const CACHE_NAME = 'smash-cache-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,6 +7,7 @@ const ASSETS_TO_CACHE = [
   '/programs.html',
   '/schedule.html',
   '/settings.html',
+  '/coach.html',
   '/css/base.css',
   '/css/components.css',
   '/css/members.css',
@@ -14,12 +15,14 @@ const ASSETS_TO_CACHE = [
   '/css/dashboard.css',
   '/css/schedule.css',
   '/css/settings.css',
+  '/css/coach.css',
   '/js/shared.js',
   '/js/dashboard.js',
   '/js/members.js',
   '/js/programs.js',
   '/js/schedule.js',
   '/js/settings.js',
+  '/js/coach.js',
   '/logo.png'
 ];
 
