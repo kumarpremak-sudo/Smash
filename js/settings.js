@@ -3,12 +3,14 @@ import {
   db, currentUser, authConfig, escapeHTML, showMsg, showInlineToast,
   setOnAuthReady, initApp, isSuperAdmin, isTenantAdmin, isStaff,
   collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, where, addDoc, writeBatch,
-  defaultSettings, tenantSettings
+  defaultSettings, tenantSettings, isStrictCoach
 } from "./shared.js";
 
 setOnAuthReady(async (user) => {
-  if (!user || isStaff(user) || user.role === "GUEST") {
-    window.location.href = "dashboard.html";
+  if (!user || isStaff(user) || isStrictCoach(user) || user.role === "GUEST") {
+    // If strict coach somehow navigated here, send them to coach hub.
+    // Otherwise send to dashboard.
+    window.location.href = isStrictCoach(user) ? "coach.html" : "dashboard.html";
     return;
   }
   
@@ -284,36 +286,45 @@ async function handleGuestToggle() {
 async function loadStaff() {
   if (!db || !currentUser.academyId) return;
   const list = document.getElementById("staffList");
-  list.innerHTML = '<div class="empty-list-msg">Loading staff...</div>';
+  list.innerHTML = '<div class="empty-list-msg">Loading staff & coaches...</div>';
   try {
     const q = query(collection(db, "users"), where("academyId", "==", currentUser.academyId));
     const snap = await getDocs(q);
     list.innerHTML = "";
-    // Filter for STAFF role client-side
+    // Filter for STAFF or COACH role client-side based on academyRoles or legacy role
     const staffDocs = [];
-    snap.forEach(d => { if (d.data().role === "STAFF") staffDocs.push(d); });
+    snap.forEach(d => { 
+      const u = d.data();
+      const roles = u.academyRoles || {};
+      if (u.role === "STAFF" || u.role === "COACH" || roles[currentUser.academyId] === "STAFF" || roles[currentUser.academyId] === "COACH") {
+        staffDocs.push(d); 
+      }
+    });
     if (staffDocs.length === 0) {
-      list.innerHTML = '<div class="empty-list-msg">No staff users configured yet.</div>';
+      list.innerHTML = '<div class="empty-list-msg">No staff or coaches configured yet.</div>';
       return;
     }
     staffDocs.forEach(d => {
       const staff = d.data();
+      const roles = staff.academyRoles || {};
+      const displayRole = roles[currentUser.academyId] || staff.role;
       const li = document.createElement("li");
       li.className = "whitelist-item";
       li.innerHTML = `
-        <span class="whitelist-item-email">${escapeHTML(staff.email)}</span>
+        <div style="display:flex; flex-direction:column;">
+          <span class="whitelist-item-email">${escapeHTML(staff.email)}</span>
+          <span style="font-size:0.75rem; color:var(--accent); font-weight:600;">${escapeHTML(displayRole)}</span>
+        </div>
         <div class="whitelist-actions" style="display:flex; gap:0.5rem; margin-left:auto;">
-          <button class="btn-edit-staff" style="background:none; border:none; cursor:pointer; color:var(--text); font-size:1rem;" title="Edit Staff">✎</button>
-          <button class="btn-remove-whitelist" title="Delete Staff">&times;</button>
+          <button class="btn-remove-whitelist" title="Revoke Access">&times;</button>
         </div>
       `;
-      li.querySelector(".btn-edit-staff").addEventListener("click", () => handleEditStaff(staff.email, li));
       li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(staff.email, li));
       list.appendChild(li);
     });
   } catch (error) {
     console.error("Failed to load staff:", error);
-    list.innerHTML = `<div class="empty-list-msg" style="color:var(--accent2)">Error loading staff.</div>`;
+    list.innerHTML = `<div class="empty-list-msg" style="color:var(--accent2)">Error loading staff/coaches.</div>`;
   }
 }
 
@@ -336,13 +347,26 @@ async function handleDeleteStaff(staffEmail, liEl) {
     liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteStaff(staffEmail, liEl));
   });
   liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
-    liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Deleting...</span>';
+    liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Revoking access...</span>';
     try {
-      await deleteDoc(doc(db, "users", staffEmail));
-      showInlineToast(`Deleted staff ${staffEmail}.`, "success");
+      const userDocRef = doc(db, "users", staffEmail);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        const uData = userSnap.data();
+        const roles = uData.academyRoles || {};
+        delete roles[currentUser.academyId];
+        
+        // If no roles left, delete the user entirely
+        if (Object.keys(roles).length === 0) {
+          await deleteDoc(userDocRef);
+        } else {
+          await updateDoc(userDocRef, { academyRoles: roles });
+        }
+      }
+      showInlineToast(`Revoked access for ${staffEmail}.`, "success");
       await loadStaff();
     } catch (error) {
-      showInlineToast(`Failed to delete: ${error.message}`, "error");
+      showInlineToast(`Failed to revoke access: ${error.message}`, "error");
       await loadStaff();
     }
   });
@@ -424,16 +448,32 @@ async function handleAddStaff(e) {
     return;
   }
 
+  const roleSelect = document.getElementById("newStaffRole");
+  const selectedRole = roleSelect ? roleSelect.value : "STAFF";
+  
   try {
-    await setDoc(doc(db, "users", staffEmail), {
-      email: staffEmail,
-      role: "STAFF",
-      academyId: currentUser.academyId,
-      createdAt: Date.now()
-    });
+    const userDocRef = doc(db, "users", staffEmail);
+    const userSnap = await getDoc(userDocRef);
+
+    if (userSnap.exists()) {
+      // User exists, update academyRoles
+      const data = userSnap.data();
+      const academyRoles = data.academyRoles || {};
+      academyRoles[currentUser.academyId] = selectedRole;
+      await updateDoc(userDocRef, { academyRoles });
+    } else {
+      // New user
+      await setDoc(userDocRef, {
+        email: staffEmail,
+        role: selectedRole,
+        academyId: currentUser.academyId,
+        academyRoles: { [currentUser.academyId]: selectedRole },
+        createdAt: Date.now()
+      });
+    }
     
     emailInput.value = "";
-    showInlineToast(`Staff user added!`, "success");
+    showInlineToast(`Added ${selectedRole} successfully!`, "success");
     await loadStaff();
   } catch (error) {
     showMsg("settingsMessage", "Failed to add staff: " + error.message, "error");

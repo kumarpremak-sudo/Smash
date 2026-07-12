@@ -27,10 +27,11 @@
       </a>
       <div class="header-right">
         <nav class="header-nav" id="desktopNav">
-          <a href="dashboard.html" class="nav-link">Dashboard</a>
-          <a href="schedule.html" class="nav-link">Schedule</a>
-          <a href="members.html" class="nav-link">Members</a>
-          <a href="programs.html" class="nav-link">Programs</a>
+          <a href="dashboard.html" id="navDashboard" class="nav-link">Dashboard</a>
+          <a href="schedule.html" id="navSchedule" class="nav-link">Schedule</a>
+          <a href="members.html" id="navMembers" class="nav-link">Members</a>
+          <a href="coach.html" class="nav-link hidden" id="navCoach">Coach Hub</a>
+          <a href="programs.html" id="navPrograms" class="nav-link">Programs</a>
           <a href="settings.html" class="nav-link active" id="navSettings">Settings</a>
         </nav>
         <div class="user-pill" id="userPill">
@@ -111,14 +112,18 @@
           </div>
         </div>
 
-        <!-- Tenant Admin Panel: Manage Staff -->
+        <!-- Tenant Admin Panel: Manage Staff & Coaches -->
         <div class="glass-panel settings-card hidden" id="tenantAdminPanel">
-          <h3>👥 Manage Staff Users</h3>
-          <div class="settings-card-desc">Add staff members to your academy. They can manage bookings and members, but cannot access settings.</div>
+          <h3>👥 Manage Staff & Coaches</h3>
+          <div class="settings-card-desc">Add staff members or coaches to your academy. Coaches can access the Coaching Hub, Staff can manage bookings.</div>
           
-          <form id="staffForm" class="whitelist-form" style="margin-bottom:1rem;">
-            <input type="email" id="newStaffEmail" placeholder="Staff Email" maxlength="80" required />
-            <button type="submit" class="btn btn-primary">+ Add Staff</button>
+          <form id="staffForm" class="whitelist-form" style="margin-bottom:1rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <input type="email" id="newStaffEmail" placeholder="User Email" maxlength="80" required style="flex:2; min-width: 150px;" />
+            <select id="newStaffRole" class="form-control" style="flex:1.5; min-width: 140px; height:36px; padding:0 12px; margin:0;" required>
+              <option value="STAFF">Staff (Front Desk)</option>
+              <option value="COACH">Coach</option>
+            </select>
+            <button type="submit" class="btn btn-primary" style="flex:1; min-width: 110px; height:36px;">+ Add User</button>
           </form>
 
           <ul class="whitelist-list" id="staffList">
@@ -148,11 +153,12 @@
     <!-- ══ BOTTOM NAV ════════════════════════════════════════ -->
     <nav class="bottom-nav">
       <div class="bottom-nav-inner">
-        <a href="dashboard.html" class="bottom-nav-item"><span class="nav-icon">🏠</span>Home</a>
-        <a href="schedule.html" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
-        <a href="members.html" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
-        <a href="programs.html" class="bottom-nav-item"><span class="nav-icon">📋</span>Programs</a>
-        <a href="settings.html" class="bottom-nav-item active" id="bottomNavSettings"><span class="nav-icon">⚙️</span>Settings</a>
+        <a href="dashboard.html" id="bottomNavDashboard" class="bottom-nav-item"><span class="nav-icon">🏠</span>Home</a>
+        <a href="schedule.html" id="bottomNavSchedule" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
+        <a href="members.html" id="bottomNavMembers" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
+        <a href="coach.html" id="bottomNavCoach" class="bottom-nav-item hidden"><span class="nav-icon">🏸</span>Coach</a>
+        <a href="programs.html" id="bottomNavPrograms" class="bottom-nav-item"><span class="nav-icon">⚙️</span>Setup</a>
+        <a href="settings.html" id="bottomNavSettings" class="bottom-nav-item active"><span class="nav-icon">🛡️</span>Admin</a>
       </div>
     </nav>
 

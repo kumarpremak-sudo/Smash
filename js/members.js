@@ -4,7 +4,7 @@ import {
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
   collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp,
-  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp
+  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach
 } from "./shared.js";
 import { addDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -12,7 +12,11 @@ let currentFeeFilter = "all";
 let currentSearchTerm = "";
 let currentPlanFilter = "all";
 
-setOnAuthReady(async () => {
+setOnAuthReady(async (user) => {
+  if (isStrictCoach(user)) {
+    window.location.href = "coach.html";
+    return;
+  }
   await loadMembers();
 
   // Populate Plan Filter

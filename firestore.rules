@@ -27,7 +27,10 @@ service cloud.firestore {
     function hasAcademyAccess(targetAcademyId) {
       return isAuthenticated() && (
         (isGuest() && targetAcademyId == 'demo_' + request.auth.uid) ||
-        (!isGuest() && getUserData() != null && getUserData().academyId == targetAcademyId)
+        (!isGuest() && getUserData() != null && (
+          getUserData().academyId == targetAcademyId || 
+          (getUserData().academyRoles != null && targetAcademyId in getUserData().academyRoles)
+        ))
       );
     }
 
@@ -43,26 +46,27 @@ service cloud.firestore {
 
     // 2. Users (RBAC)
     match /users/{userEmail} {
-      // Super admin can read all. A user can read themselves (by email). Tenant/Staff can read users in their own academy.
-      // Guests cannot read the users collection.
-      allow read: if isSuperAdmin() 
-                  || (!isGuest() && request.auth.token.email == userEmail)
-                  || (!isGuest() && hasAcademyAccess(resource.data.academyId));
+      // Allow read for any authenticated non-guest user
+      allow read: if isAuthenticated() && !isGuest();
       
-      // Super admins can create users. Tenant Admins can create STAFF (but not super admins) for their own academy.
+      // Super admins can create users. Tenant Admins can create non-super admins.
       allow create: if isSuperAdmin() || (
-        isTenantAdmin(request.resource.data.academyId) && 
+        (!isGuest() && getUserData().role == 'TENANT_ADMIN') && 
         request.resource.data.role != 'SUPER_ADMIN'
       );
       
-      // Updates: similar logic, but ensure they don't change the academyId maliciously.
+      // Tenant Admins can update any non-super admin (to allow adding them to multiple academies)
       allow update: if isSuperAdmin() || (
-        isTenantAdmin(resource.data.academyId) && 
-        request.resource.data.role != 'SUPER_ADMIN' && 
-        request.resource.data.academyId == resource.data.academyId
+        (!isGuest() && getUserData().role == 'TENANT_ADMIN') && 
+        resource.data.role != 'SUPER_ADMIN' && 
+        request.resource.data.role != 'SUPER_ADMIN'
       );
       
-      allow delete: if isSuperAdmin() || isTenantAdmin(resource.data.academyId);
+      // Only Super Admins or the Tenant Admin of the user's primary academy can delete
+      allow delete: if isSuperAdmin() || (
+        (!isGuest() && getUserData().role == 'TENANT_ADMIN') &&
+        resource.data.academyId == getUserData().academyId
+      );
     }
 
     // 3. Tenant Data Collections (Bookings, Members, Configs, Courts, Academies, etc.)
@@ -129,6 +133,12 @@ service cloud.firestore {
         hasAcademyAccess(resource.data.get('academyId', '')) &&
         get(/databases/$(database)/documents/academies/$(resource.data.get('academyId', ''))).data.get('allow_staff_program_edit', false) == true
       );
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isSuperAdmin() || resource == null || hasAcademyAccess(resource.data.get('academyId', ''));
+      allow create: if isSuperAdmin() || hasAcademyAccess(request.resource.data.get('academyId', ''));
+      allow update, delete: if isSuperAdmin() || hasAcademyAccess(resource.data.get('academyId', ''));
     }
   }
 }
