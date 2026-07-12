@@ -4,14 +4,18 @@ import {
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
   bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, openWhatsApp,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
-  query, where, serverTimestamp, format12Hour
+  query, where, serverTimestamp, format12Hour, isStrictCoach
 } from "./shared.js";
 
 let selectedDate = new Date();
 let dailyBookings = [];
 let selectedBooking = null;
 
-setOnAuthReady(async () => {
+setOnAuthReady(async (user) => {
+  if (isStrictCoach(user)) {
+    window.location.href = "coach.html";
+    return;
+  }
   buildMatrixHeaders();
   const dateInput = document.getElementById("daily-date-input");
   if (dateInput) dateInput.value = formatSelectedDate(selectedDate);

@@ -533,25 +533,37 @@ async function checkUserAccess(user) {
 
     // User found via email document ID
     const userData = userDoc.data();
+    
+    // Normalize academyRoles
+    const academyRoles = userData.academyRoles || {};
+    if (userData.academyId && !academyRoles[userData.academyId]) {
+      academyRoles[userData.academyId] = userData.role;
+    }
 
     // Validate that the academy still exists (prevents orphaned users from logging in)
-    if (userData.role === "TENANT_ADMIN" || userData.role === "STAFF") {
-      if (!userData.academyId) {
+    const hasRole = userData.role === "TENANT_ADMIN" || userData.role === "STAFF" || userData.role === "COACH";
+    if (hasRole || Object.keys(academyRoles).length > 0) {
+      
+      // Determine default academy to load
+      let targetAcademyId = userData.academyId || userData.defaultAcademyId;
+      if (!targetAcademyId && Object.keys(academyRoles).length > 0) {
+         targetAcademyId = Object.keys(academyRoles)[0];
+      }
+
+      if (!targetAcademyId) {
         console.warn("User has no assigned academy. Access denied.");
-        // Auto-cleanup invalid user
         await deleteDoc(userDocRef);
         return false;
       }
       try {
-        const acadDoc = await getDocFromServer(doc(db, "academies", userData.academyId));
+        const acadDoc = await getDocFromServer(doc(db, "academies", targetAcademyId));
         if (!acadDoc.exists()) {
-          // For TENANT_ADMIN: allow through — academy will be created via onboarding setup modal
           if (userData.role === "TENANT_ADMIN") {
             user.role = userData.role;
-            user.academyId = userData.academyId;
+            user.academyId = targetAcademyId;
+            user.academyRoles = academyRoles;
             return true;
           }
-          // For STAFF: orphaned user, clean up
           console.warn("Academy has been deleted. Access denied for orphaned user.");
           await deleteDoc(userDocRef);
           return false;
@@ -560,10 +572,13 @@ async function checkUserAccess(user) {
         console.error("Error verifying academy existence:", err);
         return false;
       }
+      user.academyId = targetAcademyId;
+    } else {
+      user.academyId = userData.academyId;
     }
 
     user.role = userData.role;
-    user.academyId = userData.academyId;
+    user.academyRoles = academyRoles;
     return true;
   } catch (error) {
     console.error("Access verification error:", error);
@@ -581,6 +596,17 @@ export function isTenantAdmin(user) {
 
 export function isStaff(user) {
   return user && user.role === "STAFF";
+}
+
+export function isCoach(user) {
+  if (!user) return false;
+  if (user.role === "SUPER_ADMIN" || user.role === "TENANT_ADMIN") return true; // Inherits coach
+  if (user.academyRoles && user.academyId && user.academyRoles[user.academyId] === "COACH") return true;
+  return user.role === "COACH";
+}
+
+export function isStrictCoach(user) {
+  return user && user.role === "COACH";
 }
 
 // ── Booking Conflict Check ──────────────────────────────────
@@ -717,9 +743,41 @@ async function handleAuthStateChange(user) {
       return;
     }
     currentUser = user;
-    if (isLoginPage) { window.location.href = "dashboard.html"; return; }
+    if (isLoginPage) { 
+      if (isStrictCoach(user)) {
+        window.location.href = "coach.html";
+      } else {
+        window.location.href = "dashboard.html";
+      }
+      return; 
+    }
     // Update header UI
     const header = document.getElementById("appHeader");
+    
+    // Multi-Academy Switcher
+    const academyRolesKeys = Object.keys(user.academyRoles || {});
+    if (academyRolesKeys.length > 1) {
+      let switcher = document.getElementById("academySwitcher");
+      if (!switcher) {
+        switcher = document.createElement("select");
+        switcher.id = "academySwitcher";
+        switcher.className = "academy-switcher";
+        switcher.style.cssText = "margin-right:1rem; padding:4px; border-radius:4px; background:var(--surface2); color:var(--text); border:1px solid var(--border);";
+        switcher.addEventListener("change", (e) => switchAcademy(e.target.value));
+        const headerRight = document.querySelector(".header-right");
+        if (headerRight) headerRight.insertBefore(switcher, headerRight.firstChild);
+      }
+      switcher.innerHTML = "";
+      // Ideally we'd fetch names, but IDs work as a fallback
+      academyRolesKeys.forEach(acadId => {
+        const opt = document.createElement("option");
+        opt.value = acadId;
+        opt.textContent = acadId.replace("academy_", "Academy ");
+        if (acadId === user.academyId) opt.selected = true;
+        switcher.appendChild(opt);
+      });
+    }
+
     const avatar = document.getElementById("userAvatar");
     const nameEl = document.getElementById("userName");
     const menuEmail = document.getElementById("userMenuEmail");
@@ -742,6 +800,22 @@ async function handleAuthStateChange(user) {
     if (bottomNavSettings) {
       bottomNavSettings.classList.toggle("hidden", !showSettings);
     }
+
+    // Show/hide Coach nav based on isCoach or isStaff
+    const showCoach = isCoach(user) || isStaff(user);
+    const navCoach = document.getElementById("navCoach");
+    if (navCoach) navCoach.classList.toggle("hidden", !showCoach);
+    const bottomNavCoach = document.getElementById("bottomNavCoach");
+    if (bottomNavCoach) bottomNavCoach.classList.toggle("hidden", !showCoach);
+
+    // Hide standard pages for strict coaches
+    const strictCoach = isStrictCoach(user);
+    ['navDashboard', 'navSchedule', 'navMembers', 'navPrograms',
+     'bottomNavDashboard', 'bottomNavSchedule', 'bottomNavMembers', 'bottomNavPrograms'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle("hidden", strictCoach);
+    });
+
     // Load core data, then call page-specific ready handler
     await loadTenantSettings();
     await loadCourts();
@@ -756,6 +830,17 @@ async function handleAuthStateChange(user) {
     if (!isLoginPage) { window.location.href = "index.html"; return; }
     const header = document.getElementById("appHeader");
     if (header) header.classList.add("hidden");
+  }
+}
+
+export async function switchAcademy(newAcademyId) {
+  if (!currentUser || !currentUser.academyRoles || !currentUser.academyRoles[newAcademyId]) return;
+  try {
+    const userDocRef = doc(db, "users", currentUser.email);
+    await updateDoc(userDocRef, { defaultAcademyId: newAcademyId });
+    window.location.reload();
+  } catch (err) {
+    console.error("Failed to switch academy", err);
   }
 }
 

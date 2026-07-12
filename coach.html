@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMash | Coach Hub</title>
+  <meta name="description" content="Badminton Coach Hub — Manage attendance and player profiles." />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/coach.css" />
+  <script src="config.js?v=1.2"></script>
+  <script src="config.local.js" onerror="this.remove()"></script>
+  <!-- PDF Generation Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="/logo.png">
+</head>
+
+<body>
+  <div class="app-container">
+
+    <!-- ══ HEADER ═════════════════════════════════════════════ -->
+    <header id="appHeader" class="hidden">
+      <a href="dashboard.html" class="logo" id="logoBtn">
+        <img src="logo.png" alt="SMash Logo" class="logo-icon" />
+        <div class="logo-smash">SMash</div>
+      </a>
+      <div class="header-right">
+        <nav class="header-nav" id="desktopNav">
+          <a href="dashboard.html" id="navDashboard" class="nav-link">Dashboard</a>
+          <a href="schedule.html" id="navSchedule" class="nav-link">Schedule</a>
+          <a href="members.html" id="navMembers" class="nav-link">Members</a>
+          <a href="coach.html" class="nav-link hidden active" id="navCoach">Coach Hub</a>
+          <a href="programs.html" id="navPrograms" class="nav-link">Programs</a>
+          <a href="settings.html" class="nav-link" id="navSettings">Settings</a>
+        </nav>
+        <div class="user-pill" id="userPill">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">Loading...</span>
+          <div class="user-menu" id="userMenu">
+            <div class="user-menu-item user-menu-email" id="userMenuEmail">user@domain.com</div>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item danger" id="btnSignOut">⎋ Sign Out</button>
+          </div>
+        </div>
+        <button id="themeToggle" class="theme-toggle" title="Switch Theme">☀️</button>
+        <button class="btn-hamburger" id="hamburgerBtn" title="Toggle Menu"><span><span></span></span></button>
+      </div>
+    </header>
+
+    <!-- ══ COACH HUB HOME ════════════════════════════════════ -->
+    <div class="page-content hidden">
+      <div class="page-header" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+        <h2>Coaching Hub 🏸</h2>
+        <div class="page-header-sub">Manage student attendance and badminton performance profiles.</div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs-container" style="margin-bottom: 2rem; border-bottom: 1px solid var(--border); display: flex; gap: 1.5rem;">
+        <button class="tab-btn active" id="tabAttendance" style="background:none; border:none; color:var(--accent); font-weight:bold; font-size:1.1rem; padding-bottom:0.5rem; border-bottom:2px solid var(--accent); cursor:pointer;">✅ Daily Attendance</button>
+        <button class="tab-btn" id="tabProfiles" style="background:none; border:none; color:var(--muted); font-size:1.1rem; padding-bottom:0.5rem; cursor:pointer;">🏆 Player Profiles</button>
+        <button class="tab-btn" id="tabReports" style="background:none; border:none; color:var(--muted); font-size:1.1rem; padding-bottom:0.5rem; cursor:pointer;">📊 Monthly Reports</button>
+      </div>
+
+      <!-- Tab 1: Attendance -->
+      <div id="viewAttendance" class="coach-view">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+          <h3 style="margin:0;">Attendance for <span id="attendanceDateDisplay">Today</span></h3>
+          <div style="display:flex; gap: 0.5rem; flex-wrap: wrap;">
+            <input type="text" id="attendanceSearch" class="form-control" placeholder="Search name or plan..." style="width: 200px; height: 36px;" />
+            <input type="date" id="attendanceDatePicker" class="form-control" style="width: auto; height: 36px;" />
+          </div>
+        </div>
+        <div id="attendanceGrid" class="coach-grid">
+          <!-- Student cards injected here -->
+          <div class="empty-list-msg">Loading coaching students...</div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Player Profiles -->
+      <div id="viewProfiles" class="coach-view hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+          <h3 style="margin:0;">Student Performance Profiles</h3>
+          <input type="text" id="profileSearch" class="form-control" placeholder="Search student..." style="width: 250px; height: 36px;" />
+        </div>
+        <div id="profilesGrid" class="coach-grid">
+          <!-- Profile cards injected here -->
+        </div>
+      </div>
+      <!-- Tab 3: Monthly Reports -->
+      <div id="viewReports" class="coach-view hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+          <h3 style="margin:0;">Monthly Attendance Report</h3>
+          <div style="display:flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+            <input type="month" id="reportMonthPicker" class="form-control" style="width: auto; height: 36px;" />
+            <button id="btnGenerateReport" class="btn btn-secondary" style="height:36px;">Generate</button>
+            <button id="btnDownloadReport" class="btn btn-secondary hidden" style="height:36px; background-color:var(--accent); color:var(--surface);">📥 Download PDF</button>
+            <button id="btnShareReport" class="btn btn-primary hidden" style="height:36px;">📤 Share PDF</button>
+          </div>
+        </div>
+        <div class="glass-panel">
+          <div id="reportContainer" style="overflow-x: auto;">
+            <div class="empty-list-msg">Select a month and click Generate to view the report.</div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Edit Modal -->
+  <div id="profileModal" class="modal-overlay hidden">
+    <div class="modal-content profile-modal-content" style="max-width:800px; padding:2rem; border-radius:var(--radius-lg); background:var(--surface);">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <h3 id="profileModalTitle" style="margin:0; font-size:1.5rem; color:var(--text);">Edit Player Profile</h3>
+        <button id="closeProfileModal" class="btn-close" style="background:none; border:none; font-size:1.5rem; color:var(--muted); cursor:pointer;">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; gap: 2rem; flex-wrap: wrap;">
+        <!-- Left Col: Metrics -->
+        <div style="flex:1; min-width:300px;">
+          <div class="form-group">
+            <label>Skill Level</label>
+            <select id="profSkillLevel" class="form-control">
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+              <option value="Elite">Elite / Professional</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Dominant Hand</label>
+            <select id="profHand" class="form-control">
+              <option value="Right">Right-Handed</option>
+              <option value="Left">Left-Handed</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Playing Style</label>
+            <select id="profStyle" class="form-control">
+              <option value="All-Rounder">All-Rounder</option>
+              <option value="Aggressive">Aggressive / Smasher</option>
+              <option value="Defensive">Defensive / Retriever</option>
+              <option value="Control">Control / Rally</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Agility & Fitness (1-5)</label>
+            <input type="number" id="profAgility" class="form-control" min="1" max="5" value="3" />
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>Focus Areas (Comma separated)</label>
+            <input type="text" id="profFocus" class="form-control" placeholder="e.g. Backhand Clear, Net Drop" />
+          </div>
+        </div>
+
+        <!-- Right Col: Tournament Stats & Improvement Log -->
+        <div style="flex:1; min-width:300px; display:flex; flex-direction:column; gap:1.5rem;">
+          <div class="glass-panel" style="background:var(--surface2); padding:1rem; border-radius:var(--radius-md);">
+            <h4 style="margin:0 0 1rem 0; color:var(--accent3);">Tournament Stats</h4>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+              <div class="form-group" style="flex:1; min-width:60px; margin-bottom: 0;"><label>Played</label><input type="number" id="tsPlayed" class="form-control" value="0"></div>
+              <div class="form-group" style="flex:1; min-width:60px; margin-bottom: 0;"><label>Won</label><input type="number" id="tsWon" class="form-control" value="0"></div>
+              <div class="form-group" style="flex:1; min-width:60px; margin-bottom: 0;"><label>Lost</label><input type="number" id="tsLost" class="form-control" value="0"></div>
+              <div class="form-group" style="flex:1; min-width:60px; margin-bottom: 0;"><label>Titles</label><input type="number" id="tsTitles" class="form-control" value="0"></div>
+            </div>
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>Add Improvement Log Note</label>
+            <textarea id="profNewLog" class="form-control" rows="3" placeholder="Log progress, achievements, or feedback..." style="margin-bottom:0.5rem;"></textarea>
+            <button id="btnSaveProfile" class="btn btn-primary" style="align-self:flex-end;">💾 Save Profile</button>
+          </div>
+          
+          <div id="profLogHistory" style="margin-top:1rem; max-height:200px; overflow-y:auto; font-size:0.85rem; border-top:1px solid var(--border); padding-top:0.5rem;">
+            <!-- Logs injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="dashboard.html" id="bottomNavDashboard" class="bottom-nav-item"><span class="nav-icon">🏠</span>Home</a>
+    <a href="schedule.html" id="bottomNavSchedule" class="bottom-nav-item"><span class="nav-icon">📅</span>Schedule</a>
+    <a href="members.html" id="bottomNavMembers" class="bottom-nav-item"><span class="nav-icon">👥</span>Members</a>
+    <a href="coach.html" id="bottomNavCoach" class="bottom-nav-item active"><span class="nav-icon">🏸</span>Coach</a>
+    <a href="programs.html" id="bottomNavPrograms" class="bottom-nav-item"><span class="nav-icon">⚙️</span>Setup</a>
+    <a href="settings.html" id="bottomNavSettings" class="bottom-nav-item"><span class="nav-icon">🛡️</span>Admin</a>
+  </nav>
+
+  <script type="module" src="js/coach.js"></script>
+</body>
+</html>

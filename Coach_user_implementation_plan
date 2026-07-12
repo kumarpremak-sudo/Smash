@@ -1,0 +1,97 @@
+# Multi-Academy Coach RBAC & Coaching Hub Implementation Plan
+
+This document outlines the architecture, database changes, and UI additions required to support Coaches, Multi-Academy isolation, and Coaching Student management.
+
+## Answers to Your Questions
+
+**1. Do we need to change the firebase rule?**
+**Yes.** We will need to update `firestore.rules`. Currently, security relies heavily on `TENANT_ADMIN`. We will update the rules to explicitly allow users with the `"COACH"` role to `read`/`write` to the `members` and `attendance` collections, *provided* the document's `academyId` matches one of the academies they are authorized for in their `academyRoles` map.
+
+**2. What information of the student is visible to the coach?**
+Coaches should see performance and attendance data, but NOT financial data. 
+- **Visible**: Name, Phone/Email, Enrolled Program/Category, Join Date, Skill Level, Playing Profile (Badminton specific metrics), Attendance history, and Improvement Logs.
+- **Hidden**: Fee amounts, Last Paid Date, Next Due Date, Billing history.
+
+**3. How can the Tenant Admin access this coach & student information?**
+The Tenant Admin will have full access to the **Coach Hub** page. They will see exactly what the coaches see, plus they can view which coach submitted which improvement note or attendance record. We can add a "Coaching Hub" link in the main navigation for Tenant Admins.
+
+**4. How are we going to implement data isolation if a coach works in both academies?**
+We achieve this through **Active Context Switching** and **Composite Roles**:
+- The coach's database record will contain a map of their authorized academies: `academyRoles: { "academy_A": "COACH", "academy_B": "COACH" }`.
+- When they log in, they will see an **Academy Switcher** dropdown in the top header.
+- Selecting an academy updates their `currentUser.academyId` active session variable in JavaScript.
+- **Every single query** (e.g., loading students) will have `.where("academyId", "==", currentUser.academyId)`. 
+- **Firebase Security Rules** will strictly enforce this so a coach cannot query Academy A's data while logged into Academy B.
+
+**5. What will be the layout of the coach page? Will it be adaptive?**
+**Yes, 100% responsive and adaptive** (Mobile, Tablet, Desktop).
+- **Mobile**: A vertical list of "Student Cards" with quick tap buttons (Present/Absent). Tapping a student opens a sliding panel to see their full profile and notes.
+- **Tablet/Laptop**: A wider grid layout or table with side-by-side split screens (List of students on the left, detailed profile and improvement logs on the right). 
+- It will feel like a modern, premium mobile app.
+
+**6. What other Badminton-specific information can we add for the coach?**
+To make this truly valuable for badminton coaching, we can add a **Player Profile** section to the student record containing:
+- **Dominant Hand**: Left-handed / Right-handed
+- **Playing Style**: Aggressive (Smasher), Defensive, Rally/Control, All-Rounder
+- **Current Focus Areas**: (e.g., "Backhand clears", "Net drops", "Footwork speed")
+- **Fitness/Agility Rating**: 1 to 5 Stars
+- **Racket Grip/String Tension**: (Optional, but highly appreciated by advanced coaches)
+- **Primary Goal**: Fitness / Hobby / Tournament Preparation
+
+---
+
+## Proposed Changes
+
+### 1. Database Schema Updates (Firestore)
+
+**`users` collection**
+- `academyRoles`: A map of `{ academyId: "ROLE" }`. Example: `{ "acad_1": "COACH", "acad_2": "COACH" }`.
+- `defaultAcademyId`: The academy loaded upon initial login.
+
+**`members` collection**
+New fields added to existing student documents:
+- `player_profile`: An object containing:
+  - `skill_level`: "Beginner", "Intermediate", "Advanced"
+  - `dominant_hand`: "Right", "Left"
+  - `playing_style`: "Aggressive", "Defensive", "Control"
+  - `focus_areas`: Array of strings
+  - `agility_rating`: Number (1-5)
+  - `tournament_stats`: Object with `played`, `won`, `lost`, `titles`
+- `improvement_logs`: Array of objects `{ date, note, coachName, coachEmail }`.
+
+**`attendance` collection (NEW)**
+- `memberId`: ID of the student.
+- `academyId`: For security rules/isolation.
+- `date`: YYYY-MM-DD.
+- `status`: "Present", "Absent", "Leave".
+- `recordedBy`: Email/Name of the coach.
+
+---
+
+### 2. Global Auth & Access Control
+
+#### [MODIFY] `js/shared.js`
+- **`checkUserAccess(user)`**: Update logic to read the new `academyRoles` map. 
+- **Academy Switcher**: Inject a dropdown into the `#appHeader` if `currentUser.availableAcademies.length > 1`. Changing the dropdown updates `currentUser.academyId` and reloads the data.
+
+#### [MODIFY] `firestore.rules`
+- Introduce a `hasCoachAccess(academyId)` function that verifies the user's token/email against the `academyRoles` map in their user document.
+- Allow read/write to `members` and `attendance` for coaches.
+
+---
+
+### 3. Tenant Admin Settings
+
+#### [MODIFY] `settings.html` & `js/settings.js`
+- **Staff Management Panel**: Unhide/build the Staff management panel for Tenant Admins.
+- **Add Coach**: Allow Tenant Admins to input an email address to add them to their `academyRoles` map.
+- **Revoke/Disable Coach Access**: Provide a table of active coaches. Tenant Admins can click a "Revoke Access" (or Trash) button next to a coach's name to instantly remove their `academyId` from the coach's `academyRoles` map, instantly disabling their access to the Coaching Hub for that academy.
+
+---
+
+### 4. Coaching Hub UI
+
+#### [NEW] `coach.html` & `js/coach.js`
+- A dedicated dashboard tailored for Coaches and Tenant Admins.
+- Filtered to only show students enrolled in Coaching programs.
+- **Mobile-first UI**: Tabbed navigation between **Attendance** (quick tap grid) and **Player Profiles** (detailed badminton metrics and logs).

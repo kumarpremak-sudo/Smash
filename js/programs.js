@@ -2,7 +2,7 @@
 import {
   db, currentUser, tenantSettings, defaultSettings, showMsg,
   setOnAuthReady, initApp, doc, setDoc, escapeHTML, format12Hour, parse12HourTo24Hour,
-  isSuperAdmin, isTenantAdmin
+  isSuperAdmin, isTenantAdmin, isStrictCoach
 } from "./shared.js";
 
 // Local state for editing
@@ -13,7 +13,11 @@ let localConfig = {
   fee_structure: []
 };
 
-setOnAuthReady(() => {
+setOnAuthReady((user) => {
+  if (isStrictCoach(user)) {
+    window.location.href = "coach.html";
+    return;
+  }
   if (!tenantSettings) {
     document.getElementById("tab-memberships").innerHTML = `<div class="members-empty-state"><div class="empty-icon">⚠️</div><p>No settings found. Please complete first-time setup on the dashboard.</p></div>`;
     return;

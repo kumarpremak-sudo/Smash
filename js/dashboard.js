@@ -5,7 +5,7 @@ import {
   loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour,
-  signOut, parseDays, openWhatsApp
+  signOut, parseDays, openWhatsApp, isStrictCoach
 } from "./shared.js";
 
 let currentYear = new Date().getFullYear();
@@ -34,6 +34,10 @@ document.addEventListener('setup_required', () => {
 
 // ── Auth Ready Handler ──────────────────────────────────────
 setOnAuthReady(async (user) => {
+  if (isStrictCoach(user)) {
+    window.location.href = "coach.html";
+    return;
+  }
   // Fill court selector
   const select = document.getElementById("court_id");
   if (select) {
