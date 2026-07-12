@@ -4,7 +4,7 @@ import {
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
   collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp,
-  populateBookingDropdowns, populateCategoryDropdown
+  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp
 } from "./shared.js";
 import { addDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -77,6 +77,7 @@ function renderMemberStats() {
   let overdueCount = 0, dueSoonCount = 0;
   membersList.forEach(m => {
     if (m.status !== "active") return;
+    if (m.lastPaidDate === "") { overdueCount++; return; }
     const lastPaid = m.lastPaidDate || m.joinDate;
     if (!lastPaid) return;
     const nextDue = addOneMonth(lastPaid);
@@ -152,11 +153,14 @@ function renderMembersTable() {
     const plan = getPlanDetails(member.type);
     plan.color = "var(--accent4)";
     plan.bg = "rgba(77,171,247,0.12)";
-    const lastPaid = member.lastPaidDate || member.joinDate || "—";
-    const nextDue = (member.lastPaidDate || member.joinDate) ? addOneMonth(member.lastPaidDate || member.joinDate) : "—";
+    const isPending = member.lastPaidDate === "";
+    const lastPaid = isPending ? "Pending" : (member.lastPaidDate || member.joinDate || "—");
+    const nextDue = isPending ? "Pending" : ((member.lastPaidDate || member.joinDate) ? addOneMonth(member.lastPaidDate || member.joinDate) : "—");
 
     let statusClass = "ok", statusText = "✅ Paid";
-    if (nextDue !== "—") {
+    if (isPending) {
+      statusClass = "pending"; statusText = "⏳ Pending";
+    } else if (nextDue !== "—") {
       if (todayStr >= nextDue) { statusClass = "overdue"; statusText = "🔴 Overdue"; }
       else if (nextDue <= soonStr) { statusClass = "due-soon"; statusText = "🟡 Due Soon"; }
     }
@@ -173,8 +177,22 @@ function renderMembersTable() {
       <td class="member-actions-cell" style="${isGuest ? 'display:none;' : ''}"></td>
     `;
 
-    if (!isGuest && (statusClass === "overdue" || statusClass === "due-soon")) {
+    if (!isGuest && (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending")) {
       const actionsCell = tr.querySelector(".member-actions-cell");
+      
+      const waBtn = document.createElement("button");
+      waBtn.className = "btn-icon btn-wa";
+      waBtn.title = "Send WhatsApp Reminder";
+      waBtn.style.cssText = "background:transparent; border:none; cursor:pointer; font-size:1.1rem;";
+      waBtn.innerHTML = "📱";
+      waBtn.addEventListener("click", () => {
+        const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
+        const priceVal = plan.price > 0 ? `₹${plan.price.toLocaleString()}` : "your fee";
+        const msg = `Hi ${member.name},\n\nThis is a gentle reminder from *${academyName}*. Your fee of ${priceVal} for the *${plan.name}* plan is due on *${nextDue}*.\n\nKindly clear the dues at your earliest convenience.\n\nThank you!`;
+        openWhatsApp(member.phone, msg);
+      });
+      actionsCell.appendChild(waBtn);
+
       const btn = document.createElement("button");
       btn.className = "btn-mark-paid";
       btn.textContent = "💳 Mark Paid";
@@ -317,6 +335,10 @@ function renderFeeAlerts() {
   const overdueMembers = [], upcomingMembers = [];
   membersList.forEach(member => {
     if (member.status !== "active") return;
+    if (member.lastPaidDate === "") {
+      overdueMembers.push({ ...member, nextDue: "Pending", diffDays: -1 });
+      return;
+    }
     const lastPaid = member.lastPaidDate || member.joinDate;
     if (!lastPaid) return;
     const nextDue = addOneMonth(lastPaid);
@@ -379,9 +401,10 @@ function renderFeeAlerts() {
     let priceVal = `₹${planDetails.price.toLocaleString()}`;
 
     let daysLabel = "";
-    if (member.alertKind === "overdue") {
-      const daysOver = Math.abs(member.diffDays);
-      daysLabel = `<span class="fee-days-badge fee-days-overdue">${daysOver === 0 ? "Due today" : `${daysOver}d overdue`}</span>`;
+    if (member.lastPaidDate === "") {
+      daysLabel = `<span class="fee-days-badge fee-days-overdue">Pending</span>`;
+    } else if (member.alertKind === "overdue") {
+      daysLabel = `<span class="fee-days-badge fee-days-overdue">${member.diffDays < 0 ? Math.abs(member.diffDays) + "d ago" : "Today"}</span>`;
     } else {
       daysLabel = `<span class="fee-days-badge fee-days-upcoming">${member.diffDays}d remaining</span>`;
     }
@@ -394,15 +417,23 @@ function renderFeeAlerts() {
     row.innerHTML = `
       <div class="fee-alert-info">
         <div class="fee-alert-title">${escapeHTML(member.name)} ${member.phone ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:5px;">📞 ${escapeHTML(member.phone)}</span>` : ""} ${daysLabel} ${planBadge}</div>
-        <div class="fee-alert-meta">Last paid: <span>${escapeHTML(member.lastPaidDate || member.joinDate)}</span> → Next due: <span>${escapeHTML(member.nextDue)}</span></div>
+        <div class="fee-alert-meta">Last paid: <span>${member.lastPaidDate === "" ? "Pending" : escapeHTML(member.lastPaidDate || member.joinDate)}</span> → Next due: <span>${escapeHTML(member.nextDue)}</span></div>
       </div>
       <div class="fee-alert-actions">
         <span class="fee-alert-price-tag">${priceVal}</span>
-        ${isGuest ? '' : '<button class="btn-mark-paid">💳 Mark Paid</button>'}
+        ${isGuest ? '' : `<button class="btn-icon btn-wa btn-wa-alert" title="Send WhatsApp Reminder" style="margin-right: 0.5rem; background:transparent; border:none; cursor:pointer; font-size:1.1rem;">📱</button><button class="btn-mark-paid">💳 Mark Paid</button>`}
       </div>
     `;
     if (!isGuest) {
       row.querySelector(".btn-mark-paid").addEventListener("click", (e) => handleMarkPaidAlert(member, e.target, row));
+      const waBtn = row.querySelector(".btn-wa-alert");
+      if (waBtn) {
+        waBtn.addEventListener("click", () => {
+          const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
+          const msg = `Hi ${member.name},\n\nThis is a gentle reminder from *${academyName}*. Your fee of ${priceVal} for the *${planDetails.name}* plan is due on *${member.nextDue}*.\n\nKindly clear the dues at your earliest convenience.\n\nThank you!`;
+          openWhatsApp(member.phone, msg);
+        });
+      }
     }
     alertsListEl.appendChild(row);
   });
@@ -569,10 +600,20 @@ function loadEnquiries() {
             <option value="Converted" ${enq.status === 'Converted' ? 'selected' : ''}>Converted</option>
             <option value="Lost" ${enq.status === 'Lost' ? 'selected' : ''}>Lost</option>
           </select>
+          <button class="btn-icon btn-wa-enq" data-id="${enq.id}" title="Send WhatsApp Message" style="margin-left:0.5rem; background:transparent; border:none; cursor:pointer; font-size:1.1rem;">📱</button>
           <button class="btn-icon btn-del-enq" data-id="${enq.id}" title="Delete" style="margin-left:0.5rem; color:var(--danger); background:transparent; border:none; cursor:pointer;">🗑️</button>
         </td>
       `;
       tbody.appendChild(tr);
+      
+      const waBtn = tr.querySelector(".btn-wa-enq");
+      if (waBtn) {
+        waBtn.addEventListener("click", () => {
+          const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
+          const msg = `Hi ${enq.name},\n\nThank you for enquiring at *${academyName}*! You recently asked about *${enq.booking_type} - ${enq.booking_category}*.\n\nPlease let us know if you'd like to reserve a slot or if you have any questions. We're happy to help!`;
+          openWhatsApp(enq.phone, msg);
+        });
+      }
     });
 
     document.querySelectorAll('.status-select').forEach(sel => {

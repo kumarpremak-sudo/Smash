@@ -2,7 +2,7 @@
 import {
   db, currentUser, courtsList, courtsMap, escapeHTML, formatSelectedDate,
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
-  bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns,
+  bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, openWhatsApp,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
   query, where, serverTimestamp, format12Hour
 } from "./shared.js";
@@ -39,6 +39,7 @@ function setupScheduleListeners() {
   addSubmit("quickBookingForm", handleQuickBookingSubmit);
 
   // Booking detail modal actions
+  addClick("btnRemindBooking", handleRemindBooking);
   addClick("btnEditBooking", showEditBookingForm);
   addClick("btnCancelEdit", () => { if (selectedBooking) openBookingDetailsModal(selectedBooking); });
   addClick("btnDeleteBooking", handleBookingDelete);
@@ -321,7 +322,7 @@ async function renderModalEnrolleesList(bookingId) {
       
       const removeBtnHtml = isGuest ? '' : `<button class="btn-remove-enrollee" title="Remove ${escapeHTML(member.name)}">&times;</button>`;
       
-      li.innerHTML = `<div class="enrollee-list-item-info"><span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${escapeHTML(member.lastPaidDate)}</span></span></div><div style="display:flex;align-items:center;gap:0.8rem;"><span style="font-size:0.65rem;background:${planBg};color:${planColor};border:1px solid ${planColor}35;padding:1px 8px;border-radius:99px;font-weight:600;">${planName}</span>${removeBtnHtml}</div>`;
+      li.innerHTML = `<div class="enrollee-list-item-info"><span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${member.lastPaidDate === "" ? "Pending" : escapeHTML(member.lastPaidDate)}</span></span></div><div style="display:flex;align-items:center;gap:0.8rem;"><span style="font-size:0.65rem;background:${planBg};color:${planColor};border:1px solid ${planColor}35;padding:1px 8px;border-radius:99px;font-weight:600;">${planName}</span>${removeBtnHtml}</div>`;
       
       if (!isGuest) {
         li.querySelector(".btn-remove-enrollee").addEventListener("click", async () => {
@@ -338,6 +339,15 @@ async function renderModalEnrolleesList(bookingId) {
     });
     if (activeCount === 0) ul.innerHTML = '<li class="text-muted" style="list-style:none;">No enrollees yet</li>';
   } catch (error) { ul.innerHTML = `<li style="color:var(--accent2);list-style:none;">Error: ${error.message}</li>`; }
+}
+
+function handleRemindBooking() {
+  if (!selectedBooking) return;
+  const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
+  const msg = `Hi ${selectedBooking.customer_name},\n\nThis is a reminder from *${academyName}* for your upcoming session.\n\n*Details:*\nDate: ${selectedBooking.date}\nTime: ${format12Hour(selectedBooking.start_time)} - ${format12Hour(selectedBooking.end_time)}\nCategory: ${selectedBooking.booking_type} - ${selectedBooking.category}\n\nSee you on the court!`;
+  // if they only entered email, this might be empty, openWhatsApp handles empty gracefully
+  const phone = selectedBooking.customer_phone || selectedBooking.customer_email || "";
+  openWhatsApp(phone, msg);
 }
 
 function showEditBookingForm() {
@@ -401,7 +411,7 @@ async function handleEnrollmentSubmit() {
   const submitBtn = document.getElementById("btnEnrollSubmit");
   submitBtn.disabled = true;
   try {
-    await addDoc(collection(db, "members"), { name: newName, type: typeSelect.value, joinDate: joinDateInput.value || formatSelectedDate(selectedDate), lastPaidDate: joinDateInput.value || formatSelectedDate(selectedDate), bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
+    await addDoc(collection(db, "members"), { name: newName, type: typeSelect.value, joinDate: joinDateInput.value || formatSelectedDate(selectedDate), lastPaidDate: "", bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
     input.value = "";
     showMsg("modalMessage", "Enrolled!", "success");
     await renderModalEnrolleesList(selectedBooking.id);

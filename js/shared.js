@@ -997,4 +997,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
   }
 });
 
-
+// WhatsApp Integration Helper
+export function openWhatsApp(phone, message) {
+  if (!phone) return;
+  // Strip spaces, dashes, etc.
+  const cleanPhone = phone.replace(/[^\d+]/g, '');
+  if (!cleanPhone) return;
+  const encodedMsg = encodeURIComponent(message || '');
+  window.open(`https://wa.me/${cleanPhone}?text=${encodedMsg}`, '_blank');
+}
