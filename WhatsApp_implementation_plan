@@ -1,0 +1,41 @@
+# One-Click WhatsApp Reminders - Implementation Plan
+
+Since automated SMS costs money and requires regulatory paperwork, the "One-Click WhatsApp" approach is the absolute best free solution. It leverages the global `wa.me` standard to dynamically generate personalized WhatsApp messages that your staff can send with a single tap.
+
+Here is how I plan to implement this seamlessly into your existing dashboard.
+
+## Proposed Changes
+
+### 1. Fee Overdue Alerts (`js/members.js` & `members.html`)
+The most critical use-case is reminding members to pay their fees.
+- **Action:** Inside the `renderFeeAlerts()` function, we will inject a new green **"📱 WhatsApp"** button right next to the "💳 Mark Paid" button for every overdue member.
+- **Logic:** When the page renders, it will dynamically generate a URL for each member.
+  - *Example Message:* "Hi [Name], a gentle reminder that your fee of ₹[Price] for [Plan] is due on [Date]. Kindly clear the dues at your earliest convenience. Thank you!"
+  - *Data Cleansing:* We will automatically strip any spaces or dashes from the user's phone number to ensure the WhatsApp API accepts it.
+- **Behavior:** Clicking the button instantly opens the WhatsApp app on mobile, or WhatsApp Web on desktop, with the chat open and the message pre-typed in the text box. The staff just hits "Send".
+
+### 2. Enquiry Follow-ups (`js/members.js`)
+If someone enquires but doesn't book, following up is crucial.
+- **Action:** In the Enquiries list table, we will add a WhatsApp icon button to the "Actions" column.
+- **Logic:** 
+  - *Example Message:* "Hi [Name], you recently enquired about [Booking Type] at our academy. Let us know if you'd like to reserve a slot or if you have any questions!"
+
+### 3. Coaching/Booking Reminders (`js/schedule.js`)
+- **Action:** Inside the "Booking Details" modal (when you click an existing booking on the calendar), we will add a **"📱 Remind Student"** button next to the Edit and Cancel buttons.
+- **Logic:**
+  - *Example Message:* "Hi [Name], this is a reminder for your upcoming session at [Time] on [Date]. See you on the court!"
+
+## Security & Privacy Note
+Because this uses the standard `https://wa.me/` URI scheme, it is 100% serverless and entirely client-side.
+- No API keys are required.
+- No third-party servers ever read your customer data.
+- It is 100% free forever.
+
+## Verification Plan
+1. I will write the code and update the JavaScript files.
+2. I will ask you to open your Fee Alerts dashboard and click the new "WhatsApp" button on a test member to ensure it opens the WhatsApp app and populates the text correctly.
+
+> [!TIP]
+> This approach is actually preferred by many tenants over automated SMS because WhatsApp has a near 100% open rate, and the manual "Send" step allows the staff to personalize the message if they know the customer well.
+
+Let me know if you approve of this plan, and I will begin the implementation immediately!

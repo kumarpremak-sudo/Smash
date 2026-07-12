@@ -126,8 +126,10 @@
 .member-due-badge.ok { color: var(--accent); }
 
 .member-actions-cell {
-  display: flex;
-  gap: 0.5rem;
+  vertical-align: middle;
+}
+.member-actions-cell > * {
+  margin-right: 0.5rem;
 }
 
 .btn-mark-paid {

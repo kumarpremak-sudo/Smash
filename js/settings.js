@@ -140,12 +140,19 @@ async function loadAcademies() {
         console.warn("Could not fetch admin email for", d.id);
       }
 
+      const acadName = acad.name || acad.academy_name || d.id;
+      let dateStr = "Unknown";
+      if (acad.createdAt) {
+        if (typeof acad.createdAt.toMillis === 'function') dateStr = new Date(acad.createdAt.toMillis()).toLocaleDateString();
+        else dateStr = new Date(acad.createdAt).toLocaleDateString();
+      }
+
       const li = document.createElement("li");
       li.className = "whitelist-item";
       li.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:0.25rem;">
-          <span class="whitelist-item-email" style="font-size:1.05rem;"><strong>${escapeHTML(acad.name)}</strong></span>
-          <span style="font-size:0.8rem; color:var(--muted); font-family:var(--font-mono);">${escapeHTML(adminEmail)} &nbsp;|&nbsp; Created: ${new Date(acad.createdAt).toLocaleDateString()}</span>
+          <span class="whitelist-item-email" style="font-size:1.05rem;"><strong>${escapeHTML(acadName)}</strong></span>
+          <span style="font-size:0.8rem; color:var(--muted); font-family:var(--font-mono);">${escapeHTML(adminEmail)} &nbsp;|&nbsp; Created: ${dateStr}</span>
         </div>
         <button class="btn-remove-whitelist" style="margin-left:auto;" title="Delete Academy">&times;</button>
       `;

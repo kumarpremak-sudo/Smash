@@ -5,7 +5,7 @@ import {
   loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour,
-  signOut, parseDays
+  signOut, parseDays, openWhatsApp
 } from "./shared.js";
 
 let currentYear = new Date().getFullYear();
@@ -104,6 +104,7 @@ function setupDashboardListeners() {
   if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
 
   // Booking detail actions
+  addClick("btnRemindBooking", handleRemindBooking);
   addClick("btnEditBooking", showEditBookingForm);
   addClick("btnCancelEdit", () => { if (selectedBooking) openBookingDetailsModal(selectedBooking); });
   addClick("btnDeleteBooking", handleBookingDelete);
@@ -463,7 +464,7 @@ async function renderModalEnrolleesList(bookingId) {
         const badgeHtml = `<span style="font-size:0.65rem; background:${planBg}; color:${planColor}; border:1px solid ${planColor}35; padding:1px 8px; border-radius:99px; font-weight:600;">${planName}</span>`;
         const infoDiv = document.createElement("div");
         infoDiv.className = "enrollee-list-item-info";
-        infoDiv.innerHTML = `<span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${escapeHTML(member.lastPaidDate)}</span></span>`;
+        infoDiv.innerHTML = `<span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${member.lastPaidDate === "" ? "Pending" : escapeHTML(member.lastPaidDate)}</span></span>`;
         const rightDiv = document.createElement("div");
         rightDiv.style.display = "flex"; rightDiv.style.alignItems = "center"; rightDiv.style.gap = "0.8rem";
         rightDiv.innerHTML = badgeHtml;
@@ -589,7 +590,7 @@ async function handleBookingSubmit(event) {
             phone: phone,
             type: planKey,
             joinDate: todayStr,
-            lastPaidDate: todayStr,
+            lastPaidDate: "",
             bookingId: firstBookingId,
             status: "active",
             createdTime: Date.now(),
@@ -617,7 +618,7 @@ async function handleBookingSubmit(event) {
           phone: phone,
           type: planKey,
           joinDate: todayStr,
-          lastPaidDate: todayStr,
+          lastPaidDate: "",
           bookingId: newBookingRef.id,
           status: "active",
           createdTime: Date.now(),
@@ -701,7 +702,7 @@ async function handleBookingSubmit(event) {
             phone: phone,
             type: planKey,
             joinDate: startDateStr,
-            lastPaidDate: startDateStr,
+            lastPaidDate: "",
             bookingId: firstBookingId,
             status: "active",
             createdTime: Date.now(),
@@ -716,6 +717,14 @@ async function handleBookingSubmit(event) {
     }
   } catch (error) { showMsg("modalMessage", error.message, "error"); }
   finally { btn.disabled = false; btn.textContent = "Confirm Reservation"; }
+}
+
+function handleRemindBooking() {
+  if (!selectedBooking) return;
+  const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
+  const msg = `Hi ${selectedBooking.customer_name},\n\nThis is a reminder from *${academyName}* for your upcoming session.\n\n*Details:*\nDate: ${selectedBooking.date}\nTime: ${format12Hour(selectedBooking.start_time)} - ${format12Hour(selectedBooking.end_time)}\nCategory: ${selectedBooking.booking_type} - ${selectedBooking.category}\n\nSee you on the court!`;
+  const phone = selectedBooking.customer_phone || selectedBooking.customer_email || "";
+  openWhatsApp(phone, msg);
 }
 
 async function handleEditBookingSubmit(event) {
@@ -769,7 +778,7 @@ async function handleEnrollmentSubmit() {
   const type = typeSelect.value;
   const joinDate = joinDateInput.value || formatSelectedDate(selectedDate);
   try {
-    await addDoc(collection(db, "members"), { name: newName, phone: selectedBooking.customer_phone || selectedBooking.customer_email || "+91 ", type, joinDate, lastPaidDate: joinDate, bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
+    await addDoc(collection(db, "members"), { name: newName, phone: selectedBooking.customer_phone || selectedBooking.customer_email || "+91 ", type, joinDate, lastPaidDate: "", bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
     input.value = "";
     showMsg("modalMessage", "Trainee enrolled successfully!", "success");
     await renderModalEnrolleesList(selectedBooking.id);
