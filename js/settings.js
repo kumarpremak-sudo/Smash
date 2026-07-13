@@ -156,9 +156,13 @@ async function loadAcademies() {
           <span class="whitelist-item-email" style="font-size:1.05rem;"><strong>${escapeHTML(acadName)}</strong></span>
           <span style="font-size:0.8rem; color:var(--muted); font-family:var(--font-mono);">${escapeHTML(adminEmail)} &nbsp;|&nbsp; Created: ${dateStr}</span>
         </div>
-        <button class="btn-remove-whitelist" style="margin-left:auto;" title="Delete Academy">&times;</button>
+        <div style="display:flex; gap:0.5rem; margin-left:auto; align-items:center;">
+          <button class="btn btn-sm btn-outline btn-purge-academy" title="Purge Tenant Data" style="color:var(--accent2); border-color:var(--accent2); padding:2px 8px; font-size:0.75rem;">🧹 Purge Data</button>
+          <button class="btn-remove-whitelist" title="Delete Academy">&times;</button>
+        </div>
       `;
-      li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(d.id, acad.name, li));
+      li.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(d.id, acadName, li));
+      li.querySelector(".btn-purge-academy").addEventListener("click", () => handlePurgeAcademy(d.id, acadName, li));
       list.appendChild(li);
     }
   } catch (error) {
@@ -227,6 +231,7 @@ async function handleDeleteAcademy(academyId, academyName, liEl) {
   liEl.querySelector(".btn-confirm-no").addEventListener("click", () => {
     liEl.innerHTML = originalHtml;
     liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(academyId, academyName, liEl));
+    liEl.querySelector(".btn-purge-academy").addEventListener("click", () => handlePurgeAcademy(academyId, academyName, liEl));
   });
   liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
     liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Deleting...</span>';
@@ -246,6 +251,59 @@ async function handleDeleteAcademy(academyId, academyName, liEl) {
       await loadAcademies();
     } catch (error) {
       showInlineToast(`Failed to delete: ${error.message}`, "error");
+      await loadAcademies();
+    }
+  });
+}
+
+async function handlePurgeAcademy(academyId, academyName, liEl) {
+  if (!isSuperAdmin(currentUser)) return;
+  
+  const originalHtml = liEl.innerHTML;
+  liEl.innerHTML = `
+    <div class="fee-confirm-wrap" style="width: 100%; display: flex; flex-direction: column; gap: 0.5rem;">
+      <span class="fee-confirm-text" style="font-size: 0.8rem; font-weight: 600; color: var(--accent2);">⚠️ PURGE all operational data (bookings, members, etc.) for ${escapeHTML(academyName)}? This cannot be undone.</span>
+      <div class="fee-confirm-btns" style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+        <button class="btn-confirm-yes" style="padding: 2px 8px; font-size: 0.75rem; background: var(--accent2); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer;">✓ Yes, Purge</button>
+        <button class="btn-confirm-no" style="padding: 2px 8px; font-size: 0.75rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer;">✕ Cancel</button>
+      </div>
+    </div>
+  `;
+  liEl.querySelector(".btn-confirm-no").addEventListener("click", () => {
+    liEl.innerHTML = originalHtml;
+    liEl.querySelector(".btn-remove-whitelist").addEventListener("click", () => handleDeleteAcademy(academyId, academyName, liEl));
+    liEl.querySelector(".btn-purge-academy").addEventListener("click", () => handlePurgeAcademy(academyId, academyName, liEl));
+  });
+  liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
+    liEl.innerHTML = '<span style="color:var(--accent2);font-size:0.8rem;">Purging data, please wait...</span>';
+    try {
+      const collectionsToPurge = ["bookings", "members", "enquiries", "courts", "programs", "coaching", "attendance", "hourly_slots"];
+      const batch = writeBatch(db);
+      let deleteCount = 0;
+      
+      for (const colName of collectionsToPurge) {
+        const q = query(collection(db, colName), where("academyId", "==", academyId));
+        const snap = await getDocs(q);
+        snap.forEach(docSnap => {
+          batch.delete(doc(db, colName, docSnap.id));
+          deleteCount++;
+        });
+      }
+      
+      const acadRef = doc(db, "academies", academyId);
+      batch.update(acadRef, {
+        membership_programs: defaultSettings.membership_programs,
+        hourly_slots: defaultSettings.hourly_slots,
+        coaching_schedule: defaultSettings.coaching_schedule,
+        fee_structure: defaultSettings.fee_structure
+      });
+      
+      await batch.commit();
+      
+      showInlineToast(`Purged ${deleteCount} records for ${academyName} and reset programs.`, "success");
+      await loadAcademies();
+    } catch (error) {
+      showInlineToast(`Failed to purge data: ${error.message}`, "error");
       await loadAcademies();
     }
   });
