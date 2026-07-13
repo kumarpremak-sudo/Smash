@@ -147,8 +147,8 @@ export function getBookingHierarchy() {
   // 1. Hourly Slots -> Spot booking & Guest Play
   if (tenantSettings.hourly_slots) {
     tenantSettings.hourly_slots.forEach(s => {
-      if (s.type.includes("Hourly Slot")) addNode("Spot booking", "Hourly Slot", "No Need");
-      else addNode("Guest Play", s.type, "No Need");
+      if (s.type && s.type.includes("Hourly Slot")) addNode("Spot booking", "Hourly Slot", "No Need");
+      else if (s.type) addNode("Guest Play", s.type, "No Need");
     });
   }
 
@@ -164,11 +164,13 @@ export function getBookingHierarchy() {
   // 3. Coaching Schedules (Fallbacks for batches that have no fee structure yet)
   if (tenantSettings.coaching_schedule) {
     tenantSettings.coaching_schedule.forEach(c => {
-      const type = c.category.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
-      const cat = c.category;
+      const cat = c.category || "Unknown";
+      const type = cat.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
 
       // Only add periods from the schedule if this category has NO fee structure defined
-      const hasFee = tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => f.program_name.toLowerCase().includes(c.category.toLowerCase()));
+      const hasFee = tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => 
+        (f.program_name || "").toLowerCase().includes(cat.toLowerCase())
+      );
       if (!hasFee) {
         addNode(type, cat, c.days || "No Need");
       }
@@ -424,17 +426,25 @@ export async function loadTenantSettings() {
     if (snap.exists()) {
       tenantSettings = snap.data();
 
-      // Inject missing template arrays for backward compatibility and UX
-      if (!tenantSettings.membership_programs) tenantSettings.membership_programs = defaultSettings.membership_programs;
-      if (!tenantSettings.hourly_slots) tenantSettings.hourly_slots = defaultSettings.hourly_slots;
-      if (!tenantSettings.coaching_schedule) tenantSettings.coaching_schedule = defaultSettings.coaching_schedule;
-      if (!tenantSettings.fee_structure) tenantSettings.fee_structure = defaultSettings.fee_structure;
+      const toArr = (val, def) => {
+        if (!val) return def;
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'object') return Object.values(val);
+        return def;
+      };
+
+      // Inject missing template arrays for backward compatibility and UX, and handle Firebase object-array conversion
+      tenantSettings.membership_programs = toArr(tenantSettings.membership_programs, defaultSettings.membership_programs);
+      tenantSettings.hourly_slots = toArr(tenantSettings.hourly_slots, defaultSettings.hourly_slots);
+      tenantSettings.coaching_schedule = toArr(tenantSettings.coaching_schedule, defaultSettings.coaching_schedule);
+      tenantSettings.fee_structure = toArr(tenantSettings.fee_structure, defaultSettings.fee_structure);
+      tenantSettings.contact_numbers = toArr(tenantSettings.contact_numbers, []);
       if (!tenantSettings.operating_hours) tenantSettings.operating_hours = defaultSettings.operating_hours;
 
       // In-memory migration for existing users
       if (tenantSettings.hourly_slots) {
         tenantSettings.hourly_slots.forEach(s => {
-          if (s.type.includes("Guest") || s.type.includes("Spot Booking") || s.type.includes("Hourly Slot Peak")) {
+          if (s.type && (s.type.includes("Guest") || s.type.includes("Spot Booking") || s.type.includes("Hourly Slot Peak"))) {
             if (s.type.includes("Peak")) {
               s.type = s.type.includes("Non") ? "Guest play (Non Peak hours)" : "Guest play (Peak hours)";
             } else if (s.type === "Guest" || s.type === "Spot Booking") {
