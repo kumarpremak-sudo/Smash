@@ -81,6 +81,14 @@ setOnAuthReady((user) => {
   }
 });
 
+let autoSaveTimeout = null;
+function triggerAutoSave() {
+  if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+  autoSaveTimeout = setTimeout(() => {
+    handleSave();
+  }, 1000);
+}
+
 // ── Tabs ──────────────────────────────────────────────────
 function setupTabs() {
   document.querySelectorAll(".prog-tab-btn").forEach(btn => {
@@ -114,6 +122,12 @@ function setupModals() {
 
   document.getElementById("btnAddTimingSlot").addEventListener("click", () => addTimingSlotInput());
   document.getElementById("btnAddPricingVariant").addEventListener("click", () => addPricingVariantInput());
+
+  // Autosave for Operating Hours
+  const opStart = document.getElementById("opStart");
+  const opEnd = document.getElementById("opEnd");
+  if (opStart) opStart.addEventListener("change", () => { localConfig.operating_hours.start = opStart.value; triggerAutoSave(); });
+  if (opEnd) opEnd.addEventListener("change", () => { localConfig.operating_hours.end = opEnd.value; triggerAutoSave(); });
 }
 
 function renderAll() {
@@ -155,6 +169,7 @@ function renderMemberships() {
   document.querySelectorAll(".del-mem").forEach(b => b.addEventListener("click", (e) => {
     localConfig.membership_programs.splice(e.currentTarget.dataset.idx, 1);
     renderMemberships();
+    triggerAutoSave();
   }));
 }
 
@@ -190,6 +205,7 @@ function saveMembership(e) {
   else localConfig.membership_programs.push(m);
   document.getElementById("membershipModal").classList.add("hidden");
   renderMemberships();
+  triggerAutoSave();
 }
 
 // ── Hourly Slots ──────────────────────────────────────────
@@ -221,6 +237,7 @@ function renderHourly() {
   document.querySelectorAll(".del-hr").forEach(b => b.addEventListener("click", (e) => {
     localConfig.hourly_slots.splice(e.currentTarget.dataset.idx, 1);
     renderHourly();
+    triggerAutoSave();
   }));
 }
 
@@ -251,6 +268,7 @@ function saveHourly(e) {
   else localConfig.hourly_slots.push(h);
   document.getElementById("hourlyModal").classList.add("hidden");
   renderHourly();
+  triggerAutoSave();
 }
 
 // ── Coaching Schedule ─────────────────────────────────────
@@ -288,6 +306,7 @@ function renderCoaching() {
   document.querySelectorAll(".del-coach").forEach(b => b.addEventListener("click", (e) => {
     localConfig.coaching_schedule.splice(e.currentTarget.dataset.idx, 1);
     renderCoaching();
+    triggerAutoSave();
   }));
 }
 
@@ -344,6 +363,7 @@ function saveCoaching(e) {
   else localConfig.coaching_schedule.push(c);
   document.getElementById("coachingModal").classList.add("hidden");
   renderCoaching();
+  triggerAutoSave();
 }
 
 // ── Fee Structure ─────────────────────────────────────────
@@ -373,6 +393,7 @@ function renderFees() {
   document.querySelectorAll(".del-fee").forEach(b => b.addEventListener("click", (e) => {
     localConfig.fee_structure.splice(e.currentTarget.dataset.idx, 1);
     renderFees();
+    triggerAutoSave();
   }));
 }
 
@@ -427,6 +448,7 @@ function saveFeePlan(e) {
   else localConfig.fee_structure.push(f);
   document.getElementById("feeModal").classList.add("hidden");
   renderFees();
+  triggerAutoSave();
 }
 
 // ── Global Save ───────────────────────────────────────────
