@@ -566,11 +566,13 @@ async function checkUserAccess(user) {
     }
 
     // Auto-populate all academies for SUPER_ADMIN so they can switch context
+    window.academyNamesCache = window.academyNamesCache || {};
     if (userData.role === "SUPER_ADMIN") {
       try {
         const acadsSnap = await getDocs(collection(db, "academies"));
         acadsSnap.forEach(d => {
           academyRoles[d.id] = "SUPER_ADMIN";
+          if (d.data().name) window.academyNamesCache[d.id] = d.data().name;
         });
       } catch (err) {
         console.error("Failed to load academies for SUPER_ADMIN:", err);
@@ -805,14 +807,32 @@ async function handleAuthStateChange(user) {
         if (headerRight) headerRight.insertBefore(switcher, headerRight.firstChild);
       }
       switcher.innerHTML = "";
-      // Ideally we'd fetch names, but IDs work as a fallback
-      academyRolesKeys.forEach(acadId => {
-        const opt = document.createElement("option");
-        opt.value = acadId;
-        opt.textContent = acadId.replace("academy_", "Academy ");
-        if (acadId === user.academyId) opt.selected = true;
-        switcher.appendChild(opt);
-      });
+      // Fetch names asynchronously, fallback to ID initially
+      window.academyNamesCache = window.academyNamesCache || {};
+      const populateNames = async () => {
+        for (const acadId of academyRolesKeys) {
+          const opt = document.createElement("option");
+          opt.value = acadId;
+          
+          if (window.academyNamesCache[acadId]) {
+            opt.textContent = window.academyNamesCache[acadId];
+          } else {
+            opt.textContent = acadId.replace("academy_", "Academy ");
+            try {
+              const docSnap = await getDoc(doc(db, "academies", acadId));
+              if (docSnap.exists() && docSnap.data().name) {
+                window.academyNamesCache[acadId] = docSnap.data().name;
+                opt.textContent = docSnap.data().name;
+              }
+            } catch(e) {
+              console.warn("Failed to fetch academy name for", acadId);
+            }
+          }
+          if (acadId === user.academyId) opt.selected = true;
+          switcher.appendChild(opt);
+        }
+      };
+      populateNames();
     }
 
     const avatar = document.getElementById("userAvatar");
