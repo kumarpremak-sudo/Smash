@@ -66,7 +66,7 @@ function setupScheduleListeners() {
   }
   addSubmit("bulkCancelForm", handleBulkCancelSubmit);
 
-  populateBookingDropdowns("booking_type", "booking_category");
+  populateBookingDropdowns("booking_type", "booking_category", ["Spot booking", "Guest Play", "Court Rental"]);
   const typeSelect = document.getElementById("booking_type");
   const catSelect = document.getElementById("booking_category");
   if (typeSelect) {
@@ -267,12 +267,13 @@ function openQuickBookingModal(courtId, start, end) {
   document.getElementById("quickSlotDesc").textContent = `${courtsMap[courtId] || `Court ${courtId}`} on ${dateStr} (${format12Hour(start)} - ${format12Hour(end)})`;
   
   // Force dropdown population just in case the initial load failed or was skipped
-  populateBookingDropdowns("booking_type", "booking_category");
+  populateBookingDropdowns("booking_type", "booking_category", ["Spot booking", "Guest Play", "Court Rental"]);
   
   document.getElementById("quickBookingForm").reset();
   if (currentUser && !currentUser.isAnonymous) {
     document.getElementById("quickCustomerName").value = currentUser.displayName || "";
     document.getElementById("quickCustomerEmail").value = currentUser.email || "";
+    document.getElementById("quickCustomerPhone").value = currentUser.phoneNumber || "";
   }
 }
 
@@ -445,16 +446,18 @@ async function handleQuickBookingSubmit(event) {
   const dateStr = formatSelectedDate(selectedDate);
   const name = document.getElementById("quickCustomerName").value.trim();
   const email = document.getElementById("quickCustomerEmail").value.trim();
+  const phone = document.getElementById("quickCustomerPhone").value.trim();
   const category = document.getElementById("booking_category").value;
   const bookingType = document.getElementById("booking_type").value;
   if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); btn.disabled = false; return; }
   if (email.length > 80) { showMsg("modalMessage", "Email cannot exceed 80 characters.", "error"); btn.disabled = false; return; }
+  if (phone.length > 20) { showMsg("modalMessage", "Phone cannot exceed 20 characters.", "error"); btn.disabled = false; return; }
   if (startTime >= endTime) { showMsg("modalMessage", "End time must be after start time.", "error"); btn.disabled = false; return; }
   try {
     if (!currentUser) throw new Error("You must be signed in.");
     const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, bookingType, category);
     if (conflictError) throw new Error(conflictError);
-    await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, category, booking_type: bookingType, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+    await addDoc(collection(db, "bookings"), { court_id: courtId, customer_name: name, customer_email: email, customer_phone: phone, category, booking_type: bookingType, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
     showMsg("modalMessage", "Quick reservation confirmed!", "success");
     setTimeout(() => { closeModal(); loadDailyGrid(); }, 1200);
   } catch (error) { showMsg("modalMessage", error.message, "error"); }

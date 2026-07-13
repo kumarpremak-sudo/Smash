@@ -220,7 +220,7 @@ export function getBookingHierarchy() {
   return hierarchy;
 }
 
-export function populateBookingDropdowns(typeSelectId, categorySelectId) {
+export function populateBookingDropdowns(typeSelectId, categorySelectId, allowedTypes = null) {
   try {
     const typeSelect = document.getElementById(typeSelectId);
     if (!typeSelect || !tenantSettings) return;
@@ -231,6 +231,7 @@ export function populateBookingDropdowns(typeSelectId, categorySelectId) {
     if (typeSelect.options.length <= 1) {
       typeSelect.innerHTML = '<option value="" disabled selected>Select Booking Type</option>';
       Object.keys(currentHierarchy).forEach(type => {
+        if (allowedTypes && !allowedTypes.includes(type)) return;
         typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
       });
     }
