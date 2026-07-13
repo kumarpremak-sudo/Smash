@@ -2,7 +2,7 @@
 import {
   db, currentUser, courtsList, courtsMap, escapeHTML, formatSelectedDate,
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
-  bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, openWhatsApp,
+  bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, populateCategoryDropdown, openWhatsApp,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
   query, where, serverTimestamp, format12Hour, isStrictCoach
 } from "./shared.js";
@@ -67,6 +67,14 @@ function setupScheduleListeners() {
   addSubmit("bulkCancelForm", handleBulkCancelSubmit);
 
   populateBookingDropdowns("booking_type", "booking_category");
+  const typeSelect = document.getElementById("booking_type");
+  const catSelect = document.getElementById("booking_category");
+  if (typeSelect) {
+    typeSelect.addEventListener("change", () => {
+      populateCategoryDropdown("booking_type", "booking_category");
+      if (catSelect) catSelect.value = "";
+    });
+  }
 }
 
 function openBulkCancelModal() {
