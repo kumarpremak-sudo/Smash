@@ -221,17 +221,22 @@ export function getBookingHierarchy() {
 }
 
 export function populateBookingDropdowns(typeSelectId, categorySelectId) {
-  const typeSelect = document.getElementById(typeSelectId);
-  if (!typeSelect || !tenantSettings) return;
+  try {
+    const typeSelect = document.getElementById(typeSelectId);
+    if (!typeSelect || !tenantSettings) return;
 
-  currentHierarchy = getBookingHierarchy();
+    currentHierarchy = getBookingHierarchy();
 
-  // Populate Type Dropdown if empty
-  if (typeSelect.options.length <= 1) {
-    typeSelect.innerHTML = '<option value="" disabled selected>Select Booking Type</option>';
-    Object.keys(currentHierarchy).forEach(type => {
-      typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
-    });
+    // Populate Type Dropdown if empty
+    if (typeSelect.options.length <= 1) {
+      typeSelect.innerHTML = '<option value="" disabled selected>Select Booking Type</option>';
+      Object.keys(currentHierarchy).forEach(type => {
+        typeSelect.innerHTML += `<option value="${type}">${type}</option>`;
+      });
+    }
+  } catch (error) {
+    alert("Error populating dropdowns: " + error.message);
+    console.error("Dropdown error:", error);
   }
 }
 
