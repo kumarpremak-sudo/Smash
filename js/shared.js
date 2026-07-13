@@ -147,6 +147,7 @@ export function getBookingHierarchy() {
   // 1. Hourly Slots -> Spot booking & Guest Play
   if (tenantSettings.hourly_slots) {
     tenantSettings.hourly_slots.forEach(s => {
+      if (!s) return;
       if (s.type && s.type.includes("Hourly Slot")) addNode("Spot booking", "Hourly Slot", "No Need");
       else if (s.type) addNode("Guest Play", s.type, "No Need");
     });
@@ -155,6 +156,7 @@ export function getBookingHierarchy() {
   // 2. Memberships -> Members & Group/Lease
   if (tenantSettings.membership_programs) {
     tenantSettings.membership_programs.forEach(m => {
+      if (!m) return;
       const type = (m.type && m.type.toLowerCase() === 'group') ? "Group/Lease" : "Members";
       const cat = (m.type && m.type.toLowerCase() === 'group') ? "Group Members" : "Individual";
       addNode(type, cat, m.duration_days);
@@ -164,12 +166,13 @@ export function getBookingHierarchy() {
   // 3. Coaching Schedules (Fallbacks for batches that have no fee structure yet)
   if (tenantSettings.coaching_schedule) {
     tenantSettings.coaching_schedule.forEach(c => {
+      if (!c) return;
       const cat = c.category || "Unknown";
       const type = cat.toLowerCase().includes("advance") ? "Advance Training" : "Coaching";
 
       // Only add periods from the schedule if this category has NO fee structure defined
       const hasFee = tenantSettings.fee_structure && tenantSettings.fee_structure.some(f => 
-        (f.program_name || "").toLowerCase().includes(cat.toLowerCase())
+        f && (f.program_name || "").toLowerCase().includes(cat.toLowerCase())
       );
       if (!hasFee) {
         addNode(type, cat, c.days || "No Need");
@@ -180,6 +183,7 @@ export function getBookingHierarchy() {
   // 4. Coaching Fee Structure (Handles Kids, Women, Adults, Advance, PT, Tournaments, and any custom programs)
   if (tenantSettings.fee_structure) {
     tenantSettings.fee_structure.forEach(f => {
+      if (!f) return;
       const pName = f.program_name || "";
       const pLower = pName.toLowerCase();
 
@@ -200,7 +204,7 @@ export function getBookingHierarchy() {
 
       if (f.pricing_variants && f.pricing_variants.length > 0) {
         f.pricing_variants.forEach(p => {
-          addNode(type, cat, p.frequency);
+          if (p) addNode(type, cat, p.frequency);
         });
       } else {
         addNode(type, cat, "No Need");
@@ -449,7 +453,7 @@ export async function loadTenantSettings() {
       // In-memory migration for existing users
       if (tenantSettings.hourly_slots) {
         tenantSettings.hourly_slots.forEach(s => {
-          if (s.type && (s.type.includes("Guest") || s.type.includes("Spot Booking") || s.type.includes("Hourly Slot Peak"))) {
+          if (s && s.type && (s.type.includes("Guest") || s.type.includes("Spot Booking") || s.type.includes("Hourly Slot Peak"))) {
             if (s.type.includes("Peak")) {
               s.type = s.type.includes("Non") ? "Guest play (Non Peak hours)" : "Guest play (Peak hours)";
             } else if (s.type === "Guest" || s.type === "Spot Booking") {
