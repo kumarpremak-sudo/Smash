@@ -208,6 +208,11 @@ export function getBookingHierarchy() {
     });
   }
 
+  // 5. Fallback for completely empty tenants (if they deleted all default programs)
+  if (Object.keys(hierarchy).length === 0) {
+    addNode("Court Rental", "Standard Booking", "No Need");
+  }
+
   return hierarchy;
 }
 
