@@ -550,6 +550,18 @@ async function checkUserAccess(user) {
       academyRoles[userData.academyId] = userData.role;
     }
 
+    // Auto-populate all academies for SUPER_ADMIN so they can switch context
+    if (userData.role === "SUPER_ADMIN") {
+      try {
+        const acadsSnap = await getDocs(collection(db, "academies"));
+        acadsSnap.forEach(d => {
+          academyRoles[d.id] = "SUPER_ADMIN";
+        });
+      } catch (err) {
+        console.error("Failed to load academies for SUPER_ADMIN:", err);
+      }
+    }
+
     // Validate that the academy still exists (prevents orphaned users from logging in)
     const hasRole = userData.role === "TENANT_ADMIN" || userData.role === "STAFF" || userData.role === "COACH";
     if (hasRole || Object.keys(academyRoles).length > 0) {
