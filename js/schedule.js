@@ -5,7 +5,7 @@ import {
   bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, populateCategoryDropdown, openWhatsApp,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
   query, where, serverTimestamp, format12Hour, isStrictCoach
-} from "./shared.js";
+} from "./shared.js?v=3";
 
 let selectedDate = new Date();
 let dailyBookings = [];
@@ -265,6 +265,10 @@ function openQuickBookingModal(courtId, start, end) {
   document.getElementById("quickEndTime").value = end;
   const dateStr = formatSelectedDate(selectedDate);
   document.getElementById("quickSlotDesc").textContent = `${courtsMap[courtId] || `Court ${courtId}`} on ${dateStr} (${format12Hour(start)} - ${format12Hour(end)})`;
+  
+  // Force dropdown population just in case the initial load failed or was skipped
+  populateBookingDropdowns("booking_type", "booking_category");
+  
   document.getElementById("quickBookingForm").reset();
   if (currentUser && !currentUser.isAnonymous) {
     document.getElementById("quickCustomerName").value = currentUser.displayName || "";
