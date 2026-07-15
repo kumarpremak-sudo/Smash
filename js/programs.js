@@ -13,6 +13,10 @@ let localConfig = {
   fee_structure: []
 };
 
+function canEditPrograms() {
+  return currentUser && (isSuperAdmin(currentUser) || isTenantAdmin(currentUser) || (tenantSettings && tenantSettings.allow_staff_program_edit));
+}
+
 setOnAuthReady((user) => {
   if (isStrictCoach(user)) {
     window.location.href = "coach.html";
@@ -32,6 +36,11 @@ setOnAuthReady((user) => {
 
   const opStart = document.getElementById("opStart");
   const opEnd = document.getElementById("opEnd");
+  
+  if (!canEditPrograms()) {
+    if (opStart) opStart.disabled = true;
+    if (opEnd) opEnd.disabled = true;
+  }
   
   function populateTimeSelect(select) {
     if (!select) return;
@@ -62,8 +71,7 @@ setOnAuthReady((user) => {
 
   const btnSave = document.getElementById("btnSavePrograms");
   if (btnSave) {
-    const isAllowed = isSuperAdmin(currentUser) || isTenantAdmin(currentUser) || tenantSettings.allow_staff_program_edit;
-    if (!isAllowed) {
+    if (!canEditPrograms()) {
       btnSave.style.display = "none";
       const container = btnSave.parentElement;
       const banner = document.createElement("div");
@@ -153,10 +161,11 @@ function renderMemberships() {
     card.style.borderRadius = "var(--radius-md)";
     card.style.position = "relative";
     card.innerHTML = `
+      ${canEditPrograms() ? `
       <div style="position:absolute; top:1rem; right:1rem; display:flex; gap:0.5rem;">
         <button class="btn btn-sm btn-outline edit-mem" data-idx="${idx}">✏️</button>
         <button class="btn btn-sm btn-outline text-danger del-mem" data-idx="${idx}">🗑️</button>
-      </div>
+      </div>` : ''}
       <div style="font-size:0.75rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:0.5rem;">${escapeHTML(m.type)}</div>
       <h4 style="margin-bottom:0.25rem; font-size:1.1rem;">${escapeHTML(m.duration_days)}</h4>
       <p style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${escapeHTML(m.days_description)}</p>
@@ -223,10 +232,11 @@ function renderHourly() {
     card.style.borderRadius = "var(--radius-md)";
     card.style.position = "relative";
     card.innerHTML = `
+      ${canEditPrograms() ? `
       <div style="position:absolute; top:1rem; right:1rem; display:flex; gap:0.5rem;">
         <button class="btn btn-sm btn-outline edit-hr" data-idx="${idx}">✏️</button>
         <button class="btn btn-sm btn-outline text-danger del-hr" data-idx="${idx}">🗑️</button>
-      </div>
+      </div>` : ''}
       <div style="font-size:0.75rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:0.5rem;">HOURLY SLOT</div>
       <h4 style="margin-bottom:0.25rem; font-size:1.1rem;">${escapeHTML(h.type)}</h4>
       <div style="margin-top:1rem; font-size:1.5rem; font-weight:700;">₹${escapeHTML(String(h.rate))} <span style="font-size:0.85rem; color:var(--muted); font-weight:normal;">${escapeHTML(h.unit)}</span></div>
@@ -292,10 +302,11 @@ function renderCoaching() {
     }).join('');
     
     card.innerHTML = `
+      ${canEditPrograms() ? `
       <div style="position:absolute; top:1rem; right:1rem; display:flex; gap:0.5rem;">
         <button class="btn btn-sm btn-outline edit-coach" data-idx="${idx}">✏️</button>
         <button class="btn btn-sm btn-outline text-danger del-coach" data-idx="${idx}">🗑️</button>
-      </div>
+      </div>` : ''}
       <h4 style="margin-bottom:0.25rem; font-size:1.1rem;">${escapeHTML(c.category)}</h4>
       <p style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${escapeHTML(c.days)}</p>
       <div>${slotsHtml || '<span class="text-muted">No timing slots defined.</span>'}</div>
@@ -382,7 +393,7 @@ function renderFees() {
         <td>${escapeHTML(v.frequency)}</td>
         <td style="font-family:var(--font-mono); font-weight:700;">₹${escapeHTML(String(v.cost))}</td>
         <td>
-          ${vidx === 0 ? `<button class="btn btn-sm btn-outline edit-fee" data-idx="${idx}">✏️</button>
+          ${vidx === 0 && canEditPrograms() ? `<button class="btn btn-sm btn-outline edit-fee" data-idx="${idx}">✏️</button>
           <button class="btn btn-sm btn-outline text-danger del-fee" data-idx="${idx}">🗑️</button>` : ''}
         </td>
       `;
@@ -453,8 +464,8 @@ function saveFeePlan(e) {
 
 // ── Global Save ───────────────────────────────────────────
 async function handleSave() {
-  if (!currentUser || currentUser.isAnonymous) {
-    showMsg("programsSaveMsg", "Permission Denied: Guests cannot modify academy configurations.", "error");
+  if (!canEditPrograms()) {
+    showMsg("programsSaveMsg", "Permission Denied: You do not have permission to modify configurations.", "error");
     return;
   }
 

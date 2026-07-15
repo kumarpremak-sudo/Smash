@@ -1,0 +1,54 @@
+# Codebase Audit: Programs Tab Autosave Vulnerability
+
+I have conducted a detailed scan of the codebase following our recent updates and the custom permissions check you added to the Programs tab.
+
+I identified one **Critical Severity** issue that directly impacts tenant users and allows unauthorized data modification.
+
+## ⚠️ CRITICAL: Unauthorized Autosave Deletion Bypass
+
+**The Problem:**
+You recently added a great permissions check to `programs.js` that hides the "Save All Changes" and "+ Add" buttons if a staff member does not have `allow_staff_program_edit` enabled. 
+
+However, because the program cards (Memberships, Hourly, Coaching, Fees) are dynamically rendered, the **Edit (✏️) and Delete (🗑️)** buttons on those cards are still being generated and displayed to unauthorized staff.
+
+Because we recently added the **Auto-Save** feature, if an unauthorized staff member clicks the Delete button on a card:
+1. The item is removed from the local array.
+2. `triggerAutoSave()` fires immediately.
+3. `handleSave()` executes (it currently only checks if the user is a guest, it does not check the `allow_staff_program_edit` setting).
+4. **The deletion is permanently saved to the database**, bypassing your UI restriction.
+
+Additionally, the "Operating Hours" inputs are still active for unauthorized staff, and changing them will also trigger an unauthorized autosave.
+
+---
+
+## Proposed Changes
+
+To properly secure the Programs tab so that it is strictly "View Only" for unauthorized staff without breaking the tenant workflow:
+
+### 1. Secure `handleSave` Logic (Backend Defense)
+We must add the `allow_staff_program_edit` permission check directly inside the `handleSave()` function so that even if an autosave is somehow triggered, the system will explicitly reject the save if the user is not authorized.
+
+#### [MODIFY] [programs.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/programs.js)
+- Update `handleSave()` to calculate `isAllowed`. If `!isAllowed`, abort the save and optionally show a permission denied error.
+
+### 2. Hide Card Action Buttons (UI Defense)
+We need to hide the `Edit (✏️)` and `Delete (🗑️)` buttons on all rendered cards if the user is not authorized, preventing them from even attempting to click them.
+
+#### [MODIFY] [programs.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/programs.js)
+- Update `renderMemberships()`, `renderHourly()`, `renderCoaching()`, and `renderFees()` to calculate `isAllowed`.
+- Use a ternary operator to only inject the Edit/Delete button HTML if `isAllowed` is true.
+
+### 3. Disable Operating Hours Inputs
+We need to disable the `opStart` and `opEnd` time inputs for unauthorized users so they cannot trigger the `change` event autosave.
+
+#### [MODIFY] [programs.js](file:///c:/Users/Admin/Documents/POC/Badminton/js/programs.js)
+- In the initialization block, if `!isAllowed`, set `document.getElementById("opStart").disabled = true` and `document.getElementById("opEnd").disabled = true`.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> The above plan will completely secure the Programs tab against unauthorized edits while preserving the auto-save functionality for authorized admins. 
+> 
+> Please click **Proceed** below to approve this implementation plan and I will apply the fixes!

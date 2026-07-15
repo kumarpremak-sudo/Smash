@@ -236,12 +236,22 @@ async function handleDeleteAcademy(academyId, academyName, liEl) {
   liEl.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
     liEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Deleting...</span>';
     try {
-      // 1. Delete all users belonging to this academy
+      // 1. Process all users belonging to this academy
       const q = query(collection(db, "users"), where("academyId", "==", academyId));
       const usersSnap = await getDocs(q);
       const batch = writeBatch(db);
       usersSnap.forEach(uDoc => {
-        batch.delete(doc(db, "users", uDoc.id));
+        const uData = uDoc.data();
+        const roles = uData.academyRoles || {};
+        delete roles[academyId];
+        
+        if (Object.keys(roles).length === 0) {
+          batch.delete(doc(db, "users", uDoc.id));
+        } else {
+          // If they have other academies, preserve the user account
+          const nextAcademyId = Object.keys(roles)[0];
+          batch.update(doc(db, "users", uDoc.id), { academyRoles: roles, academyId: nextAcademyId });
+        }
       });
       await batch.commit();
 
