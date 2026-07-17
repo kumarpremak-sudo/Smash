@@ -152,8 +152,33 @@ async function loadCoachingStudents() {
       data.id = d.id;
       // Only show coaching-related members in the Coaching Hub
       if (data.status === "active" && data.type) {
-        const t = data.type.toLowerCase();
-        if (t.includes("coaching") || t.includes("advance") || t.includes("personal")) {
+        let isCoaching = false;
+        
+        // 1. Check if the plan key belongs to the coaching fee_structure
+        if (tenantSettings && tenantSettings.fee_structure) {
+          for (const prog of tenantSettings.fee_structure) {
+            // Exact key match
+            if (prog.pricing_variants && prog.pricing_variants.some(v => v.key === data.type)) {
+              isCoaching = true;
+              break;
+            }
+            // Partial string match against program name
+            if (prog.program_name && data.type.toLowerCase().includes(prog.program_name.toLowerCase())) {
+              isCoaching = true;
+              break;
+            }
+          }
+        }
+        
+        // 2. Fallback for older data or custom manually-typed string plans
+        if (!isCoaching) {
+          const t = data.type.toLowerCase();
+          if (t.includes("coaching") || t.includes("advance") || t.includes("personal") || t.includes("tournament")) {
+            isCoaching = true;
+          }
+        }
+
+        if (isCoaching) {
           studentsList.push(data);
         }
       }
