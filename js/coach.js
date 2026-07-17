@@ -1,4 +1,4 @@
-import { db, doc, collection, query, where, getDocs, getDoc, setDoc, updateDoc, addDoc, setOnAuthReady, initApp, currentUser, formatSelectedDate, escapeHTML, tenantSettings, isSuperAdmin, isTenantAdmin, isStaff, isCoach } from "./shared.js";
+import { db, doc, collection, query, where, getDocs, getDoc, setDoc, updateDoc, addDoc, setOnAuthReady, initApp, currentUser, formatSelectedDate, escapeHTML, tenantSettings, isSuperAdmin, isTenantAdmin, isStaff, isCoach, parseLocalDate } from "./shared.js";
 
 let studentsList = [];
 let attendanceRecord = {}; // date -> { studentId: true/false }
@@ -37,6 +37,7 @@ const closeProfileModalBtn = document.getElementById("closeProfileModal");
 const btnSaveProfile = document.getElementById("btnSaveProfile");
 const profileModalTitle = document.getElementById("profileModalTitle");
 
+const profAge = document.getElementById("profAge");
 const profSkillLevel = document.getElementById("profSkillLevel");
 const profHand = document.getElementById("profHand");
 const profStyle = document.getElementById("profStyle");
@@ -136,7 +137,7 @@ function updateDateDisplay() {
   if (currentAttendanceDate === today) {
     attendanceDateDisplay.textContent = "Today";
   } else {
-    const d = new Date(currentAttendanceDate);
+    const d = parseLocalDate(currentAttendanceDate);
     attendanceDateDisplay.textContent = isNaN(d) ? currentAttendanceDate : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 }
@@ -155,6 +156,7 @@ async function loadCoachingStudents() {
         let isCoaching = false;
         
         // 1. Check if the plan key belongs to the coaching fee_structure
+        const typeStr = data.type ? String(data.type).toLowerCase() : "";
         if (tenantSettings && tenantSettings.fee_structure) {
           for (const prog of tenantSettings.fee_structure) {
             // Exact key match
@@ -163,7 +165,7 @@ async function loadCoachingStudents() {
               break;
             }
             // Partial string match against program name
-            if (prog.program_name && data.type.toLowerCase().includes(prog.program_name.toLowerCase())) {
+            if (prog.program_name && typeStr && typeStr.includes(String(prog.program_name).toLowerCase())) {
               isCoaching = true;
               break;
             }
@@ -171,9 +173,8 @@ async function loadCoachingStudents() {
         }
         
         // 2. Fallback for older data or custom manually-typed string plans
-        if (!isCoaching) {
-          const t = data.type.toLowerCase();
-          if (t.includes("coaching") || t.includes("advance") || t.includes("personal") || t.includes("tournament")) {
+        if (!isCoaching && typeStr) {
+          if (typeStr.includes("coaching") || typeStr.includes("advance") || typeStr.includes("personal") || typeStr.includes("tournament")) {
             isCoaching = true;
           }
         }
@@ -356,6 +357,7 @@ function openProfileModal(student) {
   profileModalTitle.textContent = `Edit Profile: ${student.name}`;
   
   const p = student.profile;
+  profAge.value = p.age || "";
   profSkillLevel.value = p.skillLevel;
   profHand.value = p.dominantHand;
   profStyle.value = p.playingStyle;
@@ -407,6 +409,7 @@ async function saveStudentProfile() {
   btnSaveProfile.disabled = true;
 
   const p = currentEditingStudent.profile;
+  p.age = profAge.value;
   p.skillLevel = profSkillLevel.value;
   p.dominantHand = profHand.value;
   p.playingStyle = profStyle.value;

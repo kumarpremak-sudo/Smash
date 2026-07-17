@@ -3,7 +3,7 @@ import {
   db, currentUser, membersList, tenantSettings, defaultSettings, escapeHTML,
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
-  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach
+  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach, parseLocalDate
 } from "./shared.js";
 import { addDoc, onSnapshot, deleteDoc, collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -313,7 +313,7 @@ function renderFeeAlerts() {
     const lastPaid = member.lastPaidDate || member.joinDate;
     if (!lastPaid) return;
     const nextDue = addOneMonth(lastPaid);
-    const nextDueDate = new Date(nextDue); nextDueDate.setHours(0, 0, 0, 0);
+    const nextDueDate = parseLocalDate(nextDue); nextDueDate.setHours(0, 0, 0, 0);
     const diffDays = Math.round((nextDueDate - today) / (1000 * 60 * 60 * 24));
     if (todayStr >= nextDue) overdueMembers.push({ ...member, nextDue, diffDays });
     else if (nextDue <= soonStr) upcomingMembers.push({ ...member, nextDue, diffDays });
@@ -520,15 +520,15 @@ function loadEnquiries() {
 
     const enquiries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => {
-        const dateA = a.enquiryDate ? new Date(a.enquiryDate).getTime() : (a.createdAt?.toMillis() || 0);
-        const dateB = b.enquiryDate ? new Date(b.enquiryDate).getTime() : (b.createdAt?.toMillis() || 0);
+        const dateA = a.enquiryDate ? parseLocalDate(a.enquiryDate).getTime() : (a.createdAt?.toMillis() || 0);
+        const dateB = b.enquiryDate ? parseLocalDate(b.enquiryDate).getTime() : (b.createdAt?.toMillis() || 0);
         return dateB - dateA;
       });
 
     tbody.innerHTML = "";
     enquiries.forEach(enq => {
       const dateStr = enq.enquiryDate
-        ? new Date(enq.enquiryDate).toLocaleDateString()
+        ? parseLocalDate(enq.enquiryDate).toLocaleDateString()
         : (enq.createdAt ? new Date(enq.createdAt.toMillis()).toLocaleDateString() : "Just now");
 
       let statusColor = "var(--muted)";
@@ -635,7 +635,7 @@ document.getElementById("btnConfirmRenew")?.addEventListener("click", async () =
     if (!bookingSnap.exists()) throw new Error("Original booking template not found.");
 
     const tpl = bookingSnap.data();
-    const startDate = new Date(startDateStr);
+    const startDate = parseLocalDate(startDateStr);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 30);
 

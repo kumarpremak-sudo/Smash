@@ -310,12 +310,115 @@ function updateSelectedDayBookingsView() {
   });
 }
 
-// ── Stats ───────────────────────────────────────────────────
 async function updateStats() {
   try {
-    document.getElementById("statBookingsCount").textContent = currentMonthBookings.length;
-    document.getElementById("statCourtsCount").textContent = courtsList.length;
-    await loadMembers();
+    await loadMembers(); // Ensure members are loaded
+    
+    // 1. Calculate Active Members (All active)
+    const activeMembers = membersList.filter(m => m.status === "active");
+    const activeMembersCount = activeMembers.length;
+    
+    // 2. Calculate Coaching Students
+    let coachingStudentsCount = 0;
+    let newCoachingThisMonth = 0;
+    
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    activeMembers.forEach(data => {
+      let isCoaching = false;
+      const typeStr = data.type ? String(data.type).toLowerCase() : "";
+      
+      if (tenantSettings && tenantSettings.fee_structure) {
+        for (const prog of tenantSettings.fee_structure) {
+          if (prog.pricing_variants && prog.pricing_variants.some(v => v.key === data.type)) {
+            isCoaching = true;
+            break;
+          }
+          if (prog.program_name && typeStr && typeStr.includes(String(prog.program_name).toLowerCase())) {
+            isCoaching = true;
+            break;
+          }
+        }
+      }
+      if (!isCoaching && typeStr) {
+        if (typeStr.includes("coaching") || typeStr.includes("advance") || typeStr.includes("personal") || typeStr.includes("tournament")) {
+          isCoaching = true;
+        }
+      }
+      
+      if (isCoaching) {
+        coachingStudentsCount++;
+        // Check if joined this month (safe timezone parsing)
+        let joinedDate = null;
+        if (data.joinDate) {
+          const parts = data.joinDate.split("-");
+          if (parts.length === 3) {
+            joinedDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          }
+        } else if (data.createdTime) {
+          joinedDate = new Date(data.createdTime);
+        }
+        
+        if (joinedDate && joinedDate.getMonth() === currentMonth && joinedDate.getFullYear() === currentYear) {
+          newCoachingThisMonth++;
+        }
+      }
+    });
+
+    // 3. Calculate Court Utilization
+    let busyHours = 0;
+    currentMonthBookings.forEach(booking => {
+      if (booking.status === "cancelled" || !booking.start_time || !booking.end_time) return;
+      const startParts = String(booking.start_time).split(":");
+      const endParts = String(booking.end_time).split(":");
+      if (startParts.length < 2 || endParts.length < 2) return;
+      
+      const startHour = parseInt(startParts[0], 10) + (parseInt(startParts[1], 10) / 60);
+      const endHour = parseInt(endParts[0], 10) + (parseInt(endParts[1], 10) / 60);
+      if (!isNaN(startHour) && !isNaN(endHour)) {
+        busyHours += Math.max(0, endHour - startHour);
+      }
+    });
+
+    // Determine operating hours
+    let opStartHour = 6;
+    let opEndHour = 23;
+    if (tenantSettings && tenantSettings.operating_hours) {
+      const sh = tenantSettings.operating_hours.start.split(":");
+      const eh = tenantSettings.operating_hours.end.split(":");
+      opStartHour = parseInt(sh[0]) + (parseInt(sh[1]) / 60);
+      opEndHour = parseInt(eh[0]) + (parseInt(eh[1]) / 60);
+    }
+    
+    // Days in current month
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const totalCourts = courtsList.length || 1;
+    const dailyHours = Math.max(0, opEndHour - opStartHour);
+    const totalCapacityHours = dailyHours * daysInMonth * totalCourts;
+    
+    const idleHours = Math.max(0, totalCapacityHours - busyHours);
+    
+    const busyPercent = totalCapacityHours > 0 ? ((busyHours / totalCapacityHours) * 100).toFixed(1) : 0;
+    const idlePercent = totalCapacityHours > 0 ? ((idleHours / totalCapacityHours) * 100).toFixed(1) : 0;
+
+    // Update DOM
+    const elActiveMembers = document.getElementById("statActiveMembers");
+    if (elActiveMembers) elActiveMembers.textContent = activeMembersCount;
+    
+    const elCoachingStudents = document.getElementById("statCoachingStudents");
+    if (elCoachingStudents) elCoachingStudents.textContent = coachingStudentsCount;
+    
+    const elCoachingNew = document.getElementById("statCoachingNew");
+    if (elCoachingNew) elCoachingNew.textContent = `${newCoachingThisMonth} new enrollment${newCoachingThisMonth === 1 ? '' : 's'} this month.`;
+    
+    const elCourtUtil = document.getElementById("statCourtUtilization");
+    if (elCourtUtil) elCourtUtil.textContent = `${busyPercent}% Busy`;
+    
+    const elCourtHours = document.getElementById("statCourtHours");
+    if (elCourtHours) elCourtHours.innerHTML = `<span style="color:var(--danger)">Idle: ${idlePercent}% (${idleHours.toFixed(1)} hrs)</span> | Busy: ${busyHours.toFixed(1)} hrs`;
+    
     calculateMonthlyRevenue();
   } catch (e) { console.error("Stats fetch failed:", e); }
 }
@@ -360,6 +463,7 @@ function calculateMonthlyRevenue() {
   // ── Revenue from Bookings (Spot booking & Guest Play are hourly) ──
   currentMonthBookings.forEach(booking => {
     const bType = booking.booking_type || "";
+    if (!booking.start_time || !booking.end_time) return;
     const startHour = parseInt(booking.start_time.substring(0, 2));
     const endHour = parseInt(booking.end_time.substring(0, 2));
     const hours = endHour - startHour;

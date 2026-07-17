@@ -105,9 +105,20 @@ export function parse12HourTo24Hour(timeStr) {
   return `${String(hour).padStart(2, '0')}:${min}`;
 }
 
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date();
+  if (typeof dateStr === "string" && dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length >= 3) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2].substring(0, 2), 10));
+    }
+  }
+  return new Date(dateStr);
+}
+
 export function addOneMonth(dateStr) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const d = parseLocalDate(dateStr);
   d.setMonth(d.getMonth() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

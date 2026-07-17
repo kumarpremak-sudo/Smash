@@ -4,7 +4,7 @@ import {
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
   bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, populateCategoryDropdown, openWhatsApp,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
-  query, where, serverTimestamp, format12Hour, isStrictCoach
+  query, where, serverTimestamp, format12Hour, isStrictCoach, parseLocalDate
 } from "./shared.js?v=3";
 
 let selectedDate = new Date();
@@ -34,7 +34,7 @@ function setupScheduleListeners() {
   addClick("prev-day", () => changeDailyDay(-1));
   addClick("next-day", () => changeDailyDay(1));
   const dateInput = document.getElementById("daily-date-input");
-  if (dateInput) dateInput.addEventListener("change", (e) => { selectedDate = new Date(e.target.value); loadDailyGrid(); });
+  if (dateInput) dateInput.addEventListener("change", (e) => { selectedDate = parseLocalDate(e.target.value); loadDailyGrid(); });
 
   // Quick booking modal
   addClick("modalClose", closeModal);
@@ -245,14 +245,27 @@ async function loadDailyGrid() {
   }
 
   dailyBookings.forEach(booking => {
-    const start = booking.start_time.substring(0, 5);
-    const cell = document.querySelector(`.matrix-cell[data-court-id="${booking.court_id}"][data-start="${start}"]`);
-    if (cell) {
-      cell.className = "matrix-cell booked " + (booking.category || "court_rental");
-      cell.dataset.bookingId = booking.id;
-      let enrolleesCount = booking.enrollees ? booking.enrollees.split(",").filter(n => n.trim()).length : 0;
-      const enrolleesBadge = enrolleesCount > 0 ? `<div class="matrix-cell-enrollees">${enrolleesCount} Enrolled</div>` : "";
-      cell.innerHTML = `<span class="matrix-cell-booked-by">${escapeHTML(booking.customer_name)}</span>${enrolleesBadge}`;
+    if (!booking.start_time || !booking.end_time) return; // Prevent substring crash
+    const startHour = parseInt(booking.start_time.substring(0, 2), 10);
+    const endHour = parseInt(booking.end_time.substring(0, 2), 10);
+    
+    // Loop through every hour the booking spans
+    for (let h = startHour; h < endHour; h++) {
+      const slotStart = `${String(h).padStart(2, "0")}:00`;
+      const cell = document.querySelector(`.matrix-cell[data-court-id="${booking.court_id}"][data-start="${slotStart}"]`);
+      if (cell) {
+        cell.className = "matrix-cell booked " + (booking.category || "court_rental");
+        cell.dataset.bookingId = booking.id;
+        
+        // Only show the label on the very first cell of the block for cleaner UI
+        if (h === startHour) {
+          let enrolleesCount = booking.enrollees ? booking.enrollees.split(",").filter(n => n.trim()).length : 0;
+          const enrolleesBadge = enrolleesCount > 0 ? `<div class="matrix-cell-enrollees">${enrolleesCount} Enrolled</div>` : "";
+          cell.innerHTML = `<span class="matrix-cell-booked-by">${escapeHTML(booking.customer_name)}</span>${enrolleesBadge}`;
+        } else {
+          cell.innerHTML = `<span class="matrix-cell-booked-by" style="opacity:0.5; font-size:0.75rem;">(Continued)</span>`;
+        }
+      }
     }
   });
 }
