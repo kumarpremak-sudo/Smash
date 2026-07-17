@@ -181,27 +181,67 @@ function renderMembersTable() {
       <td class="member-actions-cell" style="${isGuest ? 'display:none;' : ''}"></td>
     `;
 
-    if (!isGuest && (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending")) {
+    if (!isGuest) {
       const actionsCell = tr.querySelector(".member-actions-cell");
       
-      const waBtn = document.createElement("button");
-      waBtn.className = "btn-icon btn-wa";
-      waBtn.title = "Send WhatsApp Reminder";
-      waBtn.style.cssText = "background:transparent; border:none; cursor:pointer; font-size:1.1rem;";
-      waBtn.innerHTML = "📱";
-      waBtn.addEventListener("click", () => {
-        const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
-        const priceVal = plan.price > 0 ? `₹${plan.price.toLocaleString()}` : "your fee";
-        const msg = `Hi ${member.name},\n\nThis is a gentle reminder from *${academyName}*. Your fee of ${priceVal} for the *${plan.name}* plan is due on *${nextDue}*.\n\nKindly clear the dues at your earliest convenience.\n\nThank you!`;
-        openWhatsApp(member.phone, msg);
-      });
-      actionsCell.appendChild(waBtn);
+      if (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending") {
+        const waBtn = document.createElement("button");
+        waBtn.className = "btn-icon btn-wa";
+        waBtn.title = "Send WhatsApp Reminder";
+        waBtn.style.cssText = "background:transparent; border:none; cursor:pointer; font-size:1.1rem; margin-right: 0.5rem;";
+        waBtn.innerHTML = "📱";
+        waBtn.addEventListener("click", () => {
+          const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
+          const priceVal = plan.price > 0 ? `₹${plan.price.toLocaleString()}` : "your fee";
+          const msg = `Hi ${member.name},\n\nThis is a gentle reminder from *${academyName}*. Your fee of ${priceVal} for the *${plan.name}* plan is due on *${nextDue}*.\n\nKindly clear the dues at your earliest convenience.\n\nThank you!`;
+          openWhatsApp(member.phone, msg);
+        });
+        actionsCell.appendChild(waBtn);
 
-      const btn = document.createElement("button");
-      btn.className = "btn-mark-paid";
-      btn.textContent = "💳 Mark Paid";
-      btn.addEventListener("click", () => handleMarkPaid(member, btn));
-      actionsCell.appendChild(btn);
+        const btn = document.createElement("button");
+        btn.className = "btn-mark-paid";
+        btn.textContent = "💳 Mark Paid";
+        btn.style.marginRight = "0.5rem";
+        btn.addEventListener("click", () => handleMarkPaid(member, btn));
+        actionsCell.appendChild(btn);
+      }
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn-icon btn-del-member";
+      delBtn.title = "Delete Member";
+      delBtn.style.cssText = "color:var(--danger); background:transparent; border:none; cursor:pointer; font-size:1.1rem;";
+      delBtn.innerHTML = "🗑️";
+      delBtn.addEventListener("click", async () => {
+        if (!confirm(`Are you sure you want to delete member "${member.name}" and all their associated reservations? This action cannot be undone.`)) return;
+        try {
+          if (member.phone) {
+            const qBookings = query(
+              collection(db, "bookings"), 
+              where("customer_phone", "==", member.phone),
+              where("academyId", "==", currentUser.academyId)
+            );
+            const snapBookings = await getDocs(qBookings);
+            if (!snapBookings.empty) {
+              const batchDel = writeBatch(db);
+              snapBookings.forEach(d => {
+                batchDel.delete(d.ref);
+              });
+              await batchDel.commit();
+            }
+          }
+
+          await deleteDoc(doc(db, "members", member.id));
+          showInlineToast(`Member "${member.name}" and reservations deleted successfully`, "success");
+          await loadMembers();
+          renderMembersTable();
+          renderFeeAlerts();
+          renderMemberStats();
+        } catch (err) {
+          console.error("Failed to delete member:", err);
+          showInlineToast("Error deleting member", "error");
+        }
+      });
+      actionsCell.appendChild(delBtn);
     }
     tbody.appendChild(tr);
   });
