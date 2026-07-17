@@ -3,10 +3,9 @@ import {
   db, currentUser, membersList, tenantSettings, defaultSettings, escapeHTML,
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
-  collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp,
   populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach
 } from "./shared.js";
-import { addDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { addDoc, onSnapshot, deleteDoc, collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 let currentFeeFilter = "all";
 let currentSearchTerm = "";
@@ -183,7 +182,7 @@ function renderMembersTable() {
 
     if (!isGuest) {
       const actionsCell = tr.querySelector(".member-actions-cell");
-      
+
       if (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending") {
         const waBtn = document.createElement("button");
         waBtn.className = "btn-icon btn-wa";
@@ -197,7 +196,19 @@ function renderMembersTable() {
           openWhatsApp(member.phone, msg);
         });
         actionsCell.appendChild(waBtn);
+      }
 
+      if (member.bookingId) {
+        const renewBtn = document.createElement("button");
+        renewBtn.className = "btn-icon";
+        renewBtn.title = "Renew Schedule";
+        renewBtn.style.cssText = "background:transparent; border:none; cursor:pointer; font-size:1.1rem; margin-right: 0.5rem;";
+        renewBtn.innerHTML = "📅";
+        renewBtn.addEventListener("click", () => openRenewModal(member));
+        actionsCell.appendChild(renewBtn);
+      }
+
+      if (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending") {
         const btn = document.createElement("button");
         btn.className = "btn-mark-paid";
         btn.textContent = "💳 Mark Paid";
@@ -214,26 +225,26 @@ function renderMembersTable() {
       delBtn.addEventListener("click", async () => {
         if (!confirm(`Are you sure you want to delete member "${member.name}" and all their associated reservations? This action cannot be undone.`)) return;
         try {
-            // Query by academyId to satisfy Firebase Security Rules, then filter by memberId locally
-            // This prevents both the "Insufficient Permissions" error and the "Missing Composite Index" error.
-            const qBookings = query(
-              collection(db, "bookings"), 
-              where("academyId", "==", currentUser.academyId)
-            );
-            const snapBookings = await getDocs(qBookings);
-            if (!snapBookings.empty) {
-              const batchDel = writeBatch(db);
-              let delCount = 0;
-              snapBookings.forEach(d => {
-                if (d.data().memberId === member.id) {
-                  batchDel.delete(d.ref);
-                  delCount++;
-                }
-              });
-              if (delCount > 0) {
-                await batchDel.commit();
+          // Query by academyId to satisfy Firebase Security Rules, then filter by memberId locally
+          // This prevents both the "Insufficient Permissions" error and the "Missing Composite Index" error.
+          const qBookings = query(
+            collection(db, "bookings"),
+            where("academyId", "==", currentUser.academyId)
+          );
+          const snapBookings = await getDocs(qBookings);
+          if (!snapBookings.empty) {
+            const batchDel = writeBatch(db);
+            let delCount = 0;
+            snapBookings.forEach(d => {
+              if (d.data().memberId === member.id) {
+                batchDel.delete(d.ref);
+                delCount++;
               }
+            });
+            if (delCount > 0) {
+              await batchDel.commit();
             }
+          }
 
           await deleteDoc(doc(db, "members", member.id));
           showInlineToast(`Member "${member.name}" and reservations deleted successfully`, "success");
@@ -273,12 +284,12 @@ async function handleMarkPaid(member, btnEl) {
     try {
       const newPaidDate = formatSelectedDate(new Date());
       const updateData = { lastPaidDate: newPaidDate };
-      
+
       await updateDoc(doc(db, "members", member.id), updateData);
-      
+
       member.lastPaidDate = newPaidDate;
       showInlineToast(`✅ ${member.name} marked as paid!`, "success");
-      
+
       await loadMembers();
       renderMembersTable();
       renderFeeAlerts();
@@ -529,25 +540,25 @@ function loadEnquiries() {
   enquiriesUnsubscribe = onSnapshot(q, (snapshot) => {
     const tbody = document.getElementById('enquiriesTableBody');
     if (!tbody) return;
-    
+
     if (snapshot.empty) {
       tbody.innerHTML = `<tr><td colspan="6"><div class="members-empty-state"><p>No active enquiries found.</p></div></td></tr>`;
       return;
     }
 
     const enquiries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-                                   .sort((a, b) => {
-                                      const dateA = a.enquiryDate ? new Date(a.enquiryDate).getTime() : (a.createdAt?.toMillis() || 0);
-                                      const dateB = b.enquiryDate ? new Date(b.enquiryDate).getTime() : (b.createdAt?.toMillis() || 0);
-                                      return dateB - dateA;
-                                   });
+      .sort((a, b) => {
+        const dateA = a.enquiryDate ? new Date(a.enquiryDate).getTime() : (a.createdAt?.toMillis() || 0);
+        const dateB = b.enquiryDate ? new Date(b.enquiryDate).getTime() : (b.createdAt?.toMillis() || 0);
+        return dateB - dateA;
+      });
 
     tbody.innerHTML = "";
     enquiries.forEach(enq => {
-      const dateStr = enq.enquiryDate 
-          ? new Date(enq.enquiryDate).toLocaleDateString() 
-          : (enq.createdAt ? new Date(enq.createdAt.toMillis()).toLocaleDateString() : "Just now");
-      
+      const dateStr = enq.enquiryDate
+        ? new Date(enq.enquiryDate).toLocaleDateString()
+        : (enq.createdAt ? new Date(enq.createdAt.toMillis()).toLocaleDateString() : "Just now");
+
       let statusColor = "var(--muted)";
       if (enq.status === "New") statusColor = "var(--accent)";
       else if (enq.status === "Converted") statusColor = "var(--success)";
@@ -572,7 +583,7 @@ function loadEnquiries() {
         </td>
       `;
       tbody.appendChild(tr);
-      
+
       const waBtn = tr.querySelector(".btn-wa-enq");
       if (waBtn) {
         waBtn.addEventListener("click", () => {
@@ -614,3 +625,157 @@ function loadEnquiries() {
     console.error("Listen error:", err);
   });
 }
+
+// ── Renew Schedule ──────────────────────────────────────────────
+let renewMemberRef = null;
+
+function openRenewModal(member) {
+  renewMemberRef = member;
+  document.getElementById("renewScheduleModal").classList.remove("hidden");
+
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  document.getElementById("renewStartDate").value = formatSelectedDate(d);
+}
+
+document.getElementById("closeRenewModal")?.addEventListener("click", () => {
+  document.getElementById("renewScheduleModal").classList.add("hidden");
+});
+document.getElementById("btnCancelRenew")?.addEventListener("click", () => {
+  document.getElementById("renewScheduleModal").classList.add("hidden");
+});
+
+document.getElementById("btnConfirmRenew")?.addEventListener("click", async () => {
+  if (!renewMemberRef || !renewMemberRef.bookingId) return;
+  const startDateStr = document.getElementById("renewStartDate").value;
+  if (!startDateStr) {
+    showInlineToast("Please select a start date", "error");
+    return;
+  }
+
+  const btn = document.getElementById("btnConfirmRenew");
+  btn.disabled = true;
+  btn.textContent = "Processing...";
+
+  try {
+    const bookingRef = doc(db, "bookings", renewMemberRef.bookingId);
+    const bookingSnap = await getDoc(bookingRef);
+    if (!bookingSnap.exists()) throw new Error("Original booking template not found.");
+
+    const tpl = bookingSnap.data();
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 30);
+
+    let descText = tpl.period;
+    if (tpl.booking_type === "Members" && tenantSettings && tenantSettings.membership_programs) {
+      const prog = tenantSettings.membership_programs.find(p => p.duration_days === tpl.period);
+      if (prog && prog.days_description) descText += " " + prog.days_description;
+    }
+    const allowedDays = parseDays(descText);
+
+    const q2 = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
+    const snap2 = await getDocs(q2);
+    const existing = [];
+    snap2.forEach(d => {
+      const data = d.data();
+      if (data.status === "cancelled") return;
+      if (data.court_id == tpl.court_id && data.date >= formatSelectedDate(startDate) && data.date <= formatSelectedDate(endDate)) {
+        existing.push(data);
+      }
+    });
+
+    const batch = writeBatch(db);
+    let created = 0;
+    let newBookingId = null;
+
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      if (!allowedDays.includes(d.getDay())) continue;
+
+      const curDateStr = formatSelectedDate(d);
+      const dayOverlapping = existing.filter(b => b.date === curDateStr && tpl.start_time < b.end_time && tpl.end_time > b.start_time);
+
+      let skipDay = false;
+
+      // Rule 1: Prevent double-renewing the same member
+      if (dayOverlapping.some(b => b.memberId === renewMemberRef.id)) skipDay = true;
+
+      if (!skipDay) {
+        const type = tpl.booking_type;
+        
+        if (type === "Coaching") {
+          // Coaching allows unlimited students, no conflict (unless exclusive booking holds court)
+          const hasExclusive = dayOverlapping.some(b => 
+            b.booking_type === "Spot booking" || b.booking_type === "Advance Training" || b.booking_type === "Personal training" || b.booking_type === "Tournament"
+          );
+          if (hasExclusive) skipDay = true;
+        } 
+        else if (type === "Spot booking" || type === "Advance Training" || type === "Personal training" || type === "Tournament") {
+          // Exclusive types: Cannot overlap with ANY existing booking
+          if (dayOverlapping.length > 0) skipDay = true;
+        } 
+        else {
+          // Members, Guest Play, etc.
+          // Check if court is already held by an exclusive booking
+          const hasExclusive = dayOverlapping.some(b => 
+            b.booking_type === "Spot booking" || b.booking_type === "Advance Training" || b.booking_type === "Personal training" || b.booking_type === "Tournament"
+          );
+          if (hasExclusive) skipDay = true;
+          
+          if (!skipDay && type === "Members") {
+            const memberOverlaps = dayOverlapping.filter(b => b.booking_type === "Members");
+            if (memberOverlaps.length >= 6) skipDay = true;
+          }
+          if (!skipDay && type === "Guest Play") {
+            const hasMemberSlot = dayOverlapping.some(b => b.booking_type === "Members");
+            if (!hasMemberSlot) skipDay = true;
+          }
+        }
+      }
+
+      if (skipDay) continue;
+
+      const newBookingRef = doc(collection(db, "bookings"));
+      if (!newBookingId) newBookingId = newBookingRef.id;
+
+      batch.set(newBookingRef, {
+        booking_type: tpl.booking_type,
+        court_id: tpl.court_id,
+        customer_name: tpl.customer_name,
+        customer_phone: tpl.customer_phone,
+        category: tpl.category,
+        period: tpl.period,
+        gender: tpl.gender || "",
+        date: curDateStr,
+        start_time: tpl.start_time,
+        end_time: tpl.end_time,
+        enrollees: tpl.enrollees || "",
+        userId: tpl.userId || currentUser.uid,
+        academyId: tpl.academyId || currentUser.academyId,
+        memberId: renewMemberRef.id,
+        createdAt: serverTimestamp()
+      });
+      created++;
+    }
+
+    if (created > 0) {
+      await batch.commit();
+
+      if (newBookingId) {
+        await updateDoc(doc(db, "members", renewMemberRef.id), { bookingId: newBookingId });
+      }
+
+      showInlineToast(`✅ Successfully generated ${created} calendar slots!`, "success");
+      document.getElementById("renewScheduleModal").classList.add("hidden");
+      await loadMembers();
+      renderMembersTable();
+    } else {
+      showInlineToast("❌ No slots created. Calendar may be fully booked or member is already booked.", "error");
+    }
+  } catch (error) {
+    showInlineToast(`❌ Error: ${error.message}`, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Renew Schedule";
+  }
+});
