@@ -214,18 +214,18 @@ function renderMembersTable() {
       delBtn.addEventListener("click", async () => {
         if (!confirm(`Are you sure you want to delete member "${member.name}" and all their associated reservations? This action cannot be undone.`)) return;
         try {
-          if (member.id) {
-            // Query by memberId only to avoid needing a Composite Index
+            // Query by academyId to satisfy Firebase Security Rules, then filter by memberId locally
+            // This prevents both the "Insufficient Permissions" error and the "Missing Composite Index" error.
             const qBookings = query(
               collection(db, "bookings"), 
-              where("memberId", "==", member.id)
+              where("academyId", "==", currentUser.academyId)
             );
             const snapBookings = await getDocs(qBookings);
             if (!snapBookings.empty) {
               const batchDel = writeBatch(db);
               let delCount = 0;
               snapBookings.forEach(d => {
-                if (d.data().academyId === currentUser.academyId) {
+                if (d.data().memberId === member.id) {
                   batchDel.delete(d.ref);
                   delCount++;
                 }
@@ -234,7 +234,6 @@ function renderMembersTable() {
                 await batchDel.commit();
               }
             }
-          }
 
           await deleteDoc(doc(db, "members", member.id));
           showInlineToast(`Member "${member.name}" and reservations deleted successfully`, "success");
@@ -340,6 +339,7 @@ async function handleMarkPaid(member, btnEl) {
                 enrollees: tpl.enrollees || "",
                 userId: tpl.userId || currentUser.uid,
                 academyId: tpl.academyId || currentUser.academyId,
+                memberId: member.id,
                 createdAt: serverTimestamp()
               });
               created++;
