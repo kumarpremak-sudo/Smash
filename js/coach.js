@@ -150,11 +150,12 @@ async function loadCoachingStudents() {
     snap.forEach(d => {
       const data = d.data();
       data.id = d.id;
-      // If we want to only show coaching students, we check the type here.
-      // For now we'll load all active members and let the coach manage them.
-      // In a real app we might do: if(data.type.toLowerCase().includes('coach')) 
-      if (data.status === "active") {
-        studentsList.push(data);
+      // Only show coaching-related members in the Coaching Hub
+      if (data.status === "active" && data.type) {
+        const t = data.type.toLowerCase();
+        if (t.includes("coaching") || t.includes("advance") || t.includes("personal")) {
+          studentsList.push(data);
+        }
       }
     });
     
