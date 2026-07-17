@@ -182,12 +182,13 @@ function renderMembersTable() {
 
     if (!isGuest) {
       const actionsCell = tr.querySelector(".member-actions-cell");
+      actionsCell.className = "member-actions-cell";
+      actionsCell.style.whiteSpace = "nowrap";
 
       if (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending") {
         const waBtn = document.createElement("button");
-        waBtn.className = "btn-icon btn-wa";
+        waBtn.className = "btn-action-icon";
         waBtn.title = "Send WhatsApp Reminder";
-        waBtn.style.cssText = "background:transparent; border:none; cursor:pointer; font-size:1.1rem; margin-right: 0.5rem;";
         waBtn.innerHTML = "📱";
         waBtn.addEventListener("click", () => {
           const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
@@ -200,29 +201,27 @@ function renderMembersTable() {
 
       if (member.bookingId) {
         const renewBtn = document.createElement("button");
-        renewBtn.className = "btn-mark-paid";
-        renewBtn.style.cssText = "margin-right: 0.5rem; color: #fff; border-color: #6c757d;"; // slightly different style to distinguish it
-        renewBtn.innerHTML = "📅 Renew Schedule";
+        renewBtn.className = "btn-action-icon";
+        renewBtn.title = "Renew Schedule (30 Days)";
+        renewBtn.innerHTML = "📅";
         renewBtn.addEventListener("click", () => openRenewModal(member));
         actionsCell.appendChild(renewBtn);
       }
 
-      const btn = document.createElement("button");
-      btn.className = "btn-mark-paid";
-      btn.textContent = "💳 Record Payment";
-      btn.style.marginRight = "0.5rem";
-      btn.addEventListener("click", () => handleMarkPaid(member, btn));
-      actionsCell.appendChild(btn);
+      const paymentBtn = document.createElement("button");
+      paymentBtn.className = "btn-action-icon";
+      paymentBtn.title = "Record Payment";
+      paymentBtn.innerHTML = "💳";
+      paymentBtn.addEventListener("click", () => handleMarkPaid(member, paymentBtn));
+      actionsCell.appendChild(paymentBtn);
 
       const delBtn = document.createElement("button");
-      delBtn.className = "btn-icon btn-del-member";
+      delBtn.className = "btn-action-icon danger";
       delBtn.title = "Delete Member";
-      delBtn.style.cssText = "color:var(--danger); background:transparent; border:none; cursor:pointer; font-size:1.1rem;";
       delBtn.innerHTML = "🗑️";
       delBtn.addEventListener("click", async () => {
         if (!confirm(`Are you sure you want to delete member "${member.name}" and all their associated reservations? This action cannot be undone.`)) return;
         try {
-          // Query by academyId to satisfy Firebase Security Rules, then filter by memberId locally
           // This prevents both the "Insufficient Permissions" error and the "Missing Composite Index" error.
           const qBookings = query(
             collection(db, "bookings"),
@@ -391,13 +390,13 @@ function renderFeeAlerts() {
         <div class="fee-alert-title">${escapeHTML(member.name)} ${member.phone ? `<span style="font-size:0.75rem;color:var(--muted);margin-left:5px;">📞 ${escapeHTML(member.phone)}</span>` : ""} ${daysLabel} ${planBadge}</div>
         <div class="fee-alert-meta">Last paid: <span>${member.lastPaidDate === "" ? "Pending" : escapeHTML(member.lastPaidDate || member.joinDate)}</span> → Next due: <span>${escapeHTML(member.nextDue)}</span></div>
       </div>
-      <div class="fee-alert-actions">
-        <span class="fee-alert-price-tag">${priceVal}</span>
-        ${isGuest ? '' : `<button class="btn-icon btn-wa btn-wa-alert" title="Send WhatsApp Reminder" style="margin-right: 0.5rem; background:transparent; border:none; cursor:pointer; font-size:1.1rem;">📱</button><button class="btn-mark-paid">💳 Mark Paid</button>`}
+      <div class="fee-alert-actions" style="display:flex; align-items:center;">
+        <span class="fee-alert-price-tag" style="margin-right: 1rem;">${priceVal}</span>
+        ${isGuest ? '' : `<button class="btn-action-icon btn-wa-alert" title="Send WhatsApp Reminder" style="margin-right: 0.5rem;">📱</button><button class="btn-action-icon btn-mark-paid" title="Record Payment">💳</button>`}
       </div>
     `;
     if (!isGuest) {
-      row.querySelector(".btn-mark-paid").addEventListener("click", (e) => handleMarkPaidAlert(member, e.target, row));
+      row.querySelector(".btn-mark-paid").addEventListener("click", (e) => handleMarkPaid(member, e.currentTarget));
       const waBtn = row.querySelector(".btn-wa-alert");
       if (waBtn) {
         waBtn.addEventListener("click", () => {
@@ -411,28 +410,7 @@ function renderFeeAlerts() {
   });
 }
 
-async function handleMarkPaidAlert(member, btnEl, rowEl) {
-  if (!currentUser || currentUser.isAnonymous) {
-    showInlineToast("❌ Permission Denied: Guests cannot modify payments.", "error");
-    return;
-  }
-  const actionsDiv = rowEl.querySelector(".fee-alert-actions");
-  actionsDiv.innerHTML = `<div class="fee-confirm-wrap"><span class="fee-confirm-text">Confirm payment?</span><div class="fee-confirm-btns"><button class="btn-confirm-yes">✓ Yes</button><button class="btn-confirm-no">✕ No</button></div></div>`;
-  actionsDiv.querySelector(".btn-confirm-no").addEventListener("click", () => renderFeeAlerts());
-  actionsDiv.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
-    actionsDiv.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Saving...</span>';
-    try {
-      const newPaidDate = formatSelectedDate(new Date());
-      await updateDoc(doc(db, "members", member.id), { lastPaidDate: newPaidDate });
-      member.lastPaidDate = newPaidDate;
-      showInlineToast(`✅ ${member.name} marked as paid!`, "success");
-      await loadMembers();
-      renderMembersTable();
-      renderFeeAlerts();
-      renderMemberStats();
-    } catch (error) { showInlineToast(`❌ Failed: ${error.message}`, "error"); }
-  });
-}
+
 
 function bootstrap() {
   setupMembersListeners();
