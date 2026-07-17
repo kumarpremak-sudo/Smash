@@ -200,22 +200,19 @@ function renderMembersTable() {
 
       if (member.bookingId) {
         const renewBtn = document.createElement("button");
-        renewBtn.className = "btn-icon";
-        renewBtn.title = "Renew Schedule";
-        renewBtn.style.cssText = "background:transparent; border:none; cursor:pointer; font-size:1.1rem; margin-right: 0.5rem;";
-        renewBtn.innerHTML = "📅";
+        renewBtn.className = "btn-mark-paid";
+        renewBtn.style.cssText = "margin-right: 0.5rem; color: #fff; border-color: #6c757d;"; // slightly different style to distinguish it
+        renewBtn.innerHTML = "📅 Renew Schedule";
         renewBtn.addEventListener("click", () => openRenewModal(member));
         actionsCell.appendChild(renewBtn);
       }
 
-      if (statusClass === "overdue" || statusClass === "due-soon" || statusClass === "pending") {
-        const btn = document.createElement("button");
-        btn.className = "btn-mark-paid";
-        btn.textContent = "💳 Mark Paid";
-        btn.style.marginRight = "0.5rem";
-        btn.addEventListener("click", () => handleMarkPaid(member, btn));
-        actionsCell.appendChild(btn);
-      }
+      const btn = document.createElement("button");
+      btn.className = "btn-mark-paid";
+      btn.textContent = "💳 Record Payment";
+      btn.style.marginRight = "0.5rem";
+      btn.addEventListener("click", () => handleMarkPaid(member, btn));
+      actionsCell.appendChild(btn);
 
       const delBtn = document.createElement("button");
       delBtn.className = "btn-icon btn-del-member";
@@ -264,38 +261,35 @@ function renderMembersTable() {
 }
 
 // ── Mark Paid ───────────────────────────────────────────────
-async function handleMarkPaid(member, btnEl) {
+let paymentMemberRef = null;
+
+function handleMarkPaid(member, btnEl) {
   if (!currentUser || currentUser.isAnonymous) {
     showInlineToast("❌ Permission Denied: Guests cannot modify payments.", "error");
     return;
   }
-  // Inline confirmation
-  const row = btnEl.closest("td");
-  row.innerHTML = `<div class="fee-confirm-wrap"><span class="fee-confirm-text">Confirm payment?</span><div class="fee-confirm-btns"><button class="btn-confirm-yes">✓ Yes</button><button class="btn-confirm-no">✕ No</button></div></div>`;
-  row.querySelector(".btn-confirm-no").addEventListener("click", () => {
-    row.innerHTML = "";
-    const btn = document.createElement("button");
-    btn.className = "btn-mark-paid"; btn.textContent = "💳 Mark Paid";
-    btn.addEventListener("click", () => handleMarkPaid(member, btn));
-    row.appendChild(btn);
-  });
-  row.querySelector(".btn-confirm-yes").addEventListener("click", async () => {
-    row.innerHTML = '<span style="color:var(--muted);font-size:0.8rem;">Saving...</span>';
-    try {
-      const newPaidDate = formatSelectedDate(new Date());
-      const updateData = { lastPaidDate: newPaidDate };
-
-      await updateDoc(doc(db, "members", member.id), updateData);
-
-      member.lastPaidDate = newPaidDate;
-      showInlineToast(`✅ ${member.name} marked as paid!`, "success");
-
-      await loadMembers();
-      renderMembersTable();
-      renderFeeAlerts();
-      renderMemberStats();
-    } catch (error) { showInlineToast(`❌ Failed: ${error.message}`, "error"); }
-  });
+  
+  paymentMemberRef = member;
+  const modal = document.getElementById("recordPaymentModal");
+  const dateInput = document.getElementById("paymentEffectiveDate");
+  
+  if (modal && dateInput) {
+    modal.classList.remove("hidden");
+    
+    const isPending = member.lastPaidDate === "";
+    if (isPending) {
+      dateInput.value = formatSelectedDate(new Date());
+    } else {
+      const nextDue = addOneMonth(member.lastPaidDate || member.joinDate);
+      const todayStr = formatSelectedDate(new Date());
+      // If overdue/due-soon, default to today. If advance payment, default to nextDue.
+      if (todayStr >= nextDue) {
+        dateInput.value = todayStr;
+      } else {
+        dateInput.value = nextDue;
+      }
+    }
+  }
 }
 
 // ── Fee Alerts ──────────────────────────────────────────────
@@ -777,5 +771,45 @@ document.getElementById("btnConfirmRenew")?.addEventListener("click", async () =
   } finally {
     btn.disabled = false;
     btn.textContent = "Renew Schedule";
+  }
+});
+
+// ── Record Payment Modal logic ──────────────────────────────────────────────
+document.getElementById("closePaymentModal")?.addEventListener("click", () => {
+  document.getElementById("recordPaymentModal").classList.add("hidden");
+});
+document.getElementById("btnCancelPayment")?.addEventListener("click", () => {
+  document.getElementById("recordPaymentModal").classList.add("hidden");
+});
+
+document.getElementById("btnConfirmPayment")?.addEventListener("click", async () => {
+  if (!paymentMemberRef) return;
+  const dateStr = document.getElementById("paymentEffectiveDate").value;
+  if (!dateStr) {
+    showInlineToast("Please select an effective date.", "error");
+    return;
+  }
+  
+  const btn = document.getElementById("btnConfirmPayment");
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+  
+  try {
+    const updateData = { lastPaidDate: dateStr };
+    await updateDoc(doc(db, "members", paymentMemberRef.id), updateData);
+    
+    paymentMemberRef.lastPaidDate = dateStr;
+    showInlineToast(`✅ Payment recorded successfully for ${dateStr}`, "success");
+    
+    document.getElementById("recordPaymentModal").classList.add("hidden");
+    await loadMembers();
+    renderMembersTable();
+    renderFeeAlerts();
+    renderMemberStats();
+  } catch (error) {
+    showInlineToast(`❌ Failed: ${error.message}`, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Confirm Payment";
   }
 });

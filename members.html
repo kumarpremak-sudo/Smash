@@ -242,6 +242,28 @@
       </div>
     </div>
 
+    <!-- ══ RECORD PAYMENT MODAL ════════════════════════════ -->
+    <div id="recordPaymentModal" class="modal-overlay hidden">
+      <div class="modal-content glass-panel" style="max-width: 400px; position: relative;">
+        <button class="close-modal" id="closePaymentModal" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; font-size: 1.5rem; color: var(--muted); cursor: pointer;">&times;</button>
+        <div class="modal-header-section">
+          <h2 style="margin: 0; font-size: 1.25rem;">💳 Record Payment</h2>
+        </div>
+        <div class="modal-body-section">
+          <p style="margin-bottom: 1rem; color: var(--text);">Log a payment and select the date it applies to.</p>
+          <div class="form-group">
+            <label>Effective Date</label>
+            <input type="date" id="paymentEffectiveDate" required />
+            <p style="font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem;">The member's next due date will be exactly one month after this date.</p>
+          </div>
+          <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+            <button type="button" class="btn btn-outline" id="btnCancelPayment">Cancel</button>
+            <button type="button" class="btn btn-primary" id="btnConfirmPayment">Confirm Payment</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ══ BOTTOM NAV ════════════════════════════════════════ -->
     <nav class="bottom-nav">
       <div class="bottom-nav-inner">
