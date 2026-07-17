@@ -977,10 +977,10 @@ export function initApp() {
 }
 
 // ── Bulk Monthly Cancellation Backend Function ─────────────
-export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMonth, cancelledBy, reason = "Admin Bulk Cancellation" }) {
+export async function bulkCancelMonthlyBookings({ memberId, groupId, yearMonth, cancelledBy, reason = "Admin Bulk Cancellation" }) {
   if (!db) throw new Error("Database not initialized.");
-  if (!yearMonth || (!memberPhone && !groupId)) {
-    throw new Error("YearMonth and either Member Phone or Group ID are required.");
+  if (!yearMonth || (!memberId && !groupId)) {
+    throw new Error("YearMonth and either Member ID or Group ID are required.");
   }
 
   const startDate = `${yearMonth}-01`;
@@ -999,7 +999,7 @@ export async function bulkCancelMonthlyBookings({ memberPhone, groupId, yearMont
     allSnap.forEach(d => {
       const data = d.data();
       const matchDate = data.date >= startDate && data.date <= endDate;
-      const matchMember = memberPhone ? (data.customer_phone === memberPhone) : true;
+      const matchMember = memberId ? (data.memberId === memberId) : true;
       const matchGroup = groupId ? (data.category === groupId) : true;
       const matchStatus = data.status !== "cancelled";
       if (matchDate && matchMember && matchGroup && matchStatus) {

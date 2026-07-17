@@ -563,6 +563,7 @@ async function handleBookingSubmit(event) {
       const batch = writeBatch(db);
       let created = 0;
       let firstBookingId = null;
+      const newMemberRef = doc(collection(db, "members"));
       
       for (let i = 0; i < consecutiveDays; i++) {
         const d = new Date(selectedDate);
@@ -579,6 +580,7 @@ async function handleBookingSubmit(event) {
           booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, 
           category, period, gender, date: dateStr, start_time: startTime, end_time: endTime, 
           enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, 
+          memberId: newMemberRef.id,
           createdAt: serverTimestamp() 
         });
         created++;
@@ -589,7 +591,7 @@ async function handleBookingSubmit(event) {
         
         const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
         const todayStr = formatSelectedDate(new Date());
-        await addDoc(collection(db, "members"), {
+        await setDoc(newMemberRef, {
             name: name,
             phone: phone,
             type: planKey,
@@ -611,13 +613,21 @@ async function handleBookingSubmit(event) {
       const dateStr = formatSelectedDate(selectedDate);
       const conflictError = await checkBookingConflicts(courtId, dateStr, startTime, endTime, type, category);
       if (conflictError) throw new Error(conflictError);
-      const newBookingRef = await addDoc(collection(db, "bookings"), { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+
+      let newMemberRef = null;
+      if (type === "Personal training") {
+        newMemberRef = doc(collection(db, "members"));
+      }
+
+      const newBookingRef = doc(collection(db, "bookings"));
+      const batch = writeBatch(db);
+      batch.set(newBookingRef, { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: dateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, memberId: newMemberRef ? newMemberRef.id : null, createdAt: serverTimestamp() });
 
       // Auto-enroll member for Personal Training (which is a single day booking but still a program)
-      if (type === "Personal training") {
+      if (type === "Personal training" && newMemberRef) {
         const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
         const todayStr = formatSelectedDate(new Date());
-        await addDoc(collection(db, "members"), {
+        batch.set(newMemberRef, {
           name: name,
           phone: phone,
           type: planKey,
@@ -629,6 +639,8 @@ async function handleBookingSubmit(event) {
           academyId: currentUser.academyId
         });
       }
+
+      await batch.commit();
 
       showMsg("modalMessage", "Reservation confirmed successfully!", "success");
       setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
@@ -662,6 +674,10 @@ async function handleBookingSubmit(event) {
       const batch = writeBatch(db);
       let created = 0, skipped = 0;
       let firstBookingId = null;
+      let newMemberRef = null;
+      if (type !== "Spot booking" && type !== "Guest Play") {
+        newMemberRef = doc(collection(db, "members"));
+      }
       
       for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
         const dayOfWeek = d.getDay();
@@ -691,17 +707,15 @@ async function handleBookingSubmit(event) {
         const newBookingRef = doc(collection(db, "bookings"));
         if (!firstBookingId) firstBookingId = newBookingRef.id;
 
-        batch.set(newBookingRef, { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, createdAt: serverTimestamp() });
+        batch.set(newBookingRef, { booking_type: type, court_id: courtId, customer_name: name, customer_phone: phone, category, period, gender, date: curDateStr, start_time: startTime, end_time: endTime, enrollees: "", userId: currentUser.uid, academyId: currentUser.academyId, memberId: newMemberRef ? newMemberRef.id : null, createdAt: serverTimestamp() });
         created++;
       }
       if (created > 0) {
-        await batch.commit();
-
         // Auto-enroll member for recurring plans
-        if (type !== "Spot booking" && type !== "Guest Play") {
+        if (newMemberRef) {
           const planKey = resolvePlanKey(type, category, period, gender) || (category + " - " + period);
           const startDateStr = formatSelectedDate(selectedDate);
-          await addDoc(collection(db, "members"), {
+          batch.set(newMemberRef, {
             name: name,
             phone: phone,
             type: planKey,
@@ -713,6 +727,8 @@ async function handleBookingSubmit(event) {
             academyId: currentUser.academyId
           });
         }
+        
+        await batch.commit();
 
         showMsg("modalMessage", `Bulk complete. Processed ${created} slots, skipped ${skipped} conflicts.`, "success");
       }

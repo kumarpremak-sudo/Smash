@@ -555,6 +555,50 @@ function setupSettingsListeners() {
   
   const guestToggle = document.getElementById("guestLoginToggle");
   if (guestToggle) guestToggle.addEventListener("change", handleGuestToggle);
+
+  const btnMigrate = document.getElementById("btnRunMigration");
+  if (btnMigrate) {
+    btnMigrate.addEventListener("click", async () => {
+      if (!confirm("Are you sure you want to run the data migration? This will link old bookings to member IDs.")) return;
+      
+      btnMigrate.disabled = true;
+      btnMigrate.textContent = "Running Migration...";
+      const statusText = document.getElementById("migrationStatusText");
+      
+      try {
+        const membersSnap = await getDocs(collection(db, "members"));
+        let count = 0;
+        
+        for (const memberDoc of membersSnap.docs) {
+          const member = memberDoc.data();
+          if (!member.phone || !member.name) continue;
+          
+          const q = query(
+            collection(db, "bookings"), 
+            where("customer_phone", "==", member.phone),
+            where("customer_name", "==", member.name)
+          );
+          const bookingSnap = await getDocs(q);
+          
+          for (const bDoc of bookingSnap.docs) {
+            if (!bDoc.data().memberId) {
+              await updateDoc(doc(db, "bookings", bDoc.id), { memberId: memberDoc.id });
+              count++;
+            }
+          }
+        }
+        
+        showInlineToast(`Migration complete! Linked ${count} old bookings.`, "success");
+        if (statusText) statusText.textContent = `Success: Linked ${count} old bookings to members.`;
+      } catch (err) {
+        showMsg("settingsMessage", "Migration failed: " + err.message, "error");
+        if (statusText) statusText.textContent = "Migration failed.";
+      } finally {
+        btnMigrate.disabled = false;
+        btnMigrate.textContent = "Run Migration";
+      }
+    });
+  }
 }
 
 function bootstrap() {

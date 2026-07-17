@@ -103,6 +103,29 @@ function openBulkCancelModal() {
       catSelect.innerHTML += `<option value="${cat}">${pName}</option>`;
     });
   }
+
+  // Populate member dropdown
+  const memberSelect = document.getElementById("bulkMemberId");
+  if (memberSelect) {
+    memberSelect.innerHTML = '<option value="" disabled selected>Loading members...</option>';
+    if (currentUser && currentUser.academyId) {
+      const qMembers = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
+      getDocs(qMembers).then(snap => {
+        memberSelect.innerHTML = '<option value="" disabled selected>Select a Member</option>';
+        const membersList = [];
+        snap.forEach(doc => {
+          membersList.push({ id: doc.id, ...doc.data() });
+        });
+        membersList.sort((a, b) => a.name.localeCompare(b.name));
+        membersList.forEach(m => {
+          memberSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.phone})</option>`;
+        });
+      }).catch(err => {
+        console.error("Failed to load members:", err);
+        memberSelect.innerHTML = '<option value="" disabled selected>Failed to load members</option>';
+      });
+    }
+  }
 }
 
 function closeBulkCancelModal() {
@@ -114,13 +137,13 @@ async function handleBulkCancelSubmit(e) {
   e.preventDefault();
   const btn = document.getElementById("btnSubmitBulkCancel");
   const targetType = document.getElementById("bulkTargetType").value;
-  const memberPhone = document.getElementById("bulkMemberPhone").value.trim();
+  const memberId = document.getElementById("bulkMemberId") ? document.getElementById("bulkMemberId").value : "";
   const groupId = document.getElementById("bulkCategory").value;
   const yearMonth = document.getElementById("bulkYearMonth").value;
   const reason = document.getElementById("bulkReason").value.trim();
 
-  if (targetType === "member" && !memberPhone) {
-    showMsg("bulkCancelMsg", "Please enter member phone.", "error");
+  if (targetType === "member" && !memberId) {
+    showMsg("bulkCancelMsg", "Please select a member.", "error");
     return;
   }
   
@@ -132,7 +155,7 @@ async function handleBulkCancelSubmit(e) {
   try {
     if (btn) { btn.disabled = true; btn.textContent = "Processing Bulk Cancellation..."; }
     const res = await bulkCancelMonthlyBookings({
-      memberPhone: targetType === "member" ? memberPhone : null,
+      memberId: targetType === "member" ? memberId : null,
       groupId: targetType === "group" ? groupId : null,
       yearMonth,
       cancelledBy: currentUser ? currentUser.email : "Admin",
@@ -428,7 +451,8 @@ async function handleEnrollmentSubmit() {
   const submitBtn = document.getElementById("btnEnrollSubmit");
   submitBtn.disabled = true;
   try {
-    await addDoc(collection(db, "members"), { name: newName, type: typeSelect.value, joinDate: joinDateInput.value || formatSelectedDate(selectedDate), lastPaidDate: "", bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
+    const newMemberRef = doc(collection(db, "members"));
+    await setDoc(newMemberRef, { name: newName, type: typeSelect.value, joinDate: joinDateInput.value || formatSelectedDate(selectedDate), lastPaidDate: "", bookingId: selectedBooking.id, status: "active", createdTime: Date.now(), academyId: currentUser.academyId });
     input.value = "";
     showMsg("modalMessage", "Enrolled!", "success");
     await renderModalEnrolleesList(selectedBooking.id);

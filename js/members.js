@@ -214,19 +214,25 @@ function renderMembersTable() {
       delBtn.addEventListener("click", async () => {
         if (!confirm(`Are you sure you want to delete member "${member.name}" and all their associated reservations? This action cannot be undone.`)) return;
         try {
-          if (member.phone) {
+          if (member.id) {
+            // Query by memberId only to avoid needing a Composite Index
             const qBookings = query(
               collection(db, "bookings"), 
-              where("customer_phone", "==", member.phone),
-              where("academyId", "==", currentUser.academyId)
+              where("memberId", "==", member.id)
             );
             const snapBookings = await getDocs(qBookings);
             if (!snapBookings.empty) {
               const batchDel = writeBatch(db);
+              let delCount = 0;
               snapBookings.forEach(d => {
-                batchDel.delete(d.ref);
+                if (d.data().academyId === currentUser.academyId) {
+                  batchDel.delete(d.ref);
+                  delCount++;
+                }
               });
-              await batchDel.commit();
+              if (delCount > 0) {
+                await batchDel.commit();
+              }
             }
           }
 
