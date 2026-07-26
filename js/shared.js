@@ -1028,20 +1028,71 @@ export async function bulkCancelMonthlyBookings({ memberId, groupId, yearMonth, 
   const lastDay = new Date(year, month, 0).getDate();
   const endDate = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
 
+  let targetPhone = "";
+  let targetName = "";
+  let memberDocIds = [];
+
+  if (memberId) {
+    try {
+      const qMembers = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
+      const membersSnap = await getDocs(qMembers);
+      
+      let targetMemberDoc = null;
+      membersSnap.forEach(docSnap => {
+        if (docSnap.id === memberId) {
+          targetMemberDoc = docSnap.data();
+          memberDocIds.push(docSnap.id);
+        }
+      });
+
+      if (targetMemberDoc) {
+        targetPhone = (targetMemberDoc.phone || "").trim();
+        targetName = (targetMemberDoc.name || "").trim().toLowerCase();
+
+        membersSnap.forEach(docSnap => {
+          const data = docSnap.data();
+          const phoneMatch = targetPhone && (data.phone || "").trim() === targetPhone;
+          const nameMatch = targetName && (data.name || "").trim().toLowerCase() === targetName;
+          if ((phoneMatch || nameMatch) && !memberDocIds.includes(docSnap.id)) {
+            memberDocIds.push(docSnap.id);
+          }
+        });
+      } else {
+        memberDocIds.push(memberId);
+      }
+    } catch (err) {
+      console.error("Failed to query member details for bulk cancel:", err);
+      memberDocIds.push(memberId);
+    }
+  }
+
   const bookingsRef = collection(db, "bookings");
   let snapshot;
 
   try {
-    // Query by academyId only (auto-indexed), filter all other fields client-side
     const q = query(bookingsRef, where("academyId", "==", currentUser.academyId));
     const allSnap = await getDocs(q);
     const filteredDocs = [];
     allSnap.forEach(d => {
       const data = d.data();
       const matchDate = data.date >= startDate && data.date <= endDate;
-      const matchMember = memberId ? (data.memberId === memberId) : true;
-      const matchGroup = groupId ? (data.category === groupId) : true;
       const matchStatus = data.status !== "cancelled";
+
+      let matchMember = true;
+      if (memberId) {
+        const idMatch = data.memberId && memberDocIds.includes(data.memberId);
+        const phoneMatch = targetPhone && data.customer_phone && data.customer_phone.trim() === targetPhone;
+        const nameMatch = targetName && data.customer_name && data.customer_name.trim().toLowerCase() === targetName;
+        matchMember = idMatch || phoneMatch || nameMatch;
+      }
+
+      let matchGroup = true;
+      if (groupId) {
+        const catLower = (data.category || "").toLowerCase();
+        const groupLower = groupId.toLowerCase();
+        matchGroup = catLower === groupLower || catLower.includes(groupLower) || groupLower.includes(catLower);
+      }
+
       if (matchDate && matchMember && matchGroup && matchStatus) {
         filteredDocs.push(d);
       }
@@ -1056,7 +1107,7 @@ export async function bulkCancelMonthlyBookings({ memberId, groupId, yearMonth, 
     return { success: true, processedCount: 0, failedCount: 0, cancelledIds: [], failures: [] };
   }
 
-  const BATCH_SIZE = 450;
+  const BATCH_SIZE = 400;
   const docs = snapshot.docs;
   const chunks = [];
   for (let i = 0; i < docs.length; i += BATCH_SIZE) {
@@ -1081,6 +1132,13 @@ export async function bulkCancelMonthlyBookings({ memberId, groupId, yearMonth, 
       });
       chunkIds.push(docSnap.id);
     });
+
+    if (memberDocIds.length > 0) {
+      memberDocIds.forEach(mId => {
+        const mRef = doc(db, "members", mId);
+        batch.update(mRef, { status: "cancelled", cancelledAt: serverTimestamp() });
+      });
+    }
 
     try {
       await batch.commit();

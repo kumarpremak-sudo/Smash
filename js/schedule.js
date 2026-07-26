@@ -104,22 +104,59 @@ function openBulkCancelModal() {
     });
   }
 
-  // Populate member dropdown
+  // Populate member dropdown with active, deduplicated members
   const memberSelect = document.getElementById("bulkMemberId");
   if (memberSelect) {
     memberSelect.innerHTML = '<option value="" disabled selected>Loading members...</option>';
     if (currentUser && currentUser.academyId) {
-      const qMembers = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
-      getDocs(qMembers).then(snap => {
+      Promise.all([
+        getDocs(query(collection(db, "members"), where("academyId", "==", currentUser.academyId))),
+        getDocs(query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId)))
+      ]).then(([membersSnap, bookingsSnap]) => {
         memberSelect.innerHTML = '<option value="" disabled selected>Select a Member</option>';
-        const membersList = [];
-        snap.forEach(doc => {
-          membersList.push({ id: doc.id, ...doc.data() });
+        
+        const activePhones = new Set();
+        const activeNames = new Set();
+        const activeMemberIds = new Set();
+        bookingsSnap.forEach(d => {
+          const b = d.data();
+          if (b.status !== "cancelled") {
+            if (b.memberId) activeMemberIds.add(b.memberId);
+            if (b.customer_phone) activePhones.add(b.customer_phone.trim());
+            if (b.customer_name) activeNames.add(b.customer_name.trim().toLowerCase());
+          }
         });
-        membersList.sort((a, b) => a.name.localeCompare(b.name));
-        membersList.forEach(m => {
-          memberSelect.innerHTML += `<option value="${m.id}">${m.name} (${m.phone})</option>`;
+
+        const uniqueMembersMap = new Map();
+        membersSnap.forEach(docSnap => {
+          const m = { id: docSnap.id, ...docSnap.data() };
+          if (m.status === "cancelled" || m.status === "inactive") return;
+          
+          const phoneKey = (m.phone || "").trim();
+          const nameKey = (m.name || "").trim().toLowerCase();
+          
+          const hasActiveBooking = (phoneKey && activePhones.has(phoneKey)) ||
+                                   (nameKey && activeNames.has(nameKey)) ||
+                                   activeMemberIds.has(m.id);
+          if (!hasActiveBooking) return;
+
+          const dupKey = phoneKey || nameKey || m.id;
+          if (!uniqueMembersMap.has(dupKey)) {
+            uniqueMembersMap.set(dupKey, m);
+          }
         });
+
+        const membersList = Array.from(uniqueMembersMap.values());
+        membersList.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+        if (membersList.length === 0) {
+          memberSelect.innerHTML = '<option value="" disabled selected>No active members with bookings found</option>';
+        } else {
+          membersList.forEach(m => {
+            const phoneStr = m.phone ? ` (${m.phone})` : '';
+            memberSelect.innerHTML += `<option value="${m.id}">${escapeHTML(m.name)}${escapeHTML(phoneStr)}</option>`;
+          });
+        }
       }).catch(err => {
         console.error("Failed to load members:", err);
         memberSelect.innerHTML = '<option value="" disabled selected>Failed to load members</option>';
