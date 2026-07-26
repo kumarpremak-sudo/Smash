@@ -95,7 +95,7 @@ export function format12Hour(timeStr) {
 
 export function parse12HourTo24Hour(timeStr) {
   if (!timeStr) return "";
-  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  const match = timeStr.trim().match(/^(\d{1,2})[:.](\d{2})\s*(AM|PM)?$/i);
   if (!match) return timeStr;
   let hour = parseInt(match[1], 10);
   const min = match[2];

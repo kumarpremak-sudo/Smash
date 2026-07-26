@@ -297,7 +297,7 @@ function renderCoaching() {
     card.style.position = "relative";
     let slotsHtml = (c.timing_slots || []).map(t => {
       const parts = t.split("-");
-      const displayStr = parts.length === 2 ? `${format12Hour(parts[0].trim())} - ${format12Hour(parts[1].trim())}` : t;
+      const displayStr = parts.length === 2 ? `${format12Hour(parse12HourTo24Hour(parts[0].trim()))} - ${format12Hour(parse12HourTo24Hour(parts[1].trim()))}` : t;
       return `<div style="background:rgba(0,255,170,0.1); color:var(--accent); border:1px solid rgba(0,255,170,0.2); padding:0.3rem 0.6rem; border-radius:4px; font-size:0.8rem; font-family:var(--font-mono); display:inline-block; margin:0.25rem;">${escapeHTML(displayStr)}</div>`;
     }).join('');
     

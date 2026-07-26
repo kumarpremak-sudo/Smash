@@ -4,7 +4,7 @@ import {
   monthNames, escapeHTML, formatSelectedDate, showMsg, showInlineToast,
   loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour,
+  query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour, parse12HourTo24Hour,
   signOut, parseDays, openWhatsApp, isStrictCoach
 } from "./shared.js";
 
@@ -183,10 +183,10 @@ function populateTimeDropdowns(category) {
         schedule.timing_slots.forEach(t => {
           const parts = t.split("-");
           if (parts.length === 2) {
-            const st = parts[0].trim();
-            const en = parts[1].trim();
-            if (!times.includes(st)) times.push(st);
-            if (!times.includes(en)) times.push(en);
+            const st = parse12HourTo24Hour(parts[0].trim());
+            const en = parse12HourTo24Hour(parts[1].trim());
+            if (st && !times.includes(st)) times.push(st);
+            if (en && !times.includes(en)) times.push(en);
           }
         });
       }
