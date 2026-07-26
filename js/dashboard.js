@@ -864,8 +864,8 @@ async function handleEditBookingSubmit(event) {
   btn.disabled = true;
   const name = document.getElementById("editCustomerName").value.trim();
   const phone = document.getElementById("editCustomerPhone").value.trim();
-  if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); return; }
-  if (phone.length > 20) { showMsg("modalMessage", "Phone cannot exceed 20 characters.", "error"); return; }
+  if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); btn.disabled = false; return; }
+  if (phone.length > 20) { showMsg("modalMessage", "Phone cannot exceed 20 characters.", "error"); btn.disabled = false; return; }
   try {
     if (!currentUser) throw new Error("Permission Denied: You must be signed in.");
     if (currentUser.isAnonymous && selectedBooking.userId !== currentUser.uid) {
@@ -876,6 +876,13 @@ async function handleEditBookingSubmit(event) {
     }
     await updateDoc(doc(db, "bookings", selectedBooking.id), { customer_name: name, customer_phone: phone });
     selectedBooking.customer_name = name; selectedBooking.customer_phone = phone;
+
+    if (selectedBooking.memberId) {
+      try {
+        await updateDoc(doc(db, "members", selectedBooking.memberId), { name, phone });
+      } catch (mErr) { console.warn("Linked member edit sync warning:", mErr); }
+    }
+
     showMsg("modalMessage", "Reservation details saved.", "success");
     setTimeout(() => { openBookingDetailsModal(selectedBooking); renderCalendar(); }, 1200);
   } catch (error) { showMsg("modalMessage", "Failed to update: " + error.message, "error"); }
@@ -899,8 +906,21 @@ async function handleBookingDelete() {
 
     if (selectedBooking.memberId) {
       try {
-        await deleteDoc(doc(db, "members", selectedBooking.memberId));
-      } catch (mErr) { console.warn("Linked member doc deletion:", mErr); }
+        const qOther = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
+        const otherSnap = await getDocs(qOther);
+        let hasOtherBookings = false;
+        otherSnap.forEach(d => {
+          if (d.id !== selectedBooking.id) {
+            const bData = d.data();
+            if (bData.status !== "cancelled" && bData.memberId === selectedBooking.memberId) {
+              hasOtherBookings = true;
+            }
+          }
+        });
+        if (!hasOtherBookings) {
+          await deleteDoc(doc(db, "members", selectedBooking.memberId));
+        }
+      } catch (mErr) { console.warn("Linked member deletion check:", mErr); }
     }
 
     showMsg("modalMessage", "Reservation cancelled successfully.", "success");

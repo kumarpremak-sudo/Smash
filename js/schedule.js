@@ -488,8 +488,21 @@ async function handleBookingDelete() {
 
     if (selectedBooking.memberId) {
       try {
-        await deleteDoc(doc(db, "members", selectedBooking.memberId));
-      } catch (mErr) { console.warn("Linked member doc deletion:", mErr); }
+        const qOther = query(collection(db, "bookings"), where("academyId", "==", currentUser.academyId));
+        const otherSnap = await getDocs(qOther);
+        let hasOtherBookings = false;
+        otherSnap.forEach(d => {
+          if (d.id !== selectedBooking.id) {
+            const bData = d.data();
+            if (bData.status !== "cancelled" && bData.memberId === selectedBooking.memberId) {
+              hasOtherBookings = true;
+            }
+          }
+        });
+        if (!hasOtherBookings) {
+          await deleteDoc(doc(db, "members", selectedBooking.memberId));
+        }
+      } catch (mErr) { console.warn("Linked member deletion check:", mErr); }
     }
 
     showMsg("modalMessage", "Cancelled.", "success");
