@@ -222,7 +222,10 @@ function renderMembersTable() {
       delBtn.addEventListener("click", async () => {
         if (!confirm(`Are you sure you want to delete member "${member.name}" and all their associated reservations? This action cannot be undone.`)) return;
         try {
-          // This prevents both the "Insufficient Permissions" error and the "Missing Composite Index" error.
+          const targetPhone = (member.phone || "").trim();
+          const targetName = (member.name || "").trim().toLowerCase();
+
+          // 1. Delete all bookings associated with this member (by memberId, phone, or name)
           const qBookings = query(
             collection(db, "bookings"),
             where("academyId", "==", currentUser.academyId)
@@ -232,7 +235,11 @@ function renderMembersTable() {
             const batchDel = writeBatch(db);
             let delCount = 0;
             snapBookings.forEach(d => {
-              if (d.data().memberId === member.id) {
+              const bData = d.data();
+              const idMatch = bData.memberId === member.id;
+              const phoneMatch = targetPhone && bData.customer_phone && bData.customer_phone.trim() === targetPhone;
+              const nameMatch = targetName && bData.customer_name && bData.customer_name.trim().toLowerCase() === targetName;
+              if (idMatch || phoneMatch || nameMatch) {
                 batchDel.delete(d.ref);
                 delCount++;
               }
@@ -242,8 +249,33 @@ function renderMembersTable() {
             }
           }
 
-          await deleteDoc(doc(db, "members", member.id));
-          showInlineToast(`Member "${member.name}" and reservations deleted successfully`, "success");
+          // 2. Delete all member records in members collection matching this member (id, phone, or name)
+          const qMembers = query(
+            collection(db, "members"),
+            where("academyId", "==", currentUser.academyId)
+          );
+          const snapMembers = await getDocs(qMembers);
+          if (!snapMembers.empty) {
+            const batchMemDel = writeBatch(db);
+            let memDelCount = 0;
+            snapMembers.forEach(d => {
+              const mData = d.data();
+              const idMatch = d.id === member.id;
+              const phoneMatch = targetPhone && mData.phone && mData.phone.trim() === targetPhone;
+              const nameMatch = targetName && mData.name && mData.name.trim().toLowerCase() === targetName;
+              if (idMatch || phoneMatch || nameMatch) {
+                batchMemDel.delete(d.ref);
+                memDelCount++;
+              }
+            });
+            if (memDelCount > 0) {
+              await batchMemDel.commit();
+            }
+          } else {
+            await deleteDoc(doc(db, "members", member.id));
+          }
+
+          showInlineToast(`Member "${member.name}" and all associated reservations deleted successfully`, "success");
           await loadMembers();
           renderMembersTable();
           renderFeeAlerts();
