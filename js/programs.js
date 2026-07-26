@@ -343,7 +343,7 @@ function openCoachingModal(idx = null) {
 
 function addTimingSlotInput(val = "") {
   const parts = val.split("-");
-  const displayVal = parts.length === 2 ? `${format12Hour(parts[0].trim())} - ${format12Hour(parts[1].trim())}` : val;
+  const displayVal = parts.length === 2 ? `${format12Hour(parse12HourTo24Hour(parts[0].trim()))} - ${format12Hour(parse12HourTo24Hour(parts[1].trim()))}` : val;
   const div = document.createElement("div");
   div.style.display = "flex";
   div.style.gap = "0.5rem";

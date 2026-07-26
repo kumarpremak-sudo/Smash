@@ -283,21 +283,50 @@ export function resolvePlanKey(type, category, period, gender) {
 
   if (type === "Coaching" || type === "Advance Training" || type === "Personal training" || type === "Tournament") {
     if (tenantSettings.fee_structure) {
+      const catLower = (category || "").toLowerCase().trim();
+      
+      // 1. Try exact program_name match first
       for (const prog of tenantSettings.fee_structure) {
-        // Match program by category name (partial match, case-insensitive)
-        const progLower = prog.program_name.toLowerCase();
-        const catLower = (category || "").toLowerCase();
-        if (progLower.includes(catLower) || catLower.includes(progLower.split(" ")[0])) {
-          // Try exact period match first
+        if (!prog || !prog.program_name) continue;
+        const progLower = prog.program_name.toLowerCase().trim();
+        if (progLower === catLower) {
           let v = (prog.pricing_variants || []).find(x => x.frequency === period);
-          // Fallback to first variant if period doesn't match
           if (!v && prog.pricing_variants && prog.pricing_variants.length > 0) {
             v = prog.pricing_variants[0];
           }
           if (v) return v.key;
         }
       }
-      // Broader search: try matching category against any program name
+
+      // 2. Try normalized exact match (stripping words like coaching/program/batch/training)
+      const catClean = catLower.replace(/coaching|program|batch|training/gi, "").trim() || catLower;
+      for (const prog of tenantSettings.fee_structure) {
+        if (!prog || !prog.program_name) continue;
+        const progLower = prog.program_name.toLowerCase().trim();
+        const progClean = progLower.replace(/coaching|program|batch|training/gi, "").trim() || progLower;
+        if (progClean === catClean) {
+          let v = (prog.pricing_variants || []).find(x => x.frequency === period);
+          if (!v && prog.pricing_variants && prog.pricing_variants.length > 0) {
+            v = prog.pricing_variants[0];
+          }
+          if (v) return v.key;
+        }
+      }
+
+      // 3. Substring match fallback (progLower includes catLower or vice versa)
+      for (const prog of tenantSettings.fee_structure) {
+        if (!prog || !prog.program_name) continue;
+        const progLower = prog.program_name.toLowerCase().trim();
+        if (progLower.includes(catLower) || catLower.includes(progLower)) {
+          let v = (prog.pricing_variants || []).find(x => x.frequency === period);
+          if (!v && prog.pricing_variants && prog.pricing_variants.length > 0) {
+            v = prog.pricing_variants[0];
+          }
+          if (v) return v.key;
+        }
+      }
+
+      // 4. Broader search fallback: match category against any program with matching frequency period
       for (const prog of tenantSettings.fee_structure) {
         if (prog.pricing_variants) {
           const v = prog.pricing_variants.find(x => x.frequency === period);
