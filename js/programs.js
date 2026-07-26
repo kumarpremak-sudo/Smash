@@ -445,14 +445,17 @@ function saveFeePlan(e) {
   const variants = [];
   const freqs = document.querySelectorAll(".v-freq-input");
   const costs = document.querySelectorAll(".v-cost-input");
+  const progNameRaw = document.getElementById("feeProgram").value.trim();
+  const cleanProgName = progNameRaw.replace(/[^a-zA-Z0-9_]/g, '');
   for (let i = 0; i < freqs.length; i++) {
     if (freqs[i].value && costs[i].value) {
-      variants.push({ frequency: freqs[i].value, cost: parseInt(costs[i].value, 10), key: document.getElementById("feeProgram").value.replace(/\s+/g, '') + "_" + freqs[i].value.replace(/\s+/g, '') });
+      const cleanFreq = freqs[i].value.replace(/[^a-zA-Z0-9_]/g, '');
+      variants.push({ frequency: freqs[i].value.trim(), cost: parseInt(costs[i].value, 10), key: `${cleanProgName}_${cleanFreq}` });
     }
   }
   
   const f = {
-    program_name: document.getElementById("feeProgram").value,
+    program_name: progNameRaw,
     pricing_variants: variants
   };
   if (idx !== "") localConfig.fee_structure[idx] = f;
