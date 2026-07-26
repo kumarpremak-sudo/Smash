@@ -149,7 +149,7 @@ function populateTimeDropdowns(category) {
   endSel.innerHTML = '<option value="" disabled selected>Select End Time</option>';
 
   if (!category || !tenantSettings) return;
-  const catLower = category.toLowerCase();
+  const catLower = category.toLowerCase().trim();
   
   const typeSelect = document.getElementById("booking_type");
   const typeVal = typeSelect ? typeSelect.value : "";
@@ -158,20 +158,26 @@ function populateTimeDropdowns(category) {
 
   let times = [];
   if (isCoaching && tenantSettings.coaching_schedule) {
-    const matchingSchedules = tenantSettings.coaching_schedule.filter(c => {
-      const cCat = c.category.toLowerCase().trim();
-      const scheduleCat = cCat.replace(/coaching|program|batch|training/gi, "").trim() || cCat;
-      
+    // 1. Try exact match first
+    let matchingSchedules = tenantSettings.coaching_schedule.filter(c => 
+      c && c.category && c.category.toLowerCase().trim() === catLower
+    );
+
+    // 2. If no exact match, try normalized match (stripping keywords like coaching/program/batch/training)
+    if (matchingSchedules.length === 0) {
       const catLowerClean = catLower.replace(/coaching|program|batch|training/gi, "").trim() || catLower;
-      
-      if (scheduleCat === catLowerClean || cCat === catLowerClean) return true;
-      if (scheduleCat.includes(catLowerClean) || catLowerClean.includes(scheduleCat)) return true;
-      if (cCat.includes("advance") && catLower.includes("session")) return true;
-      if (cCat.includes("personal") && catLower.includes("private")) return true;
-      
-      return false;
-    });
-    
+      matchingSchedules = tenantSettings.coaching_schedule.filter(c => {
+        if (!c || !c.category) return false;
+        const cCat = c.category.toLowerCase().trim();
+        const scheduleCat = cCat.replace(/coaching|program|batch|training/gi, "").trim() || cCat;
+        
+        if (scheduleCat === catLowerClean || cCat === catLowerClean) return true;
+        if (cCat.includes("advance") && catLower.includes("session")) return true;
+        if (cCat.includes("personal") && catLower.includes("private")) return true;
+        return false;
+      });
+    }
+
     matchingSchedules.forEach(schedule => {
       if (schedule && schedule.timing_slots && schedule.timing_slots.length > 0) {
         schedule.timing_slots.forEach(t => {
