@@ -459,7 +459,13 @@ async function handleEditBookingSubmit(event) {
   if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); btn.disabled = false; return; }
   if (email.length > 80) { showMsg("modalMessage", "Email cannot exceed 80 characters.", "error"); btn.disabled = false; return; }
   try {
-    if (!(currentUser && selectedBooking.userId === currentUser.uid)) throw new Error("Permission Denied.");
+    if (!currentUser) throw new Error("Permission Denied: You must be signed in.");
+    if (currentUser.isAnonymous && selectedBooking.userId !== currentUser.uid) {
+      throw new Error("Permission Denied: Guests can only edit their own reservations.");
+    }
+    if (currentUser.academyId && selectedBooking.academyId && currentUser.academyId !== selectedBooking.academyId) {
+      throw new Error("Permission Denied: Cross-tenant access is not allowed.");
+    }
     await updateDoc(doc(db, "bookings", selectedBooking.id), { customer_name: name, customer_email: email });
     selectedBooking.customer_name = name; selectedBooking.customer_email = email;
     showMsg("modalMessage", "Saved.", "success");
@@ -471,8 +477,21 @@ async function handleEditBookingSubmit(event) {
 async function handleBookingDelete() {
   if (!selectedBooking || !confirm("Cancel this reservation?")) return;
   try {
-    if (!(currentUser && selectedBooking.userId === currentUser.uid)) throw new Error("Permission Denied.");
+    if (!currentUser) throw new Error("Permission Denied: You must be signed in.");
+    if (currentUser.isAnonymous && selectedBooking.userId !== currentUser.uid) {
+      throw new Error("Permission Denied: Guests can only cancel their own reservations.");
+    }
+    if (currentUser.academyId && selectedBooking.academyId && currentUser.academyId !== selectedBooking.academyId) {
+      throw new Error("Permission Denied: Cross-tenant access is not allowed.");
+    }
     await deleteDoc(doc(db, "bookings", selectedBooking.id));
+
+    if (selectedBooking.memberId) {
+      try {
+        await deleteDoc(doc(db, "members", selectedBooking.memberId));
+      } catch (mErr) { console.warn("Linked member doc deletion:", mErr); }
+    }
+
     showMsg("modalMessage", "Cancelled.", "success");
     setTimeout(() => { closeModal(); loadDailyGrid(); }, 1200);
   } catch (error) { showMsg("modalMessage", error.message, "error"); }

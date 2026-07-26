@@ -867,7 +867,13 @@ async function handleEditBookingSubmit(event) {
   if (name.length > 40) { showMsg("modalMessage", "Name cannot exceed 40 characters.", "error"); return; }
   if (phone.length > 20) { showMsg("modalMessage", "Phone cannot exceed 20 characters.", "error"); return; }
   try {
-    if (!(currentUser && selectedBooking.userId === currentUser.uid)) throw new Error("Permission Denied.");
+    if (!currentUser) throw new Error("Permission Denied: You must be signed in.");
+    if (currentUser.isAnonymous && selectedBooking.userId !== currentUser.uid) {
+      throw new Error("Permission Denied: Guests can only edit their own reservations.");
+    }
+    if (currentUser.academyId && selectedBooking.academyId && currentUser.academyId !== selectedBooking.academyId) {
+      throw new Error("Permission Denied: Cross-tenant access is not allowed.");
+    }
     await updateDoc(doc(db, "bookings", selectedBooking.id), { customer_name: name, customer_phone: phone });
     selectedBooking.customer_name = name; selectedBooking.customer_phone = phone;
     showMsg("modalMessage", "Reservation details saved.", "success");
@@ -882,8 +888,21 @@ async function handleBookingDelete() {
   const btn = document.getElementById("btnDeleteBooking");
   btn.disabled = true; btn.textContent = "Cancelling...";
   try {
-    if (!(currentUser && selectedBooking.userId === currentUser.uid)) throw new Error("Permission Denied.");
+    if (!currentUser) throw new Error("Permission Denied: You must be signed in.");
+    if (currentUser.isAnonymous && selectedBooking.userId !== currentUser.uid) {
+      throw new Error("Permission Denied: Guests can only cancel their own reservations.");
+    }
+    if (currentUser.academyId && selectedBooking.academyId && currentUser.academyId !== selectedBooking.academyId) {
+      throw new Error("Permission Denied: Cross-tenant access is not allowed.");
+    }
     await deleteDoc(doc(db, "bookings", selectedBooking.id));
+
+    if (selectedBooking.memberId) {
+      try {
+        await deleteDoc(doc(db, "members", selectedBooking.memberId));
+      } catch (mErr) { console.warn("Linked member doc deletion:", mErr); }
+    }
+
     showMsg("modalMessage", "Reservation cancelled successfully.", "success");
     setTimeout(() => { closeModal(); renderCalendar(); }, 1200);
   } catch (error) { showMsg("modalMessage", "Cancellation failed: " + error.message, "error"); btn.disabled = false; btn.textContent = "Cancel Booking"; }
