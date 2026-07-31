@@ -1034,35 +1034,16 @@ export async function bulkCancelMonthlyBookings({ memberId, groupId, yearMonth, 
 
   if (memberId) {
     try {
-      const qMembers = query(collection(db, "members"), where("academyId", "==", currentUser.academyId));
-      const membersSnap = await getDocs(qMembers);
-      
-      let targetMemberDoc = null;
-      membersSnap.forEach(docSnap => {
-        if (docSnap.id === memberId) {
-          targetMemberDoc = docSnap.data();
-          memberDocIds.push(docSnap.id);
-        }
-      });
-
-      if (targetMemberDoc) {
-        targetPhone = (targetMemberDoc.phone || "").trim();
-        targetName = (targetMemberDoc.name || "").trim().toLowerCase();
-
-        membersSnap.forEach(docSnap => {
-          const data = docSnap.data();
-          const phoneMatch = targetPhone && (data.phone || "").trim() === targetPhone;
-          const nameMatch = targetName && (data.name || "").trim().toLowerCase() === targetName;
-          if ((phoneMatch || nameMatch) && !memberDocIds.includes(docSnap.id)) {
-            memberDocIds.push(docSnap.id);
-          }
-        });
-      } else {
-        memberDocIds.push(memberId);
+      memberDocIds = [memberId];
+      const memberDocSnap = await getDoc(doc(db, "members", memberId));
+      if (memberDocSnap.exists()) {
+        const data = memberDocSnap.data();
+        targetPhone = (data.phone || "").trim();
+        targetName = (data.name || "").trim().toLowerCase();
       }
     } catch (err) {
       console.error("Failed to query member details for bulk cancel:", err);
-      memberDocIds.push(memberId);
+      memberDocIds = [memberId];
     }
   }
 
@@ -1080,10 +1061,11 @@ export async function bulkCancelMonthlyBookings({ memberId, groupId, yearMonth, 
 
       let matchMember = true;
       if (memberId) {
-        const idMatch = data.memberId && memberDocIds.includes(data.memberId);
-        const phoneMatch = targetPhone && data.customer_phone && data.customer_phone.trim() === targetPhone;
-        const nameMatch = targetName && data.customer_name && data.customer_name.trim().toLowerCase() === targetName;
-        matchMember = idMatch || phoneMatch || nameMatch;
+        const idMatch = data.memberId && data.memberId === memberId;
+        const legacyMatch = !data.memberId && targetPhone && targetName &&
+          data.customer_phone && data.customer_phone.trim() === targetPhone &&
+          data.customer_name && data.customer_name.trim().toLowerCase() === targetName;
+        matchMember = idMatch || legacyMatch;
       }
 
       let matchGroup = true;
