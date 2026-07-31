@@ -48,6 +48,7 @@ setOnAuthReady(async (user) => {
   setupTabs();
   setupEnquiries();
   loadEnquiries();
+  setupBulkOnboardListeners();
 });
 
 function setupMembersListeners() {
@@ -801,3 +802,422 @@ document.getElementById("btnConfirmPayment")?.addEventListener("click", async ()
     btn.textContent = "Confirm Payment";
   }
 });
+
+// ── CSV Bulk Onboarding Module ─────────────────────────────────────────────
+let csvParsedRows = [];
+let csvValidRows = [];
+
+function setupBulkOnboardListeners() {
+  const btnOpen = document.getElementById("btnOpenBulkOnboard");
+  const modal = document.getElementById("bulkOnboardModal");
+  const btnClose = document.getElementById("closeBulkModal");
+  const btnCancel = document.getElementById("btnCancelBulkModal");
+  const btnSample = document.getElementById("btnDownloadSampleCsv");
+  const fileInput = document.getElementById("csvFileInput");
+  const dropzone = document.getElementById("csvDropzone");
+  const btnExecute = document.getElementById("btnExecuteBulkImport");
+  const btnReset = document.getElementById("btnResetCsv");
+  const modeSelect = document.getElementById("csvImportMode");
+
+  if (btnOpen) {
+    btnOpen.addEventListener("click", () => {
+      if (!currentUser || currentUser.isAnonymous) {
+        showInlineToast("❌ Permission Denied: Guests cannot access bulk onboarding.", "error");
+        return;
+      }
+      resetBulkOnboardState();
+      modal?.classList.remove("hidden");
+    });
+  }
+
+  const closeModal = () => modal?.classList.add("hidden");
+  btnClose?.addEventListener("click", closeModal);
+  btnCancel?.addEventListener("click", closeModal);
+
+  btnSample?.addEventListener("click", downloadSampleCSV);
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleSelectedCSVFile(e.dataTransfer.files[0]);
+      }
+    });
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleSelectedCSVFile(e.target.files[0]);
+      }
+    });
+  }
+
+  if (modeSelect) {
+    modeSelect.addEventListener("change", () => {
+      if (csvParsedRows.length > 0) {
+        validateAndPreviewCSV(csvParsedRows);
+      }
+    });
+  }
+
+  btnReset?.addEventListener("click", resetBulkOnboardState);
+  btnExecute?.addEventListener("click", executeBulkImport);
+}
+
+function resetBulkOnboardState() {
+  csvParsedRows = [];
+  csvValidRows = [];
+  const fileInput = document.getElementById("csvFileInput");
+  if (fileInput) fileInput.value = "";
+  
+  const dropzoneText = document.getElementById("csvDropzoneText");
+  if (dropzoneText) dropzoneText.textContent = "Click to browse or drop your CSV file here";
+
+  document.getElementById("csvUploadStep")?.classList.remove("hidden");
+  document.getElementById("csvPreviewStep")?.classList.add("hidden");
+  document.getElementById("btnResetCsv")?.classList.add("hidden");
+  document.getElementById("csvProgressWrap")?.classList.add("hidden");
+
+  const btnExecute = document.getElementById("btnExecuteBulkImport");
+  if (btnExecute) {
+    btnExecute.disabled = true;
+    btnExecute.style.opacity = "0.6";
+    btnExecute.style.cursor = "not-allowed";
+    btnExecute.textContent = "🚀 Import Valid Records";
+  }
+
+  const tbody = document.getElementById("csvPreviewTableBody");
+  if (tbody) tbody.innerHTML = "";
+}
+
+function downloadSampleCSV() {
+  const csvContent = 
+`Member Name,Mobile Number,Booking Type,Program / Plan,Join Date,Last Paid Date
+Rahul Sharma,9876543210,Members,Individual - 5 Days Male,2026-08-01,2026-08-01
+Priya Sharma,9876543211,Coaching,Women Coaching - 5-Day/wk,2026-08-01,2026-08-01
+Aarav Sharma,9876543212,Coaching,Advance Batch - 6-Day/wk,2026-08-01,
+Siddharth V,9123456789,Group/Lease,Group - 5 Days,2026-08-01,2026-08-01`;
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", "sample_member_onboarding.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function handleSelectedCSVFile(file) {
+  if (!file.name.endsWith(".csv") && file.type !== "text/csv") {
+    showInlineToast("Please select a valid .csv file.", "error");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    if (!text || !text.trim()) {
+      showInlineToast("The selected CSV file is empty.", "error");
+      return;
+    }
+    const rows = parseCSVText(text);
+    if (rows.length === 0) {
+      showInlineToast("No valid rows found in CSV file.", "error");
+      return;
+    }
+    const dropzoneText = document.getElementById("csvDropzoneText");
+    if (dropzoneText) dropzoneText.textContent = `📄 Loaded: ${file.name} (${rows.length} rows)`;
+
+    validateAndPreviewCSV(rows);
+  };
+  reader.readAsText(file);
+}
+
+function normalizeCSVDate(dateStr) {
+  if (!dateStr || !dateStr.trim()) return "";
+  const clean = dateStr.trim();
+  
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+  const dmyMatch = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmyMatch) {
+    const day = String(dmyMatch[1]).padStart(2, "0");
+    const month = String(dmyMatch[2]).padStart(2, "0");
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  const ymdMatch = clean.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (ymdMatch) {
+    const year = ymdMatch[1];
+    const month = String(ymdMatch[2]).padStart(2, "0");
+    const day = String(ymdMatch[3]).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  return clean;
+}
+
+function parseCSVText(text) {
+  const lines = text.split(/\r\n|\n/);
+  if (lines.length < 2) return [];
+
+  function tokenizeLine(line) {
+    const tokens = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        tokens.push(current.trim().replace(/^"|"$/g, ""));
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    tokens.push(current.trim().replace(/^"|"$/g, ""));
+    return tokens;
+  }
+
+  const headers = tokenizeLine(lines[0]).map(h => h.toLowerCase());
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    const values = tokenizeLine(line);
+    const rowObj = {};
+    headers.forEach((h, idx) => {
+      rowObj[h] = values[idx] !== undefined ? values[idx] : "";
+    });
+    rows.push(rowObj);
+  }
+  return rows;
+}
+
+function resolvePlanKey(programStr, bookingTypeStr) {
+  const modeSelect = document.getElementById("csvImportMode");
+  const forcedMode = modeSelect ? modeSelect.value : "auto";
+  
+  let targetType = forcedMode !== "auto" ? forcedMode : (bookingTypeStr || "Members");
+  const progLower = (programStr || "").toLowerCase();
+
+  // Match against fee_structure (Coaching, Advance Batch, Women, Kids)
+  if (tenantSettings && tenantSettings.fee_structure) {
+    for (const prog of tenantSettings.fee_structure) {
+      const progNameLower = prog.program_name.toLowerCase();
+      if (progLower.includes(progNameLower) || progNameLower.includes(progLower.split(" ")[0])) {
+        const variant = (prog.pricing_variants || [])[0];
+        return {
+          bookingType: forcedMode !== "auto" ? forcedMode : "Coaching",
+          category: prog.program_name,
+          typeKey: variant ? variant.key : prog.program_name
+        };
+      }
+    }
+  }
+
+  // Match against membership_programs
+  if (tenantSettings && tenantSettings.membership_programs) {
+    const p = tenantSettings.membership_programs.find(x => 
+      x.key.toLowerCase() === progLower ||
+      progLower.includes(x.type.toLowerCase()) ||
+      x.duration_days.toLowerCase().includes(progLower)
+    );
+    if (p) {
+      return {
+        bookingType: forcedMode !== "auto" ? forcedMode : (p.type === "Group" ? "Group/Lease" : "Members"),
+        category: p.type,
+        typeKey: p.key
+      };
+    }
+  }
+
+  // Fallback
+  return {
+    bookingType: targetType,
+    category: programStr || "Individual",
+    typeKey: programStr ? programStr.replace(/\s+/g, "_") : "Individual_7d"
+  };
+}
+
+function validateAndPreviewCSV(rows) {
+  csvParsedRows = rows;
+  csvValidRows = [];
+  let validCount = 0, invalidCount = 0;
+  const tbody = document.getElementById("csvPreviewTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const seenInCSV = new Set();
+
+  rows.forEach((row, idx) => {
+    const name = row["member name"] || row["name"] || row["student name"] || "";
+    let phone = row["mobile number"] || row["phone"] || row["mobile"] || "";
+    const bTypeRaw = row["booking type"] || row["type"] || "";
+    const programRaw = row["program / plan"] || row["plan"] || row["program"] || "";
+    const rawJoin = row["join date"] || row["joindate"] || "";
+    const rawPaid = row["last paid date"] || row["lastpaiddate"] || "";
+    const joinDate = normalizeCSVDate(rawJoin) || formatSelectedDate(new Date());
+    const lastPaidDate = normalizeCSVDate(rawPaid);
+
+    phone = phone.replace(/[^\d+]/g, "");
+    if (!phone.startsWith("+91") && phone.length === 10) phone = "+91 " + phone;
+
+    const errors = [];
+    const warnings = [];
+
+    if (!name) errors.push("Missing Name");
+    if (!phone || phone.length < 10) errors.push("Invalid Phone");
+
+    const resolved = resolvePlanKey(programRaw, bTypeRaw);
+
+    const comboKey = `${name.toLowerCase()}_${phone}`;
+    if (seenInCSV.has(comboKey)) {
+      warnings.push("Duplicate in CSV");
+    } else {
+      seenInCSV.add(comboKey);
+    }
+
+    const existingMember = membersList.find(m => m.status === "active" && m.name.toLowerCase() === name.toLowerCase() && m.phone.trim() === phone.trim());
+    if (existingMember) warnings.push("Existing Active Member");
+
+    const isValid = errors.length === 0;
+    if (isValid) {
+      validCount++;
+      csvValidRows.push({
+        name, phone, bookingType: resolved.bookingType, typeKey: resolved.typeKey,
+        joinDate, lastPaidDate, rowNum: idx + 1
+      });
+    } else {
+      invalidCount++;
+    }
+
+    const tr = document.createElement("tr");
+    tr.className = isValid ? "preview-row-valid" : "preview-row-invalid";
+
+    let statusHtml = "";
+    if (errors.length > 0) {
+      statusHtml = `<span style="color:#dc3545;font-weight:600;">❌ ${escapeHTML(errors.join(", "))}</span>`;
+    } else if (warnings.length > 0) {
+      statusHtml = `<span style="color:#ffc107;font-weight:600;">⚠️ ${escapeHTML(warnings.join(", "))}</span>`;
+    } else {
+      statusHtml = `<span style="color:#28a745;font-weight:600;">✅ Ready</span>`;
+    }
+
+    tr.innerHTML = `
+      <td style="padding:6px 10px;font-family:var(--font-mono);">${idx + 1}</td>
+      <td style="padding:6px 10px;font-weight:600;">${escapeHTML(name || "—")}</td>
+      <td style="padding:6px 10px;font-family:var(--font-mono);">${escapeHTML(phone || "—")}</td>
+      <td style="padding:6px 10px;">${escapeHTML(resolved.bookingType)}</td>
+      <td style="padding:6px 10px;"><span class="member-plan-badge">${escapeHTML(resolved.typeKey)}</span></td>
+      <td style="padding:6px 10px;">${statusHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const bValid = document.getElementById("badgeValidCount");
+  const bInvalid = document.getElementById("badgeInvalidCount");
+  if (bValid) bValid.textContent = `${validCount} Valid`;
+  if (bInvalid) bInvalid.textContent = `${invalidCount} Errors`;
+
+  document.getElementById("csvUploadStep")?.classList.add("hidden");
+  document.getElementById("csvPreviewStep")?.classList.remove("hidden");
+  document.getElementById("btnResetCsv")?.classList.remove("hidden");
+
+  const btnExecute = document.getElementById("btnExecuteBulkImport");
+  if (btnExecute) {
+    if (validCount > 0) {
+      btnExecute.disabled = false;
+      btnExecute.style.opacity = "1";
+      btnExecute.style.cursor = "pointer";
+      btnExecute.textContent = `🚀 Import ${validCount} Valid Record(s)`;
+    } else {
+      btnExecute.disabled = true;
+      btnExecute.style.opacity = "0.6";
+      btnExecute.style.cursor = "not-allowed";
+      btnExecute.textContent = "❌ No Valid Records to Import";
+    }
+  }
+}
+
+async function executeBulkImport() {
+  if (!currentUser || currentUser.isAnonymous) {
+    showInlineToast("Permission Denied: Guest accounts cannot perform bulk imports.", "error");
+    return;
+  }
+  if (csvValidRows.length === 0) return;
+
+  const btnExecute = document.getElementById("btnExecuteBulkImport");
+  const progressWrap = document.getElementById("csvProgressWrap");
+  const progressBar = document.getElementById("csvProgressBar");
+  const progressPercent = document.getElementById("csvProgressPercent");
+
+  if (btnExecute) {
+    btnExecute.disabled = true;
+    btnExecute.textContent = "Processing Import...";
+  }
+  if (progressWrap) progressWrap.classList.remove("hidden");
+
+  const total = csvValidRows.length;
+  let processed = 0;
+  const BATCH_SIZE = 400;
+
+  const chunks = [];
+  for (let i = 0; i < csvValidRows.length; i += BATCH_SIZE) {
+    chunks.push(csvValidRows.slice(i, i + BATCH_SIZE));
+  }
+
+  try {
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      chunk.forEach(data => {
+        const newMemberRef = doc(collection(db, "members"));
+        batch.set(newMemberRef, {
+          name: data.name,
+          phone: data.phone,
+          type: data.typeKey,
+          joinDate: data.joinDate || formatSelectedDate(new Date()),
+          lastPaidDate: data.lastPaidDate || "",
+          status: "active",
+          createdTime: Date.now(),
+          academyId: currentUser.academyId,
+          onboardedVia: "bulk_csv"
+        });
+        processed++;
+      });
+
+      await batch.commit();
+
+      const pct = Math.round((processed / total) * 100);
+      if (progressBar) progressBar.style.width = pct + "%";
+      if (progressPercent) progressPercent.textContent = pct + "%";
+    }
+
+    showInlineToast(`🎉 Successfully onboarded ${processed} member(s)!`, "success");
+    document.getElementById("bulkOnboardModal")?.classList.add("hidden");
+    resetBulkOnboardState();
+
+    await loadMembers();
+    renderMembersTable();
+    renderFeeAlerts();
+    renderMemberStats();
+  } catch (err) {
+    console.error("Bulk onboarding error:", err);
+    showInlineToast(`❌ Import Failed: ${err.message}`, "error");
+  } finally {
+    if (btnExecute) {
+      btnExecute.disabled = false;
+      btnExecute.textContent = "🚀 Import Valid Records";
+    }
+  }
+}

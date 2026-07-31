@@ -8,26 +8,43 @@ import {
 
 setOnAuthReady(async (user) => {
   if (!user || isStaff(user) || isStrictCoach(user) || user.role === "GUEST") {
-    // If strict coach somehow navigated here, send them to coach hub.
-    // Otherwise send to dashboard.
-    window.location.href = isStrictCoach(user) ? "coach.html" : "dashboard.html";
+    // If guest/staff/coach navigated here, redirect or display access denied
+    if (isStrictCoach(user)) {
+      window.location.href = "coach.html";
+      return;
+    } else if (isStaff(user) || user.role === "GUEST") {
+      const accessDenied = document.getElementById("accessDeniedPanel");
+      if (accessDenied) accessDenied.classList.remove("hidden");
+      return;
+    }
+  }
+
+  const superAdmin = isSuperAdmin(user);
+  const tenantAdmin = isTenantAdmin(user);
+
+  if (!superAdmin && !tenantAdmin) {
+    const accessDenied = document.getElementById("accessDeniedPanel");
+    if (accessDenied) accessDenied.classList.remove("hidden");
     return;
   }
-  
-  if (isSuperAdmin(user)) {
-    document.getElementById("superAdminPanel").classList.remove("hidden");
+
+  if (superAdmin) {
+    const superAdminPanel = document.getElementById("superAdminPanel");
+    if (superAdminPanel) superAdminPanel.classList.remove("hidden");
     const guestTogglePanel = document.getElementById("guestTogglePanel");
     if (guestTogglePanel) guestTogglePanel.classList.remove("hidden");
-    await loadAcademies();
-    await loadSettingsData();
-  } else if (isTenantAdmin(user)) {
-    document.getElementById("tenantAdminPanel").classList.remove("hidden");
-    await loadStaff();
+    try { await loadAcademies(); } catch (e) { console.error("Error loading academies:", e); }
+    try { await loadSettingsData(); } catch (e) { console.error("Error loading auth settings:", e); }
   }
-  
-  if (isTenantAdmin(user)) {
-    document.getElementById("tenantSettingsPanel").classList.remove("hidden");
+
+  if (tenantAdmin) {
+    const tenantSettingsPanel = document.getElementById("tenantSettingsPanel");
+    if (tenantSettingsPanel) tenantSettingsPanel.classList.remove("hidden");
     initAcademyProfile();
+
+    const tenantAdminPanel = document.getElementById("tenantAdminPanel");
+    if (tenantAdminPanel) tenantAdminPanel.classList.remove("hidden");
+    try { await loadStaff(); } catch (e) { console.error("Error loading staff:", e); }
   }
 });
 

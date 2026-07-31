@@ -431,29 +431,38 @@ export function initTheme() {
 
 // ── Data Loaders ────────────────────────────────────────────
 export async function loadCourts() {
-  let snap;
-  if (currentUser?.academyId) {
-    const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
-    snap = await getDocs(q);
-  } else {
-    snap = { forEach: () => { } };
-  }
   courtsList = [];
   courtsMap = {};
-  snap.forEach(d => {
-    const court = d.data();
-    courtsList.push(court);
-    courtsMap[court.id] = court.name;
-  });
+  try {
+    let snap;
+    if (currentUser?.academyId) {
+      const q = query(collection(db, "courts"), where("academyId", "==", currentUser.academyId));
+      snap = await getDocs(q);
+    } else {
+      snap = { forEach: () => { } };
+    }
+    snap.forEach(d => {
+      const court = d.data();
+      courtsList.push(court);
+      courtsMap[court.id] = court.name;
+    });
 
-  if (courtsList.length === 0 && tenantSettings && tenantSettings.court_count) {
-    for (let i = 1; i <= tenantSettings.court_count; i++) {
+    if (courtsList.length === 0 && tenantSettings && tenantSettings.court_count) {
+      for (let i = 1; i <= tenantSettings.court_count; i++) {
+        courtsList.push({ id: i, name: `Court ${i}` });
+        courtsMap[i] = `Court ${i}`;
+      }
+    }
+
+    courtsList.sort((a, b) => a.id - b.id);
+  } catch (err) {
+    console.error("Failed to load courts:", err);
+    const count = (tenantSettings && tenantSettings.court_count) ? tenantSettings.court_count : 3;
+    for (let i = 1; i <= count; i++) {
       courtsList.push({ id: i, name: `Court ${i}` });
       courtsMap[i] = `Court ${i}`;
     }
   }
-
-  courtsList.sort((a, b) => a.id - b.id);
 }
 
 export async function loadMembers() {
@@ -511,24 +520,30 @@ export async function loadTenantSettings() {
 
       // Check for missing mandatory onboarding fields (contact numbers are required)
       if (!tenantSettings.contact_numbers || tenantSettings.contact_numbers.length === 0) {
-        if (!window.location.pathname.includes("dashboard")) {
-          window.location.href = "/dashboard";
+        const isDashOrSettings = window.location.pathname.includes("dashboard") || window.location.pathname.includes("settings");
+        if (!isDashOrSettings) {
+          window.location.href = "dashboard.html";
           return;
         }
         document.dispatchEvent(new Event('setup_required'));
       }
 
     } else {
-      // First-time login: missing settings
-      tenantSettings = null;
-      if (!window.location.pathname.includes("dashboard")) {
-        window.location.href = "/dashboard";
+      // First-time login: fallback to default settings object so page doesn't crash or blank
+      tenantSettings = JSON.parse(JSON.stringify(defaultSettings));
+      tenantSettings.academy_name = currentUser.academyId.replace("academy_", "Academy ");
+      const isDashOrSettings = window.location.pathname.includes("dashboard") || window.location.pathname.includes("settings");
+      if (!isDashOrSettings) {
+        window.location.href = "dashboard.html";
         return;
       }
       document.dispatchEvent(new Event('setup_required'));
     }
   } catch (error) {
     console.error("Failed to load tenant settings:", error);
+    if (!tenantSettings) {
+      tenantSettings = JSON.parse(JSON.stringify(defaultSettings));
+    }
   }
 }
 
@@ -666,15 +681,24 @@ async function checkUserAccess(user) {
 }
 
 export function isSuperAdmin(user) {
-  return user && user.role === "SUPER_ADMIN";
+  if (!user) return false;
+  if (user.role === "SUPER_ADMIN") return true;
+  if (user.academyRoles && user.academyId && user.academyRoles[user.academyId] === "SUPER_ADMIN") return true;
+  return false;
 }
 
 export function isTenantAdmin(user) {
-  return user && user.role === "TENANT_ADMIN";
+  if (!user) return false;
+  if (user.role === "TENANT_ADMIN") return true;
+  if (user.academyRoles && user.academyId && user.academyRoles[user.academyId] === "TENANT_ADMIN") return true;
+  return false;
 }
 
 export function isStaff(user) {
-  return user && user.role === "STAFF";
+  if (!user) return false;
+  if (user.role === "STAFF") return true;
+  if (user.academyRoles && user.academyId && user.academyRoles[user.academyId] === "STAFF") return true;
+  return false;
 }
 
 export function isCoach(user) {
@@ -913,15 +937,21 @@ async function handleAuthStateChange(user) {
       if (el) el.classList.toggle("hidden", strictCoach);
     });
 
-    // Load core data, then call page-specific ready handler
-    await loadTenantSettings();
-    await loadCourts();
+    // Load core data safely with error boundaries
+    try { await loadTenantSettings(); } catch (err) { console.error("loadTenantSettings error:", err); }
+    try { await loadCourts(); } catch (err) { console.error("loadCourts error:", err); }
 
-    // Reveal page content after data is loaded
+    // Always reveal page content
     const pageContent = document.querySelector(".page-content");
     if (pageContent) pageContent.classList.remove("hidden");
 
-    if (_onAuthReady) _onAuthReady(user);
+    if (_onAuthReady) {
+      try {
+        await _onAuthReady(user);
+      } catch (err) {
+        console.error("Error in page _onAuthReady handler:", err);
+      }
+    }
   } else {
     currentUser = null;
     if (!isLoginPage) { window.location.href = "index.html"; return; }

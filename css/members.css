@@ -436,3 +436,23 @@
 .mem-view.active {
   display: block;
 }
+
+/* ── CSV Dropzone & Bulk Onboarding ───────────────────────── */
+.csv-dropzone:hover {
+  border-color: var(--accent) !important;
+  background: var(--surface2) !important;
+}
+
+.csv-dropzone.dragover {
+  border-color: var(--accent) !important;
+  background: rgba(0, 229, 160, 0.08) !important;
+}
+
+.preview-row-valid {
+  background: rgba(40, 167, 69, 0.04);
+}
+
+.preview-row-invalid {
+  background: rgba(220, 53, 69, 0.06);
+}
+

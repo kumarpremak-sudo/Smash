@@ -60,6 +60,15 @@
 
       <div class="settings-grid">
 
+        <!-- Access Denied Panel (Shown if user lacks admin privileges) -->
+        <div class="glass-panel settings-card hidden" id="accessDeniedPanel">
+          <h3>🔒 Admin Access Required</h3>
+          <div class="settings-card-desc">You must be logged in as a Tenant Administrator or Super Administrator to access Settings.</div>
+          <div style="margin-top: 1rem;">
+            <a href="dashboard.html" class="btn btn-primary btn-sm">Return to Dashboard</a>
+          </div>
+        </div>
+
         <!-- Super Admin Panel: Manage Academies -->
         <div class="glass-panel settings-card hidden" id="superAdminPanel">
           <h3>🏢 Manage Academies (Super Admin)</h3>
