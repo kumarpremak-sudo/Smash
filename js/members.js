@@ -3,7 +3,8 @@ import {
   db, currentUser, membersList, tenantSettings, defaultSettings, escapeHTML,
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
-  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach, parseLocalDate
+  populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach, parseLocalDate,
+  courtsList
 } from "./shared.js";
 import { addDoc, onSnapshot, deleteDoc, collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -897,17 +898,17 @@ function resetBulkOnboardState() {
 
 function downloadSampleCSV() {
   const csvContent = 
-`Member Name,Mobile Number,Booking Type,Program / Plan,Join Date,Last Paid Date
-Rahul Sharma,9876543210,Members,Individual - 5 Days Male,2026-08-01,2026-08-01
-Priya Sharma,9876543211,Coaching,Women Coaching - 5-Day/wk,2026-08-01,2026-08-01
-Aarav Sharma,9876543212,Coaching,Advance Batch - 6-Day/wk,2026-08-01,
-Siddharth V,9123456789,Group/Lease,Group - 5 Days,2026-08-01,2026-08-01`;
+`Member Name,Mobile Number,Booking Type,Program / Plan,Court Number,Start Time,End Time,Join Date,Last Paid Date
+Rahul Sharma,9876543210,Members,Individual - 5 Days Male,Court 1,09:00 AM,10:00 AM,2026-08-01,2026-08-01
+Priya Sharma,9876543211,Coaching,Women Coaching - 5-Day/wk,Court 2,06:00 AM,07:00 AM,2026-08-01,2026-08-01
+Aarav Sharma,9876543212,Coaching,Advance Batch - 6-Day/wk,Court 3,07:00 AM,08:00 AM,2026-08-01,
+Siddharth V,9123456789,Group/Lease,Group - 5 Days,Court 1,09:00 AM,10:00 AM,2026-08-01,2026-08-01`;
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   link.setAttribute("href", url);
-  link.setAttribute("download", "sample_member_onboarding.csv");
+  link.setAttribute("download", "sample_member_onboarding_with_reservations.csv");
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -959,6 +960,33 @@ function normalizeCSVDate(dateStr) {
     const month = String(ymdMatch[2]).padStart(2, "0");
     const day = String(ymdMatch[3]).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  }
+
+  return clean;
+}
+
+function normalizeCSVTime(timeStr) {
+  if (!timeStr || !timeStr.trim()) return "";
+  let clean = timeStr.trim().toUpperCase();
+
+  // Match 9:00 AM -> 09:00 AM
+  const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+  if (ampmMatch) {
+    const hh = String(ampmMatch[1]).padStart(2, "0");
+    const mm = ampmMatch[2];
+    const ampm = ampmMatch[3];
+    return `${hh}:${mm} ${ampm}`;
+  }
+
+  // Match 24hr format e.g. 18:00 -> 06:00 PM or 09:00 -> 09:00 AM
+  const hr24Match = clean.match(/^(\d{1,2}):(\d{2})$/);
+  if (hr24Match) {
+    let hh = parseInt(hr24Match[1], 10);
+    const mm = hr24Match[2];
+    const ampm = hh >= 12 ? "PM" : "AM";
+    if (hh > 12) hh -= 12;
+    if (hh === 0) hh = 12;
+    return `${String(hh).padStart(2, "0")}:${mm} ${ampm}`;
   }
 
   return clean;
@@ -1016,11 +1044,16 @@ function resolvePlanKey(programStr, bookingTypeStr) {
     for (const prog of tenantSettings.fee_structure) {
       const progNameLower = prog.program_name.toLowerCase();
       if (progLower.includes(progNameLower) || progNameLower.includes(progLower.split(" ")[0])) {
-        const variant = (prog.pricing_variants || [])[0];
+        const variant = (prog.pricing_variants || []).find(v => 
+          progLower.includes((v.frequency || "").toLowerCase()) || progLower.includes((v.key || "").toLowerCase())
+        ) || (prog.pricing_variants || [])[0];
+        
         return {
           bookingType: forcedMode !== "auto" ? forcedMode : "Coaching",
           category: prog.program_name,
-          typeKey: variant ? variant.key : prog.program_name
+          typeKey: variant ? variant.key : prog.program_name,
+          period: variant ? variant.frequency : "5 Days",
+          daysDescription: variant ? variant.frequency : "5 Days"
         };
       }
     }
@@ -1036,8 +1069,10 @@ function resolvePlanKey(programStr, bookingTypeStr) {
     if (p) {
       return {
         bookingType: forcedMode !== "auto" ? forcedMode : (p.type === "Group" ? "Group/Lease" : "Members"),
-        category: p.type,
-        typeKey: p.key
+        category: p.type === "Group" ? "Group" : "Individual",
+        typeKey: p.key,
+        period: p.duration_days,
+        daysDescription: p.days_description || p.duration_days
       };
     }
   }
@@ -1045,8 +1080,10 @@ function resolvePlanKey(programStr, bookingTypeStr) {
   // Fallback
   return {
     bookingType: targetType,
-    category: programStr || "Individual",
-    typeKey: programStr ? programStr.replace(/\s+/g, "_") : "Individual_7d"
+    category: targetType === "Coaching" ? "Kids Coaching" : "Individual",
+    typeKey: programStr ? programStr.replace(/\s+/g, "_") : "Individual_7d",
+    period: "5 Days",
+    daysDescription: "5 Days"
   };
 }
 
@@ -1065,6 +1102,10 @@ function validateAndPreviewCSV(rows) {
     let phone = row["mobile number"] || row["phone"] || row["mobile"] || "";
     const bTypeRaw = row["booking type"] || row["type"] || "";
     const programRaw = row["program / plan"] || row["plan"] || row["program"] || "";
+    const courtRaw = row["court number"] || row["court"] || row["court_id"] || "";
+    const startTimeRaw = normalizeCSVTime(row["start time"] || row["start_time"] || row["time"] || "");
+    const endTimeRaw = normalizeCSVTime(row["end time"] || row["end_time"] || "");
+
     const rawJoin = row["join date"] || row["joindate"] || "";
     const rawPaid = row["last paid date"] || row["lastpaiddate"] || "";
     const joinDate = normalizeCSVDate(rawJoin) || formatSelectedDate(new Date());
@@ -1081,6 +1122,38 @@ function validateAndPreviewCSV(rows) {
 
     const resolved = resolvePlanKey(programRaw, bTypeRaw);
 
+    let finalStart = startTimeRaw;
+    let finalEnd = endTimeRaw;
+
+    if ((!finalStart || !finalEnd) && tenantSettings && tenantSettings.coaching_schedule) {
+      const matchCs = tenantSettings.coaching_schedule.find(cs => 
+        cs.category && resolved.category && cs.category.toLowerCase() === resolved.category.toLowerCase()
+      );
+      if (matchCs && matchCs.timing_slots && matchCs.timing_slots.length > 0) {
+        const parts = matchCs.timing_slots[0].split(/[-–—]|to/i);
+        if (parts.length === 2) {
+          if (!finalStart) finalStart = format12Hour(parse12HourTo24Hour(parts[0].trim()));
+          if (!finalEnd) finalEnd = format12Hour(parse12HourTo24Hour(parts[1].trim()));
+        }
+      }
+    }
+
+    let courtId = null;
+    const safeCourts = Array.isArray(courtsList) ? courtsList : [];
+    if (courtRaw) {
+      const matchCourt = safeCourts.find(c => String(c.id) === courtRaw || String(c.name).toLowerCase() === courtRaw.toLowerCase() || String(c.name).toLowerCase().includes(courtRaw.toLowerCase()));
+      if (matchCourt) {
+        courtId = matchCourt.id;
+      } else {
+        const parsedId = parseInt(courtRaw.replace(/[^\d]/g, ""), 10);
+        courtId = isNaN(parsedId) || parsedId <= 0 ? 1 : parsedId;
+      }
+    } else if (finalStart && finalEnd) {
+      courtId = 1; // Default to Court 1 if time slot is set
+    }
+
+    const timeSlotDisplay = (finalStart && finalEnd) ? `${finalStart} - ${finalEnd}` : "None";
+
     const comboKey = `${name.toLowerCase()}_${phone}`;
     if (seenInCSV.has(comboKey)) {
       warnings.push("Duplicate in CSV");
@@ -1096,6 +1169,8 @@ function validateAndPreviewCSV(rows) {
       validCount++;
       csvValidRows.push({
         name, phone, bookingType: resolved.bookingType, typeKey: resolved.typeKey,
+        category: resolved.category, period: resolved.period, daysDescription: resolved.daysDescription,
+        courtId, startTime: finalStart, endTime: finalEnd,
         joinDate, lastPaidDate, rowNum: idx + 1
       });
     } else {
@@ -1120,6 +1195,8 @@ function validateAndPreviewCSV(rows) {
       <td style="padding:6px 10px;font-family:var(--font-mono);">${escapeHTML(phone || "—")}</td>
       <td style="padding:6px 10px;">${escapeHTML(resolved.bookingType)}</td>
       <td style="padding:6px 10px;"><span class="member-plan-badge">${escapeHTML(resolved.typeKey)}</span></td>
+      <td style="padding:6px 10px;">${escapeHTML(courtId ? `Court ${courtId}` : "Auto")}</td>
+      <td style="padding:6px 10px;font-family:var(--font-mono);">${escapeHTML(timeSlotDisplay)}</td>
       <td style="padding:6px 10px;">${statusHtml}</td>
     `;
     tbody.appendChild(tr);
@@ -1180,21 +1257,61 @@ async function executeBulkImport() {
   try {
     for (const chunk of chunks) {
       const batch = writeBatch(db);
-      chunk.forEach(data => {
+      for (const data of chunk) {
         const newMemberRef = doc(collection(db, "members"));
+        let firstBookingId = null;
+
+        // Auto-generate 30-day recurring court reservations if court & time parameters provided
+        if (data.courtId && data.startTime && data.endTime) {
+          const startDate = parseLocalDate(data.joinDate || formatSelectedDate(new Date()));
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 30);
+
+          const allowedDays = parseDays(data.daysDescription || data.period || "5 Days");
+
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            if (!allowedDays.includes(d.getDay())) continue;
+
+            const curDateStr = formatSelectedDate(d);
+            const newBookingRef = doc(collection(db, "bookings"));
+            if (!firstBookingId) firstBookingId = newBookingRef.id;
+
+            batch.set(newBookingRef, {
+              booking_type: data.bookingType,
+              court_id: data.courtId,
+              customer_name: data.name,
+              customer_phone: data.phone,
+              category: data.category,
+              period: data.period,
+              gender: "",
+              date: curDateStr,
+              start_time: data.startTime,
+              end_time: data.endTime,
+              enrollees: "",
+              userId: currentUser.uid,
+              academyId: currentUser.academyId,
+              memberId: newMemberRef.id,
+              createdAt: serverTimestamp()
+            });
+          }
+        }
+
+        // Save Member document in members collection
         batch.set(newMemberRef, {
           name: data.name,
           phone: data.phone,
           type: data.typeKey,
           joinDate: data.joinDate || formatSelectedDate(new Date()),
           lastPaidDate: data.lastPaidDate || "",
+          bookingId: firstBookingId || null,
           status: "active",
           createdTime: Date.now(),
           academyId: currentUser.academyId,
           onboardedVia: "bulk_csv"
         });
+
         processed++;
-      });
+      }
 
       await batch.commit();
 
@@ -1203,7 +1320,7 @@ async function executeBulkImport() {
       if (progressPercent) progressPercent.textContent = pct + "%";
     }
 
-    showInlineToast(`🎉 Successfully onboarded ${processed} member(s)!`, "success");
+    showInlineToast(`🎉 Successfully onboarded ${processed} member(s) and generated schedule reservations!`, "success");
     document.getElementById("bulkOnboardModal")?.classList.add("hidden");
     resetBulkOnboardState();
 

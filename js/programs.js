@@ -296,8 +296,15 @@ function renderCoaching() {
     card.style.borderRadius = "var(--radius-md)";
     card.style.position = "relative";
     let slotsHtml = (c.timing_slots || []).map(t => {
-      const parts = t.split("-");
-      const displayStr = parts.length === 2 ? `${format12Hour(parse12HourTo24Hour(parts[0].trim()))} - ${format12Hour(parse12HourTo24Hour(parts[1].trim()))}` : t;
+      const parts = t.split(/[-–—]|to/i);
+      let displayStr = t;
+      if (parts.length === 2) {
+        const s24 = parse12HourTo24Hour(parts[0].trim());
+        const e24 = parse12HourTo24Hour(parts[1].trim());
+        if (s24 && e24) {
+          displayStr = `${format12Hour(s24)} - ${format12Hour(e24)}`;
+        }
+      }
       return `<div style="background:rgba(0,255,170,0.1); color:var(--accent); border:1px solid rgba(0,255,170,0.2); padding:0.3rem 0.6rem; border-radius:4px; font-size:0.8rem; font-family:var(--font-mono); display:inline-block; margin:0.25rem;">${escapeHTML(displayStr)}</div>`;
     }).join('');
     
@@ -342,33 +349,109 @@ function openCoachingModal(idx = null) {
 }
 
 function addTimingSlotInput(val = "") {
-  const parts = val.split("-");
-  const displayVal = parts.length === 2 ? `${format12Hour(parse12HourTo24Hour(parts[0].trim()))} - ${format12Hour(parse12HourTo24Hour(parts[1].trim()))}` : val;
+  let start24 = "06:00";
+  let end24 = "07:00";
+
+  if (val) {
+    const parts = val.split(/[-–—]|to/i);
+    if (parts.length >= 2) {
+      start24 = parse12HourTo24Hour(parts[0].trim()) || "06:00";
+      end24 = parse12HourTo24Hour(parts[1].trim()) || "07:00";
+    }
+  }
+
   const div = document.createElement("div");
-  div.style.display = "flex";
-  div.style.gap = "0.5rem";
-  div.innerHTML = `
-    <input type="text" class="t-slot-input" placeholder="e.g. 05:30 AM - 06:30 AM" value="${escapeHTML(displayVal)}" style="flex:1" required />
-    <button type="button" class="btn btn-sm btn-outline text-danger" onclick="this.parentElement.remove()">X</button>
-  `;
+  div.className = "timing-slot-row";
+  div.style.cssText = "display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;";
+
+  const startSelect = document.createElement("select");
+  startSelect.className = "form-control t-slot-start";
+  startSelect.style.cssText = "flex:1; height:36px; padding:0 8px;";
+
+  const endSelect = document.createElement("select");
+  endSelect.className = "form-control t-slot-end";
+  endSelect.style.cssText = "flex:1; height:36px; padding:0 8px;";
+
+  // Generate 30-min time options from 04:00 to 24:00 (12:00 AM Midnight)
+  const timesList = [];
+  for (let h = 4; h <= 23; h++) {
+    timesList.push(`${String(h).padStart(2, "0")}:00`);
+    timesList.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  timesList.push("24:00"); // Represents 12:00 AM Midnight for end times
+
+  timesList.forEach(time24 => {
+    if (time24 !== "24:00") {
+      const time12 = format12Hour(time24);
+      const optS = document.createElement("option");
+      optS.value = time24;
+      optS.textContent = time12;
+      if (time24 === start24) optS.selected = true;
+      startSelect.appendChild(optS);
+    }
+
+    const displayTimeE = time24 === "24:00" ? "12:00 AM (Midnight)" : format12Hour(time24);
+    const optE = document.createElement("option");
+    optE.value = time24;
+    optE.textContent = displayTimeE;
+    if (time24 === end24 || (time24 === "24:00" && (end24 === "00:00" || end24 === "24:00"))) optE.selected = true;
+    endSelect.appendChild(optE);
+  });
+
+  div.appendChild(startSelect);
+  
+  const spanTo = document.createElement("span");
+  spanTo.style.cssText = "color:var(--muted); font-size:0.85rem; font-weight:600;";
+  spanTo.textContent = "to";
+  div.appendChild(spanTo);
+
+  div.appendChild(endSelect);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "btn btn-sm btn-outline text-danger";
+  removeBtn.style.cssText = "padding:2px 8px; font-weight:bold;";
+  removeBtn.textContent = "✕";
+  removeBtn.onclick = () => div.remove();
+  div.appendChild(removeBtn);
+
   document.getElementById("timingSlotsContainer").appendChild(div);
 }
 
 function saveCoaching(e) {
   e.preventDefault();
   const idx = document.getElementById("coachIndex").value;
-  const slots = Array.from(document.querySelectorAll(".t-slot-input")).map(i => {
-    const raw = i.value.trim();
-    const parts = raw.split("-");
-    if (parts.length === 2) {
-      return `${parse12HourTo24Hour(parts[0])} - ${parse12HourTo24Hour(parts[1])}`;
+  const rows = document.querySelectorAll("#timingSlotsContainer .timing-slot-row");
+  
+  const slots = [];
+  for (const r of rows) {
+    const startSelect = r.querySelector(".t-slot-start");
+    const endSelect = r.querySelector(".t-slot-end");
+    if (!startSelect || !endSelect) continue;
+
+    const start24 = startSelect.value;
+    const end24 = endSelect.value;
+
+    const startMins = parseInt(start24.split(":")[0], 10) * 60 + parseInt(start24.split(":")[1], 10);
+    const endMins = end24 === "24:00" ? 24 * 60 : (parseInt(end24.split(":")[0], 10) * 60 + parseInt(end24.split(":")[1], 10));
+
+    if (startMins >= endMins) {
+      showMsg("programsSaveMsg", "Start time must be strictly earlier than End time for timing slots.", "error");
+      return;
     }
-    return raw;
-  }).filter(v => v);
+
+    const endFormatted = end24 === "24:00" ? "12:00 AM" : format12Hour(end24);
+    const slotStr = `${format12Hour(start24)} - ${endFormatted}`;
+    slots.push(slotStr);
+  }
+
+  // Deduplicate slots in same batch
+  const uniqueSlots = Array.from(new Set(slots));
+
   const c = {
     category: document.getElementById("coachCat").value,
     days: document.getElementById("coachDays").value,
-    timing_slots: slots
+    timing_slots: uniqueSlots
   };
   if (idx !== "") localConfig.coaching_schedule[idx] = c;
   else localConfig.coaching_schedule.push(c);
@@ -458,11 +541,91 @@ function saveFeePlan(e) {
     program_name: progNameRaw,
     pricing_variants: variants
   };
-  if (idx !== "") localConfig.fee_structure[idx] = f;
-  else localConfig.fee_structure.push(f);
+  if (idx !== "") {
+    const oldName = localConfig.fee_structure[idx]?.program_name;
+    if (oldName && oldName !== progNameRaw) {
+      localConfig.coaching_schedule.forEach(cs => {
+        if (cs.category === oldName || cs.category.toLowerCase() === oldName.toLowerCase()) {
+          cs.category = progNameRaw;
+        }
+      });
+      renderCoaching();
+    }
+    localConfig.fee_structure[idx] = f;
+  } else {
+    localConfig.fee_structure.push(f);
+  }
+
   document.getElementById("feeModal").classList.add("hidden");
   renderFees();
   triggerAutoSave();
+}
+
+async function syncUpcomingCoachingBookings(coachingSchedule) {
+  if (!db || !currentUser?.academyId || !coachingSchedule) return;
+  try {
+    const todayStr = formatSelectedDate(new Date());
+    const q = query(
+      collection(db, "bookings"),
+      where("academyId", "==", currentUser.academyId),
+      where("booking_type", "==", "Coaching")
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+
+    const batch = writeBatch(db);
+    let count = 0;
+
+    snap.forEach(d => {
+      const bData = d.data();
+      if (bData.date < todayStr || bData.status === "cancelled") return;
+
+      // Find matching coaching schedule by category (with fuzzy matching for variations like Kids vs Kids Coaching)
+      const match = coachingSchedule.find(cs => 
+        cs.category && bData.category && (
+          cs.category.toLowerCase() === bData.category.toLowerCase() ||
+          cs.category.toLowerCase().includes(bData.category.toLowerCase()) ||
+          bData.category.toLowerCase().includes(cs.category.toLowerCase())
+        )
+      );
+
+      if (match && match.timing_slots && match.timing_slots.length > 0) {
+        // Multi-slot aware: match student's current slot or default to primary slot
+        let targetSlot = match.timing_slots[0];
+        if (match.timing_slots.length > 1 && bData.start_time) {
+          const foundSlot = match.timing_slots.find(t => {
+            const parts = t.split(/[-–—]|to/i);
+            if (parts.length === 2) {
+              const st = format12Hour(parse12HourTo24Hour(parts[0].trim()));
+              return st === bData.start_time;
+            }
+            return false;
+          });
+          if (foundSlot) targetSlot = foundSlot;
+        }
+
+        const parts = targetSlot.split(/[-–—]|to/i);
+        if (parts.length === 2) {
+          const newStart = format12Hour(parse12HourTo24Hour(parts[0].trim()));
+          const newEnd = format12Hour(parse12HourTo24Hour(parts[1].trim()));
+          if (newStart && newEnd && (bData.start_time !== newStart || bData.end_time !== newEnd)) {
+            batch.update(doc(db, "bookings", d.id), {
+              start_time: newStart,
+              end_time: newEnd
+            });
+            count++;
+          }
+        }
+      }
+    });
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`Updated ${count} upcoming coaching reservation slots to match new program timing.`);
+    }
+  } catch (err) {
+    console.error("Error syncing coaching bookings:", err);
+  }
 }
 
 // ── Global Save ───────────────────────────────────────────
@@ -494,6 +657,9 @@ async function handleSave() {
     
     // Update local global state
     Object.assign(tenantSettings, updatedSettings);
+
+    // Sync upcoming coaching reservations with new time slots
+    await syncUpcomingCoachingBookings(localConfig.coaching_schedule);
     
     showMsg("programsSaveMsg", "Academy programs and fees updated successfully!", "success");
   } catch (err) {
