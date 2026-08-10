@@ -4,7 +4,7 @@ import {
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
   populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach, parseLocalDate,
-  courtsList
+  courtsList, formatCurrency
 } from "./shared.js";
 import { addDoc, onSnapshot, deleteDoc, collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -194,7 +194,7 @@ function renderMembersTable() {
         waBtn.innerHTML = "📱";
         waBtn.addEventListener("click", () => {
           const academyName = tenantSettings ? tenantSettings.academy_name : "our academy";
-          const priceVal = plan.price > 0 ? `₹${plan.price.toLocaleString()}` : "your fee";
+          const priceVal = plan.price > 0 ? formatCurrency(plan.price) : "your fee";
           const msg = `Hi ${member.name},\n\nThis is a gentle reminder from *${academyName}*. Your fee of ${priceVal} for the *${plan.name}* plan is due on *${nextDue}*.\n\nKindly clear the dues at your earliest convenience.\n\nThank you!`;
           openWhatsApp(member.phone, msg);
         });
@@ -381,7 +381,7 @@ function renderFeeAlerts() {
     }
     const planDetails = getPlanDetails(member.type);
     const plan = { name: planDetails.name, color: "var(--accent4)", bg: "rgba(77,171,247,0.12)" };
-    let priceVal = `₹${planDetails.price.toLocaleString()}`;
+    let priceVal = formatCurrency(planDetails.price);
 
     let daysLabel = "";
     if (member.lastPaidDate === "") {

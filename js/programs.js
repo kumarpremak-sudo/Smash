@@ -2,7 +2,7 @@
 import {
   db, currentUser, tenantSettings, defaultSettings, showMsg,
   setOnAuthReady, initApp, doc, setDoc, escapeHTML, format12Hour, parse12HourTo24Hour,
-  isSuperAdmin, isTenantAdmin, isStrictCoach
+  isSuperAdmin, isTenantAdmin, isStrictCoach, getCurrencySymbol, formatCurrency
 } from "./shared.js";
 
 // Local state for editing
@@ -169,7 +169,7 @@ function renderMemberships() {
       <div style="font-size:0.75rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:0.5rem;">${escapeHTML(m.type)}</div>
       <h4 style="margin-bottom:0.25rem; font-size:1.1rem;">${escapeHTML(m.duration_days)}</h4>
       <p style="color:var(--muted); font-size:0.85rem; margin-bottom:1rem;">${escapeHTML(m.days_description)}</p>
-      <div style="font-size:1.5rem; font-weight:700;">₹${escapeHTML(String(m.fee_per_month))} <span style="font-size:0.85rem; color:var(--muted); font-weight:normal;">/ month</span></div>
+      <div style="font-size:1.5rem; font-weight:700;">${getCurrencySymbol()}${escapeHTML(String(m.fee_per_month))} <span style="font-size:0.85rem; color:var(--muted); font-weight:normal;">/ month</span></div>
       ${m.special_notes ? `<div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted); background:var(--bg); padding:0.4rem; border-radius:4px;">${escapeHTML(m.special_notes)}</div>` : ''}
     `;
     grid.appendChild(card);
@@ -183,6 +183,8 @@ function renderMemberships() {
 }
 
 function openMembershipModal(idx = null) {
+  const lblFee = document.getElementById("lblMemFee");
+  if (lblFee) lblFee.textContent = `Monthly Fee (${getCurrencySymbol()})`;
   const form = document.getElementById("membershipForm");
   form.reset();
   document.getElementById("memKey").value = idx !== null ? idx : "";
@@ -239,7 +241,7 @@ function renderHourly() {
       </div>` : ''}
       <div style="font-size:0.75rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:0.5rem;">HOURLY SLOT</div>
       <h4 style="margin-bottom:0.25rem; font-size:1.1rem;">${escapeHTML(h.type)}</h4>
-      <div style="margin-top:1rem; font-size:1.5rem; font-weight:700;">₹${escapeHTML(String(h.rate))} <span style="font-size:0.85rem; color:var(--muted); font-weight:normal;">${escapeHTML(h.unit)}</span></div>
+      <div style="margin-top:1rem; font-size:1.5rem; font-weight:700;">${getCurrencySymbol()}${escapeHTML(String(h.rate))} <span style="font-size:0.85rem; color:var(--muted); font-weight:normal;">${escapeHTML(h.unit)}</span></div>
     `;
     grid.appendChild(card);
   });
@@ -252,6 +254,8 @@ function renderHourly() {
 }
 
 function openHourlyModal(idx = null) {
+  const lblRate = document.getElementById("lblHourRate");
+  if (lblRate) lblRate.textContent = `Rate (${getCurrencySymbol()})`;
   const form = document.getElementById("hourlyForm");
   form.reset();
   document.getElementById("hourIndex").value = idx !== null ? idx : "";
@@ -474,7 +478,7 @@ function renderFees() {
       tr.innerHTML = `
         <td style="font-weight:600;">${vidx === 0 ? escapeHTML(f.program_name) : ''}</td>
         <td>${escapeHTML(v.frequency)}</td>
-        <td style="font-family:var(--font-mono); font-weight:700;">₹${escapeHTML(String(v.cost))}</td>
+        <td style="font-family:var(--font-mono); font-weight:700;">${getCurrencySymbol()}${escapeHTML(String(v.cost))}</td>
         <td>
           ${vidx === 0 && canEditPrograms() ? `<button class="btn btn-sm btn-outline edit-fee" data-idx="${idx}">✏️</button>
           <button class="btn btn-sm btn-outline text-danger del-fee" data-idx="${idx}">🗑️</button>` : ''}
@@ -516,7 +520,7 @@ function addPricingVariantInput(freq = "", cost = "") {
   div.style.gap = "0.5rem";
   div.innerHTML = `
     <input type="text" class="v-freq-input" placeholder="Frequency (e.g. 5 Days)" value="${escapeHTML(freq)}" style="flex:2" required />
-    <input type="number" class="v-cost-input" placeholder="Cost (₹)" value="${escapeHTML(String(cost))}" style="flex:1" min="0" required />
+    <input type="number" class="v-cost-input" placeholder="Cost (${getCurrencySymbol()})" value="${escapeHTML(String(cost))}" style="flex:1" min="0" required />
     <button type="button" class="btn btn-sm btn-outline text-danger" onclick="this.parentElement.remove()">X</button>
   `;
   document.getElementById("pricingVariantsContainer").appendChild(div);

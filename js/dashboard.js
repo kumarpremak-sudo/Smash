@@ -5,7 +5,7 @@ import {
   loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour, parse12HourTo24Hour,
-  signOut, parseDays, openWhatsApp, isStrictCoach
+  signOut, parseDays, openWhatsApp, isStrictCoach, formatCurrency
 } from "./shared.js";
 
 let currentYear = new Date().getFullYear();
@@ -487,15 +487,15 @@ function calculateMonthlyRevenue() {
 
   const totalRevenue = totalMembersRevenue + totalCoachingRevenue + totalPTRevenue + totalGuestRevenue;
   document.getElementById("revenueMonthName").textContent = `${monthNames[currentMonth]} ${currentYear}`;
-  document.getElementById("revMembersVal").textContent = `₹${totalMembersRevenue.toLocaleString()}`;
+  document.getElementById("revMembersVal").textContent = formatCurrency(totalMembersRevenue);
   document.getElementById("revMembersCount").textContent = `${membersCount} active memberships`;
-  document.getElementById("revCoachingVal").textContent = `₹${totalCoachingRevenue.toLocaleString()}`;
+  document.getElementById("revCoachingVal").textContent = formatCurrency(totalCoachingRevenue);
   document.getElementById("revCoachingCount").textContent = `${coachingCount} unique trainees`;
-  document.getElementById("revPTVal").textContent = `₹${totalPTRevenue.toLocaleString()}`;
+  document.getElementById("revPTVal").textContent = formatCurrency(totalPTRevenue);
   document.getElementById("revPTHrs").textContent = `${ptHours} hours scheduled`;
-  document.getElementById("revGuestVal").textContent = `₹${totalGuestRevenue.toLocaleString()}`;
+  document.getElementById("revGuestVal").textContent = formatCurrency(totalGuestRevenue);
   document.getElementById("revGuestHrs").textContent = `${guestHours} hours booked`;
-  document.getElementById("revTotalVal").textContent = `₹${totalRevenue.toLocaleString()}`;
+  document.getElementById("revTotalVal").textContent = formatCurrency(totalRevenue);
 }
 
 // ── Modal Controllers ───────────────────────────────────────

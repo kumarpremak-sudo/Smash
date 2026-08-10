@@ -30,6 +30,7 @@ export let tenantSettings = null;
 export const defaultSettings = {
   "academy_name": "",
   "contact_numbers": [],
+  "currency_symbol": "₹",
   "court_count": 3,
   "membership_programs": [
     { "type": "Individual", "duration_days": "5 Days", "days_description": "Monday - Friday", "fee_per_month": 1400, "special_notes": "Male", "key": "Individual_5d_Male" },
@@ -138,6 +139,17 @@ export function maskEmail(email) {
   if (!domain) return email;
   if (local.length <= 2) return `${local}***@${domain}`;
   return `${local.substring(0, 2)}***@${domain}`;
+}
+
+export function getCurrencySymbol() {
+  return (tenantSettings && tenantSettings.currency_symbol) ? tenantSettings.currency_symbol : "₹";
+}
+
+export function formatCurrency(amount) {
+  const sym = getCurrencySymbol();
+  const num = Number(amount);
+  const validNum = isNaN(num) ? 0 : num;
+  return `${sym}${validNum.toLocaleString()}`;
 }
 
 export let currentHierarchy = {};

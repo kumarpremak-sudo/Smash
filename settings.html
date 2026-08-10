@@ -107,6 +107,17 @@
               <label>Contact Number</label>
               <input type="tel" id="progContactNumber" class="form-control" placeholder="+91 " readonly>
             </div>
+            <div class="form-group" style="margin:0; flex: 1;">
+              <label>Currency Symbol</label>
+              <select id="progCurrencySymbol" class="form-control" disabled>
+                <option value="₹">₹ - Indian Rupee (INR)</option>
+                <option value="$">$ - Dollar (USD / AUD / CAD / SGD)</option>
+                <option value="£">£ - British Pound (GBP)</option>
+                <option value="€">€ - Euro (EUR)</option>
+                <option value="AED">AED - UAE Dirham</option>
+                <option value="RM">RM - Malaysian Ringgit</option>
+              </select>
+            </div>
           </div>
           <button class="btn btn-primary" id="btnSaveProfile" style="width: 100%;" disabled>💾 Save Profile</button>
           

@@ -52,6 +52,7 @@ setOnAuthReady(async (user) => {
 function initAcademyProfile() {
   const pName = document.getElementById("progAcademyName");
   const pContact = document.getElementById("progContactNumber");
+  const pCurrency = document.getElementById("progCurrencySymbol");
   const btnEdit = document.getElementById("btnEditProfile");
   const btnSave = document.getElementById("btnSaveProfile");
   const staffProgramEditToggle = document.getElementById("staffProgramEditToggle");
@@ -79,23 +80,29 @@ function initAcademyProfile() {
   if (pContact && tenantSettings && tenantSettings.contact_numbers && tenantSettings.contact_numbers.length > 0) {
     pContact.value = tenantSettings.contact_numbers[0];
   }
+  if (pCurrency && tenantSettings) {
+    pCurrency.value = tenantSettings.currency_symbol || "₹";
+  }
   
   if (btnEdit) {
     btnEdit.addEventListener("click", () => {
       if (pName.hasAttribute("readonly")) {
         pName.removeAttribute("readonly");
         pContact.removeAttribute("readonly");
+        if (pCurrency) pCurrency.removeAttribute("disabled");
         pName.focus();
         btnEdit.innerHTML = "✕ Cancel";
         btnSave.disabled = false;
       } else {
         pName.setAttribute("readonly", true);
         pContact.setAttribute("readonly", true);
+        if (pCurrency) pCurrency.setAttribute("disabled", true);
         btnEdit.innerHTML = "✎ Edit";
         btnSave.disabled = true;
         // reset to original
         pName.value = tenantSettings.academy_name || tenantSettings.name || "";
         pContact.value = (tenantSettings.contact_numbers && tenantSettings.contact_numbers.length > 0) ? tenantSettings.contact_numbers[0] : "";
+        if (pCurrency) pCurrency.value = tenantSettings.currency_symbol || "₹";
       }
     });
   }
@@ -107,19 +114,23 @@ function initAcademyProfile() {
       try {
         const newName = pName.value.trim();
         const newContact = pContact.value.trim();
+        const newCurrency = pCurrency ? pCurrency.value : "₹";
         await updateDoc(doc(db, "academies", currentUser.academyId), {
           academy_name: newName,
           name: newName,
-          contact_numbers: newContact ? [newContact] : []
+          contact_numbers: newContact ? [newContact] : [],
+          currency_symbol: newCurrency
         });
         
         // Update local object
         tenantSettings.academy_name = newName;
         tenantSettings.name = newName;
         tenantSettings.contact_numbers = newContact ? [newContact] : [];
+        tenantSettings.currency_symbol = newCurrency;
         
         pName.setAttribute("readonly", true);
         pContact.setAttribute("readonly", true);
+        if (pCurrency) pCurrency.setAttribute("disabled", true);
         btnEdit.innerHTML = "✎ Edit";
         btnSave.textContent = "💾 Save Profile";
         showInlineToast("Academy profile updated successfully!", "success");
