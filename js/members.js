@@ -1301,6 +1301,8 @@ async function executeBulkImport() {
           name: data.name,
           phone: data.phone,
           type: data.typeKey,
+          bookingType: data.bookingType || "Coaching",
+          category: data.category || "",
           joinDate: data.joinDate || formatSelectedDate(new Date()),
           lastPaidDate: data.lastPaidDate || "",
           bookingId: firstBookingId || null,

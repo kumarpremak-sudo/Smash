@@ -152,29 +152,73 @@ async function loadCoachingStudents() {
       const data = d.data();
       data.id = d.id;
       // Only show coaching-related members in the Coaching Hub
-      if (data.status === "active" && data.type) {
+      if (data.status === "active" && (data.type || data.bookingType || data.category)) {
         let isCoaching = false;
         
-        // 1. Check if the plan key belongs to the coaching fee_structure
+        // 0. Explicit bookingType check
+        if (data.bookingType === "Coaching") {
+          isCoaching = true;
+        }
+
         const typeStr = data.type ? String(data.type).toLowerCase() : "";
-        if (tenantSettings && tenantSettings.fee_structure) {
+        const catStr = data.category ? String(data.category).toLowerCase() : "";
+        const normType = typeStr.replace(/[_]/g, " ");
+
+        // 1. Check if the plan key belongs to the coaching fee_structure
+        if (!isCoaching && tenantSettings && tenantSettings.fee_structure) {
           for (const prog of tenantSettings.fee_structure) {
-            // Exact key match
-            if (prog.pricing_variants && prog.pricing_variants.some(v => v.key === data.type)) {
+            if (!prog || !prog.program_name) continue;
+            const progLower = prog.program_name.toLowerCase();
+            const progKeyword = progLower.split(" ")[0]; // e.g. "kids", "women", "adults", "advance", "personal"
+
+            // Exact or variant key match
+            if (prog.pricing_variants && prog.pricing_variants.some(v => 
+              v.key === data.type || 
+              (v.key && v.key.toLowerCase() === typeStr) ||
+              (v.key && normType.includes(v.key.toLowerCase()))
+            )) {
               isCoaching = true;
               break;
             }
-            // Partial string match against program name
-            if (prog.program_name && typeStr && typeStr.includes(String(prog.program_name).toLowerCase())) {
+
+            // Normalized string match against program name or category
+            if (normType.includes(progLower) || progLower.includes(normType) || (catStr && catStr.includes(progLower))) {
+              isCoaching = true;
+              break;
+            }
+
+            // Substring match against primary keyword (e.g. "kids" in "kids coaching")
+            if (progKeyword && progKeyword.length > 2 && (typeStr.includes(progKeyword) || normType.includes(progKeyword))) {
               isCoaching = true;
               break;
             }
           }
         }
+
+        // 2. Check against tenantSettings.coaching_schedule categories
+        if (!isCoaching && tenantSettings && tenantSettings.coaching_schedule) {
+          for (const cs of tenantSettings.coaching_schedule) {
+            if (cs && cs.category) {
+              const csLower = cs.category.toLowerCase();
+              if (normType.includes(csLower) || (catStr && catStr.includes(csLower))) {
+                isCoaching = true;
+                break;
+              }
+            }
+          }
+        }
         
-        // 2. Fallback for older data or custom manually-typed string plans
-        if (!isCoaching && typeStr) {
-          if (typeStr.includes("coaching") || typeStr.includes("advance") || typeStr.includes("personal") || typeStr.includes("tournament")) {
+        // 3. Fallback for custom or manually-typed string plans
+        if (!isCoaching) {
+          const combined = (typeStr + " " + normType + " " + catStr).toLowerCase();
+          if (
+            combined.includes("coaching") || combined.includes("advance") ||
+            combined.includes("personal") || combined.includes("tournament") ||
+            combined.includes("kids") || combined.includes("women") ||
+            combined.includes("adults") || combined.includes("batch") ||
+            combined.includes("training") || combined.includes("student") ||
+            combined.includes("trainee")
+          ) {
             isCoaching = true;
           }
         }
