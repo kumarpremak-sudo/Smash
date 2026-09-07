@@ -350,6 +350,97 @@ export function resolvePlanKey(type, category, period, gender) {
   return null;
 }
 
+export function getPlanDetails(key) {
+  if (!key) return { name: "Unknown Plan", price: 0, category: "coaching" };
+  const keyStr = String(key).trim();
+  const keyLower = keyStr.toLowerCase();
+
+  if (tenantSettings) {
+    // 1. Exact match against membership programs
+    if (tenantSettings.membership_programs) {
+      const p = tenantSettings.membership_programs.find(x => x.key === keyStr || (x.type && x.type.toLowerCase() === keyLower));
+      if (p) {
+        return {
+          name: p.type + " - " + p.duration_days + (p.special_notes ? ` (${p.special_notes})` : ""),
+          price: Number(p.fee_per_month) || 0,
+          category: "membership"
+        };
+      }
+    }
+
+    // 2. Exact match against fee structure variants
+    if (tenantSettings.fee_structure) {
+      for (const prog of tenantSettings.fee_structure) {
+        if (!prog) continue;
+        const v = (prog.pricing_variants || []).find(x => x.key === keyStr);
+        if (v) {
+          const cat = (prog.program_name && (prog.program_name.toLowerCase().includes("personal") || prog.program_name.toLowerCase().includes("pt"))) || keyLower.includes("personal") ? "pt" : "coaching";
+          return {
+            name: prog.program_name + " - " + v.frequency,
+            price: Number(v.cost) || 0,
+            category: cat
+          };
+        }
+      }
+
+      // 3. Exact match against fee structure program names
+      for (const prog of tenantSettings.fee_structure) {
+        if (!prog || !prog.program_name) continue;
+        if (prog.program_name.toLowerCase().trim() === keyLower) {
+          const price = (prog.pricing_variants && prog.pricing_variants.length > 0) ? Number(prog.pricing_variants[0].cost) || 0 : 0;
+          const cat = prog.program_name.toLowerCase().includes("personal") || prog.program_name.toLowerCase().includes("pt") ? "pt" : "coaching";
+          return {
+            name: prog.program_name,
+            price,
+            category: cat
+          };
+        }
+      }
+    }
+
+    // 4. Partial match against membership programs
+    if (tenantSettings.membership_programs) {
+      const p = tenantSettings.membership_programs.find(x => x.type && keyLower.includes(x.type.toLowerCase()));
+      if (p) {
+        return {
+          name: p.type + " - " + p.duration_days,
+          price: Number(p.fee_per_month) || 0,
+          category: "membership"
+        };
+      }
+    }
+
+    // 5. Partial match against fee structure
+    if (tenantSettings.fee_structure) {
+      for (const prog of tenantSettings.fee_structure) {
+        if (!prog || !prog.program_name) continue;
+        const progLower = prog.program_name.toLowerCase().trim();
+        const firstWord = progLower.split(" ")[0];
+        if (keyLower.includes(progLower) || progLower.includes(keyLower) || (firstWord.length > 2 && keyLower.includes(firstWord))) {
+          const price = (prog.pricing_variants && prog.pricing_variants.length > 0) ? Number(prog.pricing_variants[0].cost) || 0 : 0;
+          const cat = progLower.includes("personal") || progLower.includes("pt") ? "pt" : "coaching";
+          return {
+            name: prog.program_name,
+            price,
+            category: cat
+          };
+        }
+      }
+    }
+  }
+
+  // 6. Fallback categorization & formatting if missing or unmapped
+  let category = "coaching";
+  if (keyLower.startsWith("individual_") || keyLower.startsWith("group_") || keyLower.includes("individual") || keyLower.includes("group")) {
+    category = "membership";
+  } else if (keyLower.startsWith("pt_") || keyLower.includes("personal") || keyLower.includes("pt")) {
+    category = "pt";
+  }
+
+  const readableName = keyStr.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return { name: readableName, price: 0, category };
+}
+
 export function populateCategoryDropdown(typeSelectId, categorySelectId) {
   const typeSelect = document.getElementById(typeSelectId);
   const catSelect = document.getElementById(categorySelectId);

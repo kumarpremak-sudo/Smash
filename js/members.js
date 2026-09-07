@@ -4,7 +4,7 @@ import {
   formatSelectedDate, addOneMonth, showInlineToast, loadMembers,
   setOnAuthReady, initApp, parseDays, checkBookingConflicts,
   populateBookingDropdowns, populateCategoryDropdown, openWhatsApp, isStrictCoach, parseLocalDate,
-  courtsList, formatCurrency
+  courtsList, formatCurrency, getPlanDetails
 } from "./shared.js";
 import { addDoc, onSnapshot, deleteDoc, collection, doc, getDoc, getDocs, updateDoc, query, where, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -118,40 +118,6 @@ function renderMembersTable() {
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="members-empty-state"><div class="empty-icon">👥</div><p>No members found matching your filters.</p></div></td></tr>`;
     return;
-  }
-
-  function getPlanDetails(key) {
-    if (!tenantSettings) return { name: key, price: 0 };
-    // Exact match against membership programs
-    if (tenantSettings.membership_programs) {
-      const p = tenantSettings.membership_programs.find(x => x.key === key);
-      if (p) return { name: p.type + " - " + p.duration_days + (p.special_notes ? ` (${p.special_notes})` : ""), price: p.fee_per_month };
-    }
-    // Exact match against fee structure
-    if (tenantSettings.fee_structure) {
-      for (const prog of tenantSettings.fee_structure) {
-        const v = (prog.pricing_variants || []).find(x => x.key === key);
-        if (v) return { name: prog.program_name + " - " + v.frequency, price: v.cost };
-      }
-    }
-    // Partial match: key contains program type or category name
-    if (key && tenantSettings.membership_programs) {
-      const keyLower = key.toLowerCase();
-      const p = tenantSettings.membership_programs.find(x => keyLower.includes(x.type.toLowerCase()));
-      if (p) return { name: p.type + " - " + p.duration_days, price: p.fee_per_month };
-    }
-    if (key && tenantSettings.fee_structure) {
-      const keyLower = key.toLowerCase();
-      for (const prog of tenantSettings.fee_structure) {
-        if (keyLower.includes(prog.program_name.toLowerCase().split(" ")[0].toLowerCase())) {
-          const price = prog.pricing_variants && prog.pricing_variants.length > 0 ? prog.pricing_variants[0].cost : 0;
-          return { name: prog.program_name, price };
-        }
-      }
-    }
-    // Fallback: format the raw key into a human-readable name
-    const readableName = key ? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "Unknown Plan";
-    return { name: readableName, price: 0 };
   }
 
   filtered.forEach(member => {
@@ -353,21 +319,6 @@ function renderFeeAlerts() {
   if (toRender.length === 0) {
     alertsListEl.innerHTML = `<div class="fee-alert-empty-filter">No ${currentFeeFilter === "overdue" ? "overdue" : "upcoming"} alerts right now.</div>`;
     return;
-  }
-
-  function getPlanDetails(key) {
-    if (!tenantSettings) return { name: key, price: 0 };
-    if (tenantSettings.membership_programs) {
-      const p = tenantSettings.membership_programs.find(x => x.key === key);
-      if (p) return { name: p.type + " - " + p.duration_days, price: p.fee_per_month };
-    }
-    if (tenantSettings.fee_structure) {
-      for (const prog of tenantSettings.fee_structure) {
-        const v = (prog.pricing_variants || []).find(x => x.key === key);
-        if (v) return { name: prog.program_name + " - " + v.frequency, price: v.cost };
-      }
-    }
-    return { name: key, price: 0 };
   }
 
   let lastKind = null;

@@ -2,7 +2,7 @@
 import {
   db, currentUser, courtsList, courtsMap, membersList, tenantSettings, defaultSettings,
   monthNames, escapeHTML, formatSelectedDate, showMsg, showInlineToast,
-  loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey,
+  loadMembers, setOnAuthReady, initApp, populateBookingDropdowns, populateCategoryDropdown, populatePeriodDropdown, resolvePlanKey, getPlanDetails,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   query, where, writeBatch, serverTimestamp, checkBookingConflicts, maskEmail, maskPhone, format12Hour, parse12HourTo24Hour,
   signOut, parseDays, openWhatsApp, isStrictCoach, formatCurrency
@@ -445,24 +445,20 @@ function calculateMonthlyRevenue() {
   let totalMembersRevenue = 0, totalCoachingRevenue = 0, totalPTRevenue = 0, totalGuestRevenue = 0;
   let membersCount = 0, coachingCount = 0, ptHours = 0, guestHours = 0;
 
-  // Build a lookup map of all pricing keys -> cost
-  const rateMap = {};
-  if (tenantSettings) {
-    (tenantSettings.membership_programs || []).forEach(p => rateMap[p.key] = p.fee_per_month);
-    (tenantSettings.fee_structure || []).forEach(prog => {
-      (prog.pricing_variants || []).forEach(v => rateMap[v.key] = v.cost);
-    });
-  }
-
   // ── Revenue from Members (active subscriptions) ──
   membersList.forEach(member => {
     if (member.status !== "active") return;
-    const planKey = member.type;
-    if (planKey && rateMap[planKey] !== undefined) {
-      const rate = rateMap[planKey];
-      if (planKey.startsWith("Individual_") || planKey.startsWith("Group_")) { totalMembersRevenue += rate; membersCount++; }
-      else if (planKey.startsWith("PT_") || planKey.toLowerCase().includes("personal")) { totalPTRevenue += rate; ptHours++; }
-      else { totalCoachingRevenue += rate; coachingCount++; }
+    const planDetails = getPlanDetails(member.type);
+    const rate = planDetails.price || 0;
+    if (planDetails.category === "membership") {
+      totalMembersRevenue += rate;
+      membersCount++;
+    } else if (planDetails.category === "pt") {
+      totalPTRevenue += rate;
+      ptHours++;
+    } else {
+      totalCoachingRevenue += rate;
+      coachingCount++;
     }
   });
 
@@ -559,23 +555,16 @@ async function renderModalEnrolleesList(bookingId) {
         li.className = "enrollee-list-item";
         li.style.marginBottom = "0.5rem";
         // Resolve plan display name from tenantSettings
-        let planName = member.type || "Unknown";
+        const planDetails = getPlanDetails(member.type);
+        const planName = planDetails.name;
         let planColor = "var(--accent4)";
         let planBg = "rgba(77, 171, 247, 0.12)";
-        if (tenantSettings) {
-          if (tenantSettings.membership_programs) {
-            const mp = tenantSettings.membership_programs.find(x => x.key === member.type);
-            if (mp) { planName = mp.type + " - " + mp.duration_days; planColor = "var(--accent)"; planBg = "rgba(0,212,169,0.12)"; }
-          }
-          if (planName === member.type && tenantSettings.fee_structure) {
-            for (const prog of tenantSettings.fee_structure) {
-              const v = (prog.pricing_variants || []).find(x => x.key === member.type);
-              if (v) { planName = prog.program_name + " - " + v.frequency; planColor = "var(--accent3)"; planBg = "rgba(255,107,107,0.12)"; break; }
-            }
-          }
+        if (planDetails.category === "membership") {
+          planColor = "var(--accent)"; planBg = "rgba(0,212,169,0.12)";
+        } else if (planDetails.category === "pt") {
+          planColor = "var(--accent3)"; planBg = "rgba(255,107,107,0.12)";
         }
-        if (planName === member.type && member.type) { planName = member.type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
-        const badgeHtml = `<span style="font-size:0.65rem; background:${planBg}; color:${planColor}; border:1px solid ${planColor}35; padding:1px 8px; border-radius:99px; font-weight:600;">${planName}</span>`;
+        const badgeHtml = `<span style="font-size:0.65rem; background:${planBg}; color:${planColor}; border:1px solid ${planColor}35; padding:1px 8px; border-radius:99px; font-weight:600;">${escapeHTML(planName)}</span>`;
         const infoDiv = document.createElement("div");
         infoDiv.className = "enrollee-list-item-info";
         infoDiv.innerHTML = `<span style="font-weight:600;">👤 ${escapeHTML(member.name)}</span><span class="enrollee-list-item-meta">Joined: <span>${escapeHTML(member.joinDate)}</span> | Paid: <span>${member.lastPaidDate === "" ? "Pending" : escapeHTML(member.lastPaidDate)}</span></span>`;

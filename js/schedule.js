@@ -4,7 +4,7 @@ import {
   showMsg, setOnAuthReady, initApp, checkBookingConflicts, maskEmail,
   bulkCancelMonthlyBookings, tenantSettings, populateBookingDropdowns, populateCategoryDropdown, openWhatsApp,
   collection, doc, getDocs, addDoc, deleteDoc, updateDoc,
-  query, where, serverTimestamp, format12Hour, isStrictCoach, parseLocalDate
+  query, where, serverTimestamp, format12Hour, isStrictCoach, parseLocalDate, getPlanDetails
 } from "./shared.js?v=3";
 
 let selectedDate = new Date();
@@ -390,23 +390,15 @@ async function renderModalEnrolleesList(bookingId) {
       if (data.status !== "active") return;
       activeCount++;
       const member = { id: d.id, ...data };
-      // Resolve plan display name from tenantSettings
-      let planName = member.type || "Unknown";
+      const planDetails = getPlanDetails(member.type);
+      const planName = planDetails.name;
       let planColor = "var(--accent4)";
       let planBg = "rgba(77,171,247,0.12)";
-      if (tenantSettings) {
-        if (tenantSettings.membership_programs) {
-          const mp = tenantSettings.membership_programs.find(x => x.key === member.type);
-          if (mp) { planName = mp.type + " - " + mp.duration_days; planColor = "var(--accent)"; planBg = "rgba(0,212,169,0.12)"; }
-        }
-        if (planName === member.type && tenantSettings.fee_structure) {
-          for (const prog of tenantSettings.fee_structure) {
-            const v = (prog.pricing_variants || []).find(x => x.key === member.type);
-            if (v) { planName = prog.program_name + " - " + v.frequency; planColor = "var(--accent3)"; planBg = "rgba(255,107,107,0.12)"; break; }
-          }
-        }
+      if (planDetails.category === "membership") {
+        planColor = "var(--accent)"; planBg = "rgba(0,212,169,0.12)";
+      } else if (planDetails.category === "pt") {
+        planColor = "var(--accent3)"; planBg = "rgba(255,107,107,0.12)";
       }
-      if (planName === member.type && member.type) { planName = member.type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
       const li = document.createElement("li");
       li.className = "enrollee-list-item"; li.style.marginBottom = "0.5rem";
       
