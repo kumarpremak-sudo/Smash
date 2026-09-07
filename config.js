@@ -1,10 +1,11 @@
-// Firebase Configuration placeholders
-// Replaced dynamically during GitHub Actions deployment
+// config.js — Dynamic Firebase Configuration placeholder
+// Ignored by Git (.gitignore). Populated locally via config.local.js
+// or dynamically generated in CI/CD (GitHub Actions) from repository secrets.
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCC9WBVMU172J_YGKxtpIhL2z726b_OKwY",
-  authDomain: "yesmash-2303e.firebaseapp.com",
-  projectId: "yesmash-2303e",
-  storageBucket: "yesmash-2303e.firebasestorage.app",
-  messagingSenderId: "268447651551",
-  appId: "1:268447651551:web:dfc38830979dfacad33b6a"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };

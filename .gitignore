@@ -1,2 +1,3 @@
-# Ignore local config overrides so credentials never get committed
+# Ignore local config overrides and runtime config credentials so credentials never get committed
 config.local.js
+config.js
