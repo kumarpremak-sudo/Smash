@@ -333,26 +333,8 @@ async function updateStats() {
     const currentYear = now.getFullYear();
     
     activeMembers.forEach(data => {
-      let isCoaching = false;
-      const typeStr = data.type ? String(data.type).toLowerCase() : "";
-      
-      if (tenantSettings && tenantSettings.fee_structure) {
-        for (const prog of tenantSettings.fee_structure) {
-          if (prog.pricing_variants && prog.pricing_variants.some(v => v.key === data.type)) {
-            isCoaching = true;
-            break;
-          }
-          if (prog.program_name && typeStr && typeStr.includes(String(prog.program_name).toLowerCase())) {
-            isCoaching = true;
-            break;
-          }
-        }
-      }
-      if (!isCoaching && typeStr) {
-        if (typeStr.includes("coaching") || typeStr.includes("advance") || typeStr.includes("personal") || typeStr.includes("tournament")) {
-          isCoaching = true;
-        }
-      }
+      const planDetails = getPlanDetails(data.type);
+      const isCoaching = planDetails.category === "coaching" || planDetails.category === "pt";
       
       if (isCoaching) {
         coachingStudentsCount++;
