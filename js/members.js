@@ -12,6 +12,57 @@ let currentFeeFilter = "all";
 let currentSearchTerm = "";
 let currentPlanFilter = "all";
 
+/**
+ * Checks whether a member's stored plan type matches the currently selected
+ * plan filter key.  Member `type` can be stored as:
+ *   1. A canonical variant key (e.g. "Kids_5d")
+ *   2. A fallback string     (e.g. "Kids Coaching - 5 Days/Week")
+ *   3. A bare program name   (e.g. "Kids Coaching")
+ * The filter dropdown always uses the variant key as the option value, so a
+ * strict equality check fails for cases 2 and 3.
+ */
+function matchesPlanFilter(memberType, filterKey) {
+  if (!memberType || !filterKey) return false;
+  if (memberType === filterKey) return true;
+
+  const normalize = str => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const memberNorm = normalize(memberType);
+  const filterNorm = normalize(filterKey);
+  if (memberNorm === filterNorm) return true;
+
+  if (tenantSettings) {
+    if (tenantSettings.fee_structure) {
+      for (const prog of tenantSettings.fee_structure) {
+        if (!prog || !prog.pricing_variants) continue;
+        for (const v of prog.pricing_variants) {
+          if (v.key !== filterKey) continue;
+          if (memberType === prog.program_name) return true;
+          if (memberType === `${prog.program_name} - ${v.frequency}`) return true;
+          const progNorm = normalize(prog.program_name);
+          const freqNorm = normalize(v.frequency);
+          if (memberNorm === normalize(`${prog.program_name}${v.frequency}`)) return true;
+          if (progNorm && freqNorm && memberNorm.includes(progNorm) && memberNorm.includes(freqNorm)) return true;
+          if (memberNorm === progNorm) return true;
+          return false;
+        }
+      }
+    }
+
+    if (tenantSettings.membership_programs) {
+      for (const p of tenantSettings.membership_programs) {
+        if (p.key !== filterKey) continue;
+        if (memberType === p.type) return true;
+        if (memberType === `${p.type} - ${p.duration_days}`) return true;
+        if (memberNorm === normalize(p.type)) return true;
+        if (memberNorm === normalize(`${p.type}${p.duration_days}`)) return true;
+        return false;
+      }
+    }
+  }
+
+  return false;
+}
+
 setOnAuthReady(async (user) => {
   if (isStrictCoach(user)) {
     window.location.href = "coach.html";
@@ -113,7 +164,7 @@ function renderMembersTable() {
 
   let filtered = membersList.filter(m => m.status === "active");
   if (currentSearchTerm) filtered = filtered.filter(m => m.name && m.name.toLowerCase().includes(currentSearchTerm));
-  if (currentPlanFilter !== "all") filtered = filtered.filter(m => m.type === currentPlanFilter);
+  if (currentPlanFilter !== "all") filtered = filtered.filter(m => matchesPlanFilter(m.type, currentPlanFilter));
 
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="members-empty-state"><div class="empty-icon">👥</div><p>No members found matching your filters.</p></div></td></tr>`;
